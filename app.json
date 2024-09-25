@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "WeBibleApp",
-    "slug": "WeBibleApp",
+    "name": "we-bible-app",
+    "slug": "we-bible-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
