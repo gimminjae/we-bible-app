@@ -1,5 +1,6 @@
-import { ScrollView, StatusBar } from "react-native"
+import { SafeAreaView, ScrollView, StyleSheet, StatusBar } from "react-native"
 import WebView from "react-native-webview"
+// import { SafeAreaView } from "react-native-safe-area-context"
 
 export default function HomeScreen() {
   const handleWebViewMessage = (event: { nativeEvent: { data: string } }) => {
@@ -12,15 +13,26 @@ export default function HomeScreen() {
 
   return (
     <>
-      {/* #26a69a */}
-      <StatusBar backgroundColor="black" />
-      <WebView
-        style={{ marginTop: "5%" }}
-        source={{
-          uri: `https://master.d27x1qtivql6on.amplifyapp.com/bible-page`,
-        }}
-        onMessage={(event) => handleWebViewMessage(event)}
-      />
+      <SafeAreaView style={styles.container}>
+        {/* #26a69a */}
+        <StatusBar backgroundColor="black" />
+        <WebView
+          // style={{ marginTop: "5%" }}
+          source={{
+            uri: `https://app.we-bible.com/bible-page`,
+          }}
+          onMessage={(event) => handleWebViewMessage(event)}
+        />
+      </SafeAreaView>
     </>
   )
 }
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  text: {
+    fontSize: 25,
+    fontWeight: "500",
+  },
+})
