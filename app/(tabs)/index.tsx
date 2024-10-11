@@ -4,8 +4,14 @@ import WebView from "react-native-webview"
 
 export default function HomeScreen() {
   const handleWebViewMessage = (event: { nativeEvent: { data: string } }) => {
-    const data: any = JSON.parse(event.nativeEvent.data)
+    const sendData: any = JSON.parse(event.nativeEvent.data)
     // 웹뷰에서 보내는 데이터
+    console.log("message: ", sendData)
+    const { type, data } = sendData
+    if (type === "DB") {
+      const { command, table, data: dbData } = data
+      console.log(command, table, dbData)
+    }
     if (data.type === "data" && data.data) {
       console.log(data)
     }
@@ -20,6 +26,7 @@ export default function HomeScreen() {
           // style={{ marginTop: "5%" }}
           source={{
             uri: `https://app.we-bible.com/bible-page`,
+            // uri: `http://localhost:3000/bible-page`,
           }}
           onMessage={(event) => handleWebViewMessage(event)}
         />
