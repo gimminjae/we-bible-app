@@ -1,20 +1,22 @@
 import { SafeAreaView, ScrollView, StyleSheet, StatusBar } from "react-native"
 import WebView from "react-native-webview"
-// import { SafeAreaView } from "react-native-safe-area-context"
+import * as Clipboard from "expo-clipboard"
 
 export default function HomeScreen() {
   const handleWebViewMessage = (event: { nativeEvent: { data: string } }) => {
     const sendData: any = JSON.parse(event.nativeEvent.data)
     // 웹뷰에서 보내는 데이터
-    console.log("message: ", sendData)
     const { type, data } = sendData
     if (type === "DB") {
       const { command, table, data: dbData } = data
       console.log(command, table, dbData)
     }
-    if (data.type === "data" && data.data) {
-      console.log(data)
+    if (type === "copy") {
+      copyToClipboard(data)
     }
+  }
+  const copyToClipboard = async (content: string) => {
+    await Clipboard.setStringAsync(content)
   }
 
   return (
