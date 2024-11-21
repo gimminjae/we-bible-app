@@ -1,4 +1,5 @@
-import { SafeAreaView, ScrollView, StyleSheet, StatusBar } from "react-native"
+import { SafeAreaView, ScrollView, StyleSheet } from "react-native"
+import { StatusBar } from "expo-status-bar"
 import WebView from "react-native-webview"
 import * as Clipboard from "expo-clipboard"
 
@@ -23,7 +24,7 @@ export default function HomeScreen() {
     <>
       <SafeAreaView style={styles.container}>
         {/* #26a69a */}
-        <StatusBar backgroundColor="black" />
+        <StatusBar backgroundColor="black" hidden={false} />
         <WebView
           // style={{ marginTop: "5%" }}
           source={{
