@@ -1,19 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
-import {
-  Modal,
-  ModalBackdrop,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-} from '@gluestack-ui/config';
+import type { BibleVerse } from '@/domain/bible/bible';
 import bibleService, {
   bibleInfos,
   getBookName,
   versions,
 } from '@/services/bible';
-import type { BibleVerse } from '@/domain/bible/bible';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 const LANG_OPTIONS = versions.filter((v) => v.val === 'ko' || v.val === 'en');
 const BOOKS = bibleInfos.filter((b) => b.bookSeq > 0);
@@ -163,51 +155,65 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Book/Chapter Modal */}
-      <Modal isOpen={showBookModal} onClose={() => setShowBookModal(false)} size="full">
-        <ModalBackdrop />
-        <ModalContent>
-          <ModalHeader>
-            <View className="flex-1 flex-row items-center justify-between">
+      {/* Book/Chapter Drawer (왼쪽에서 나오는 드로어) */}
+      {showBookModal && (
+        <View className="absolute inset-0 flex-row">
+          {/* 반투명 배경 */}
+          <Pressable
+            className="flex-1 bg-black/40"
+            onPress={() => setShowBookModal(false)}
+          />
+
+          {/* Drawer 본체 */}
+          <View className="w-72 max-w-[80%] h-full bg-white dark:bg-gray-900 shadow-2xl">
+            {/* 헤더 */}
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <Text className="text-lg font-semibold text-gray-900 dark:text-white">
                 {pickerStep === 'book' ? '성경 책 선택' : '장 선택'}
               </Text>
-              <ModalCloseButton onPress={() => setShowBookModal(false)} />
+              <Pressable
+                onPress={() =>
+                  pickerStep === 'chapter'
+                    ? setPickerStep('book')
+                    : setShowBookModal(false)
+                }
+                className="px-2 py-1 rounded-lg active:opacity-80"
+              >
+                <Text className="text-sm text-blue-500 font-medium">
+                  {pickerStep === 'chapter' ? '책 목록' : '닫기'}
+                </Text>
+              </Pressable>
             </View>
-          </ModalHeader>
-          <ModalBody>
-            {pickerStep === 'book' ? (
-              <ScrollView style={{ maxHeight: 384 }}>
-                {BOOKS.map((b) => (
+
+            {/* 내용 */}
+            <ScrollView className="py-2">
+              {pickerStep === 'book'
+                ? BOOKS.map((b) => (
                   <Pressable
                     key={b.bookCode}
                     onPress={() => selectBook(b.bookCode)}
-                    className="py-3 px-2 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+                    className="py-3 px-4 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
                   >
                     <Text className="text-base text-gray-900 dark:text-white">
                       {getBookName(b.bookCode, lang)} ({b.maxChapter}장)
                     </Text>
                   </Pressable>
-                ))}
-              </ScrollView>
-            ) : (
-              <ScrollView style={{ maxHeight: 384 }}>
-                {Array.from({ length: maxChapter }, (_, i) => i + 1).map((ch) => (
+                ))
+                : Array.from({ length: maxChapter }, (_, i) => i + 1).map((ch) => (
                   <Pressable
                     key={ch}
                     onPress={() => selectChapter(ch)}
-                    className="py-3 px-2 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+                    className="py-3 px-4 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
                   >
                     <Text className="text-base text-gray-900 dark:text-white">
                       {bookName} {ch}장
                     </Text>
                   </Pressable>
                 ))}
-              </ScrollView>
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+            </ScrollView>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
