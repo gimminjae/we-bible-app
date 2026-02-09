@@ -1,98 +1,213 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  Modal,
+  ModalBackdrop,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+} from '@gluestack-ui/config';
+import bibleService, {
+  bibleInfos,
+  getBookName,
+  versions,
+} from '@/services/bible';
+import type { BibleVerse } from '@/domain/bible/bible';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const LANG_OPTIONS = versions.filter((v) => v.val === 'ko' || v.val === 'en');
+const BOOKS = bibleInfos.filter((b) => b.bookSeq > 0);
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [bookCode, setBookCode] = useState('genesis');
+  const [chapter, setChapter] = useState(1);
+  const [lang, setLang] = useState<'ko' | 'en'>('ko');
+  const [verses, setVerses] = useState<BibleVerse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [pickerStep, setPickerStep] = useState<'book' | 'chapter'>('book');
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const currentBook = BOOKS.find((b) => b.bookCode === bookCode);
+  const bookName = getBookName(bookCode, lang);
+  const maxChapter = currentBook?.maxChapter ?? 1;
+
+  const loadBible = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await bibleService.getBible({
+        bookCode,
+        chapter,
+        lang,
+      });
+      setVerses(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load');
+      setVerses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [bookCode, chapter, lang]);
+
+  useEffect(() => {
+    loadBible();
+  }, [loadBible]);
+
+  const goPrevChapter = () => {
+    if (chapter > 1) setChapter((c) => c - 1);
+    else {
+      const idx = BOOKS.findIndex((b) => b.bookCode === bookCode);
+      if (idx > 0) {
+        const prev = BOOKS[idx - 1];
+        setBookCode(prev.bookCode);
+        setChapter(prev.maxChapter);
+      }
+    }
+  };
+
+  const goNextChapter = () => {
+    if (chapter < maxChapter) setChapter((c) => c + 1);
+    else {
+      const idx = BOOKS.findIndex((b) => b.bookCode === bookCode);
+      if (idx >= 0 && idx < BOOKS.length - 1) {
+        setBookCode(BOOKS[idx + 1].bookCode);
+        setChapter(1);
+      }
+    }
+  };
+
+  const openBookPicker = () => {
+    setPickerStep('book');
+    setShowBookModal(true);
+  };
+
+  const selectBook = (code: string) => {
+    setBookCode(code);
+    setPickerStep('chapter');
+  };
+
+  const selectChapter = (ch: number) => {
+    setChapter(ch);
+    setShowBookModal(false);
+  };
+
+  return (
+    <View className="flex-1 bg-white dark:bg-gray-900">
+      {/* Header: 성경 선택 + 언어 선택 */}
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <Pressable
+          onPress={openBookPicker}
+          className="flex-row items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 active:opacity-80"
+        >
+          <Text className="text-base font-semibold text-gray-900 dark:text-white">
+            {bookName} {chapter}
+          </Text>
+        </Pressable>
+        <View className="flex-row items-center gap-1">
+          {LANG_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.val}
+              onPress={() => setLang(opt.val as 'ko' | 'en')}
+              className={`px-3 py-2 rounded-lg ${lang === opt.val ? 'bg-blue-500' : 'bg-gray-100 dark:bg-gray-800'}`}
+            >
+              <Text
+                className={`text-sm font-medium ${lang === opt.val ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
+              >
+                {opt.txt}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        className="flex-1 px-4 py-4"
+        contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <View className="py-12 items-center">
+            <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
+        ) : error ? (
+          <Text className="text-red-500 text-center py-8">{error}</Text>
+        ) : (
+          verses.map((v, i) => (
+            <View key={i} className="flex-row gap-2 mb-3">
+              <Text className="text-sm font-semibold text-blue-600 dark:text-blue-400 min-w-[24px]">
+                {v.verse ?? i + 1}
+              </Text>
+              <Text className="flex-1 text-base text-gray-900 dark:text-gray-100 leading-6">
+                {v.content ?? ''}
+              </Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* Prev/Next chapter */}
+      <View className="absolute bottom-4 left-0 right-0 flex-row justify-center gap-4">
+        <Pressable
+          onPress={goPrevChapter}
+          className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center active:opacity-80"
+        >
+          <Text className="text-white text-xl">←</Text>
+        </Pressable>
+        <Pressable
+          onPress={goNextChapter}
+          className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center active:opacity-80"
+        >
+          <Text className="text-white text-xl">→</Text>
+        </Pressable>
+      </View>
+
+      {/* Book/Chapter Modal */}
+      <Modal isOpen={showBookModal} onClose={() => setShowBookModal(false)} size="full">
+        <ModalBackdrop />
+        <ModalContent>
+          <ModalHeader>
+            <View className="flex-1 flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                {pickerStep === 'book' ? '성경 책 선택' : '장 선택'}
+              </Text>
+              <ModalCloseButton onPress={() => setShowBookModal(false)} />
+            </View>
+          </ModalHeader>
+          <ModalBody>
+            {pickerStep === 'book' ? (
+              <ScrollView style={{ maxHeight: 384 }}>
+                {BOOKS.map((b) => (
+                  <Pressable
+                    key={b.bookCode}
+                    onPress={() => selectBook(b.bookCode)}
+                    className="py-3 px-2 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+                  >
+                    <Text className="text-base text-gray-900 dark:text-white">
+                      {getBookName(b.bookCode, lang)} ({b.maxChapter}장)
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <ScrollView style={{ maxHeight: 384 }}>
+                {Array.from({ length: maxChapter }, (_, i) => i + 1).map((ch) => (
+                  <Pressable
+                    key={ch}
+                    onPress={() => selectChapter(ch)}
+                    className="py-3 px-2 border-b border-gray-100 dark:border-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+                  >
+                    <Text className="text-base text-gray-900 dark:text-white">
+                      {bookName} {ch}장
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
