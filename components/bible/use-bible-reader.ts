@@ -2,6 +2,7 @@ import { useBibleQuery } from '@/hooks/use-bible-query';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
 import { makeCopyBibles } from '@/utils/bible.util';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 import type { BibleLang } from './types';
@@ -116,11 +117,17 @@ export function useBibleReader() {
   }, [secondaryLang]);
 
   const toggleVerseSelection = useCallback((verseNumber: number) => {
-    setSelectedVerseNumbers((prev) =>
-      prev.includes(verseNumber)
-        ? prev.filter((n) => n !== verseNumber)
-        : [...prev, verseNumber]
-    );
+    setSelectedVerseNumbers((prev) => {
+      if (prev.includes(verseNumber)) {
+        // 선택 해제: 진동 없음
+        return prev.filter((n) => n !== verseNumber);
+      }
+      // 새로 선택될 때만 약한 진동
+      if (Platform.OS !== 'web') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      return [...prev, verseNumber];
+    });
   }, []);
 
   const clearVerseSelection = useCallback(() => setSelectedVerseNumbers([]), []);
