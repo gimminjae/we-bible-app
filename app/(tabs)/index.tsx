@@ -6,11 +6,33 @@ import { LanguageDrawer } from '@/components/bible/language-drawer';
 import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const NAV_HIDE_DELAY_MS = 3000;
+
 export default function HomeScreen() {
   const bible = useBibleReader();
+  const [navVisible, setNavVisible] = useState(true);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleNavHide = useCallback(() => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => setNavVisible(false), NAV_HIDE_DELAY_MS);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    setNavVisible(true);
+    scheduleNavHide();
+  }, [scheduleNavHide]);
+
+  useEffect(() => {
+    scheduleNavHide();
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, [scheduleNavHide]);
 
   return (
     <SafeAreaView
@@ -33,9 +55,16 @@ export default function HomeScreen() {
           verses={bible.verses}
           dualLang={bible.dualLang}
           fontScale={bible.fontScale}
+          onSwipePrev={bible.goPrevChapter}
+          onSwipeNext={bible.goNextChapter}
+          onScroll={handleScroll}
         />
 
-        <ChapterNav onPrev={bible.goPrevChapter} onNext={bible.goNextChapter} />
+        <ChapterNav
+          visible={navVisible}
+          onPrev={bible.goPrevChapter}
+          onNext={bible.goNextChapter}
+        />
 
         <BookChapterDrawer
           isOpen={bible.showBookDrawer}

@@ -1,7 +1,7 @@
-import type { BibleVerse } from '@/domain/bible/bible';
-import bibleService, { bibleInfos, getBookName, versions } from '@/services/bible';
-import { useCallback, useEffect, useState } from 'react';
-import type { BibleLang, DisplayVerse } from './types';
+import { useBibleQuery } from '@/hooks/use-bible-query';
+import { bibleInfos, getBookName, versions } from '@/services/bible';
+import { useCallback, useState } from 'react';
+import type { BibleLang } from './types';
 
 const BOOKS = bibleInfos.filter((b) => b.bookSeq > 0);
 const LANG_OPTIONS = versions;
@@ -15,58 +15,25 @@ export function useBibleReader() {
   const [dualLang, setDualLang] = useState(false);
   const [fontScale, setFontScale] = useState(1);
 
-  const [verses, setVerses] = useState<DisplayVerse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [showBookDrawer, setShowBookDrawer] = useState(false);
   const [pickerStep, setPickerStep] = useState<'book' | 'chapter'>('book');
   const [showLangDrawer, setShowLangDrawer] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
 
+  const { data: verses = [], isLoading: loading, error: queryError } = useBibleQuery({
+    bookCode,
+    chapter,
+    primaryLang,
+    dualLang,
+    secondaryLang,
+  });
+
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load') : null;
+
   const currentBook = BOOKS.find((b) => b.bookCode === bookCode);
   const bookName = getBookName(bookCode, primaryLang);
   const maxChapter = currentBook?.maxChapter ?? 1;
-
-  const loadBible = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (dualLang) {
-        const [primaryData, secondaryData] = await Promise.all([
-          bibleService.getBible({ bookCode, chapter, lang: primaryLang }),
-          bibleService.getBible({ bookCode, chapter, lang: secondaryLang }),
-        ]);
-        const normalizedPrimary: BibleVerse[] = Array.isArray(primaryData) ? primaryData : [];
-        const normalizedSecondary: BibleVerse[] = Array.isArray(secondaryData) ? secondaryData : [];
-        const merged: DisplayVerse[] = normalizedPrimary.map((p, index) => ({
-          verse: p.verse ?? index + 1,
-          primary: p.content ?? '',
-          secondary: normalizedSecondary[index]?.content ?? '',
-        }));
-        setVerses(merged);
-      } else {
-        const data = await bibleService.getBible({ bookCode, chapter, lang: primaryLang });
-        const normalized: BibleVerse[] = Array.isArray(data) ? data : [];
-        setVerses(
-          normalized.map((v, index) => ({
-            verse: v.verse ?? index + 1,
-            primary: v.content ?? '',
-          }))
-        );
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
-      setVerses([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [bookCode, chapter, primaryLang, dualLang, secondaryLang]);
-
-  useEffect(() => {
-    loadBible();
-  }, [loadBible]);
 
   const goPrevChapter = useCallback(() => {
     if (chapter > 1) {
@@ -163,7 +130,6 @@ export function useBibleReader() {
     showLangDrawer,
     showSettingsDrawer,
     // actions
-    loadBible,
     goPrevChapter,
     goNextChapter,
     openBookPicker,
