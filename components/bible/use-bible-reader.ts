@@ -1,7 +1,18 @@
 import { useBibleQuery } from '@/hooks/use-bible-query';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
+import { makeCopyBibles } from '@/utils/bible.util';
+import * as Clipboard from 'expo-clipboard';
 import { useCallback, useState } from 'react';
+import { Platform } from 'react-native';
 import type { BibleLang } from './types';
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  await Clipboard.setStringAsync(text);
+}
 
 const BOOKS = bibleInfos.filter((b) => b.bookSeq > 0);
 const LANG_OPTIONS = versions;
@@ -20,6 +31,7 @@ export function useBibleReader() {
   const [showLangDrawer, setShowLangDrawer] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
+  const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
 
   const { data: verses = [], isLoading: loading, error: queryError } = useBibleQuery({
     bookCode,
@@ -103,6 +115,33 @@ export function useBibleReader() {
     setShowLangDrawer(false);
   }, [secondaryLang]);
 
+  const toggleVerseSelection = useCallback((verseNumber: number) => {
+    setSelectedVerseNumbers((prev) =>
+      prev.includes(verseNumber)
+        ? prev.filter((n) => n !== verseNumber)
+        : [...prev, verseNumber]
+    );
+  }, []);
+
+  const clearVerseSelection = useCallback(() => setSelectedVerseNumbers([]), []);
+
+  const copySelectedVerses = useCallback(async () => {
+    if (!selectedVerseNumbers.length || !bookName) return;
+    // 절 번호별로 첫 번째 매칭만 사용 (영어 등 API 중복 응답 방지)
+    const uniqueVerseNumbers = [...new Set(selectedVerseNumbers)].sort((a, b) => a - b);
+    const contentList = uniqueVerseNumbers
+      .map((verseNum) => {
+        const v = verses.find((x) => x.verse === verseNum);
+        return v ? { verse: v.verse, content: v.primary, bookName, chapter } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+    const text = makeCopyBibles(contentList);
+    if (text) {
+      await copyTextToClipboard(text);
+      setSelectedVerseNumbers([]);
+    }
+  }, [selectedVerseNumbers, verses, bookName, chapter]);
+
   const langLabel = primaryLang === 'ko' ? '한국어' : primaryLang === 'en' ? 'English' : 'German';
 
   return {
@@ -118,6 +157,7 @@ export function useBibleReader() {
     verses,
     loading,
     error,
+    selectedVerseNumbers,
     pickerStep,
     showSecondarySelector,
     BOOKS,
@@ -141,6 +181,9 @@ export function useBibleReader() {
     closeLangDrawer,
     closeSettingsDrawer,
     onSelectPrimaryLang,
+    toggleVerseSelection,
+    clearVerseSelection,
+    copySelectedVerses,
     setDualLang,
     setSecondaryLang,
     setShowSecondarySelector,

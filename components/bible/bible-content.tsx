@@ -1,5 +1,5 @@
 import { Spinner } from '@gluestack-ui/themed';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import type { DisplayVerse } from './types';
@@ -13,6 +13,8 @@ type BibleContentProps = {
   verses: DisplayVerse[];
   dualLang: boolean;
   fontScale: number;
+  selectedVerseNumbers?: number[];
+  onVersePress?: (verseNumber: number) => void;
   onSwipePrev?: () => void;
   onSwipeNext?: () => void;
   onScroll?: () => void;
@@ -24,6 +26,8 @@ export function BibleContent({
   verses,
   dualLang,
   fontScale,
+  selectedVerseNumbers = [],
+  onVersePress,
   onSwipePrev,
   onSwipeNext,
   onScroll,
@@ -60,36 +64,46 @@ export function BibleContent({
             </View>
           ) : (
             <View className="gap-4">
-              {verses.map((v, i) => (
-                <View
-                  key={i}
-                  className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
-                >
-                  <View className="w-7 items-center pt-0.5">
-                    <View className="min-w-[24px] h-6 rounded-md bg-primary-100 dark:bg-primary-900/50 items-center justify-center px-1">
-                      <Text className="text-xs font-bold text-primary-600 dark:text-primary-400">
-                        {v.verse ?? i + 1}
+              {verses.map((v, i) => {
+                const verseNum = v.verse ?? i + 1;
+                const isSelected = selectedVerseNumbers.includes(verseNum);
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => onVersePress?.(verseNum)}
+                    className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                  >
+                    <View className="w-7 items-start pt-0.5">
+                      <Text
+                        className="text-gray-900 dark:text-gray-100 text-[15px] leading-6"
+                        style={{ fontSize: 16 * fontScale, lineHeight: 24 * fontScale }}
+                      >
+                        {verseNum}
                       </Text>
                     </View>
-                  </View>
-                  <View className="flex-1">
-                    <Text
-                      className="text-gray-900 dark:text-gray-100 text-[15px] leading-6"
-                      style={{ fontSize: 16 * fontScale, lineHeight: 24 * fontScale }}
-                    >
-                      {v.primary}
-                    </Text>
-                    {dualLang && v.secondary ? (
+                    <View className="flex-1">
                       <Text
-                        className="text-gray-600 dark:text-gray-400 text-sm mt-1 leading-5"
-                        style={{ fontSize: 14 * fontScale, lineHeight: 20 * fontScale }}
+                        className={`text-gray-900 dark:text-gray-100 text-[15px] leading-6 ${isSelected ? 'underline decoration-dotted' : ''}`}
+                        style={[
+                          { fontSize: 16 * fontScale, lineHeight: 24 * fontScale },
+                        ]}
                       >
-                        {v.secondary}
+                        {v.primary}
                       </Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))}
+                      {dualLang && v.secondary ? (
+                        <Text
+                          className="text-gray-600 dark:text-gray-400 text-sm mt-1 leading-5"
+                          style={[
+                            { fontSize: 14 * fontScale, lineHeight: 20 * fontScale },
+                          ]}
+                        >
+                          {v.secondary}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </ScrollView>

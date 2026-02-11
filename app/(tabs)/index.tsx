@@ -7,8 +7,15 @@ import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const COPY_BUTTON_FADE_DURATION = 300;
 
 const NAV_HIDE_DELAY_MS = 3000;
 
@@ -34,6 +41,18 @@ export default function HomeScreen() {
     };
   }, [scheduleNavHide]);
 
+  const copyButtonVisible = bible.selectedVerseNumbers.length > 0;
+  const copyButtonOpacity = useSharedValue(copyButtonVisible ? 1 : 0);
+  useEffect(() => {
+    copyButtonOpacity.value = withTiming(
+      copyButtonVisible ? 1 : 0,
+      { duration: COPY_BUTTON_FADE_DURATION }
+    );
+  }, [copyButtonVisible, copyButtonOpacity]);
+  const copyButtonStyle = useAnimatedStyle(() => ({
+    opacity: copyButtonOpacity.value,
+  }));
+
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
@@ -55,10 +74,24 @@ export default function HomeScreen() {
           verses={bible.verses}
           dualLang={bible.dualLang}
           fontScale={bible.fontScale}
+          selectedVerseNumbers={bible.selectedVerseNumbers}
+          onVersePress={bible.toggleVerseSelection}
           onSwipePrev={bible.goPrevChapter}
           onSwipeNext={bible.goNextChapter}
           onScroll={handleScroll}
         />
+
+        <Animated.View
+          pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
+          style={[copyButtonStyle, { position: 'absolute', bottom: 96, left: 0, right: 0, alignItems: 'center' }]}
+        >
+          <Pressable
+            onPress={bible.copySelectedVerses}
+            className="bg-primary-500 px-6 py-3 rounded-full shadow-lg active:opacity-90"
+          >
+            <Text className="text-white font-semibold">복사</Text>
+          </Pressable>
+        </Animated.View>
 
         <ChapterNav
           visible={navVisible}
