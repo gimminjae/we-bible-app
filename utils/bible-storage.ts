@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
+const APP_THEME_KEY = 'appTheme';
 const BIBLE_STATE_TABLE = 'bible_state';
 const MAX_AGE = 60 * 60 * 24 * 365; // 1년
 
@@ -86,4 +87,25 @@ export async function setBibleSearchInfo(
     setCookie(BIBLE_SEARCH_INFO_KEY, JSON.stringify(info));
   }
   if (db) await setBibleSearchInfoToDb(db, info);
+}
+
+export type AppTheme = 'light' | 'dark';
+
+/** DB에 저장된 테마 조회. 없으면 null */
+export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    APP_THEME_KEY
+  );
+  if (row?.value === 'light' || row?.value === 'dark') return row.value;
+  return null;
+}
+
+/** DB에 테마 저장 */
+export async function setAppThemeToDb(db: SQLiteDatabase, theme: AppTheme): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    APP_THEME_KEY,
+    theme
+  );
 }

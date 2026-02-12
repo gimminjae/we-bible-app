@@ -2,19 +2,19 @@ import '../global.css';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SQLiteProvider } from 'expo-sqlite';
 import { Stack } from 'expo-router';
+import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
+import '@/global.css';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
 import { initMemosTable } from '@/utils/memo-db';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import '@/global.css';
 
 async function initDb(db: SQLiteDatabase) {
   await initFavoriteVersesTable(db);
@@ -48,11 +48,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AppSettingsProvider>
-          <SQLiteProvider databaseName="we-bible.db" onInit={initDb}>
+        <SQLiteProvider databaseName="we-bible.db" onInit={initDb}>
+          <AppSettingsProvider>
             <RootLayoutContent />
-          </SQLiteProvider>
-        </AppSettingsProvider>
+          </AppSettingsProvider>
+        </SQLiteProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
