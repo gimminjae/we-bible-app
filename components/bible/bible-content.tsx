@@ -1,4 +1,5 @@
 import { Spinner } from '@gluestack-ui/themed';
+import { useCallback } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -32,6 +33,13 @@ export function BibleContent({
   onSwipeNext,
   onScroll,
 }: BibleContentProps) {
+  const handleVersePress = useCallback(
+    (verseNumber: number) => {
+      onVersePress?.(verseNumber);
+    },
+    [onVersePress]
+  );
+
   const panGesture = Gesture.Pan()
     .activeOffsetX([-35, 35])
     .failOffsetY([-30, 30])
@@ -70,7 +78,7 @@ export function BibleContent({
                 return (
                   <Pressable
                     key={i}
-                    onPress={() => onVersePress?.(verseNum)}
+                    onPress={() => handleVersePress(verseNum)}
                     className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                   >
                     <View className="w-7 items-start pt-0.5">

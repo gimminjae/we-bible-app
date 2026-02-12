@@ -34,7 +34,7 @@ export default function HomeScreen() {
     scheduleNavHide();
   }, [scheduleNavHide]);
 
-  useEffect(() => {
+  const scheduleNavHideOnMount = useCallback(() => {
     scheduleNavHide();
     return () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -43,12 +43,34 @@ export default function HomeScreen() {
 
   const copyButtonVisible = bible.selectedVerseNumbers.length > 0;
   const copyButtonOpacity = useSharedValue(copyButtonVisible ? 1 : 0);
-  useEffect(() => {
+  const syncCopyButtonOpacityToVisible = useCallback(() => {
     copyButtonOpacity.value = withTiming(
       copyButtonVisible ? 1 : 0,
       { duration: COPY_BUTTON_FADE_DURATION }
     );
   }, [copyButtonVisible, copyButtonOpacity]);
+
+  useEffect(scheduleNavHideOnMount, [scheduleNavHideOnMount]);
+  useEffect(syncCopyButtonOpacityToVisible, [syncCopyButtonOpacityToVisible]);
+
+  const handleBackToBookList = useCallback(() => {
+    bible.setPickerStep('book');
+  }, [bible]);
+
+  const handleSecondaryLangChange = useCallback(
+    (val: string) => {
+      bible.setSecondaryLang(val as BibleLang);
+    },
+    [bible]
+  );
+
+  const handleToggleSecondarySelector = useCallback(() => {
+    bible.setShowSecondarySelector((prev) => !prev);
+  }, [bible]);
+
+  const handleCloseSecondarySelector = useCallback(() => {
+    bible.setShowSecondarySelector(false);
+  }, [bible]);
   const copyButtonStyle = useAnimatedStyle(() => ({
     opacity: copyButtonOpacity.value,
   }));
@@ -83,7 +105,8 @@ export default function HomeScreen() {
 
         <Animated.View
           pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
-          style={[copyButtonStyle, { position: 'absolute', bottom: 96, left: 0, right: 0, alignItems: 'center' }]}
+          style={copyButtonStyle}
+          className="absolute bottom-6 left-0 right-0 items-center"
         >
           <Pressable
             onPress={bible.copySelectedVerses}
@@ -94,7 +117,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         <ChapterNav
-          visible={navVisible}
+          visible={navVisible && !copyButtonVisible}
           onPrev={bible.goPrevChapter}
           onNext={bible.goNextChapter}
         />
@@ -110,7 +133,7 @@ export default function HomeScreen() {
           getBookName={bible.getBookName}
           onSelectBook={bible.selectBook}
           onSelectChapter={bible.selectChapter}
-          onBackToBookList={() => bible.setPickerStep('book')}
+          onBackToBookList={handleBackToBookList}
         />
 
         <LanguageDrawer
@@ -128,14 +151,10 @@ export default function HomeScreen() {
           secondaryLang={bible.secondaryLang}
           versions={bible.versions}
           primaryLang={bible.primaryLang}
-          onSecondaryLangChange={(val: string) =>
-            bible.setSecondaryLang(val as BibleLang)
-          }
+          onSecondaryLangChange={handleSecondaryLangChange}
           showSecondarySelector={bible.showSecondarySelector}
-          onToggleSecondarySelector={() =>
-            bible.setShowSecondarySelector((prev) => !prev)
-          }
-          onCloseSecondarySelector={() => bible.setShowSecondarySelector(false)}
+          onToggleSecondarySelector={handleToggleSecondarySelector}
+          onCloseSecondarySelector={handleCloseSecondarySelector}
           fontScale={bible.fontScale}
           onFontScaleChange={bible.setFontScale}
           fontSteps={bible.FONT_STEPS}

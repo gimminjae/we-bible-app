@@ -1,5 +1,15 @@
 export type BibleLang = 'ko' | 'en' | 'de';
 
+/** 저장용 성경 검색/읽기 정보 (cookie → localStorage → sqlite 순으로 저장) */
+export type BibleSearchInfo = {
+  bookCode: string;
+  chapter: number;
+  primaryLang: BibleLang;
+  fontScale: number;
+  dualLang: boolean;
+  secondaryLang: BibleLang;
+};
+
 export type DisplayVerse = {
   verse: number;
   primary: string;

@@ -1,4 +1,5 @@
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { useCallback } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import type { VersionOption } from './types';
 
@@ -35,6 +36,39 @@ export function SettingsDrawer({
   onFontScaleChange,
   fontSteps,
 }: SettingsDrawerProps) {
+  const handleDualLangValueChange = useCallback(
+    (val: boolean) => {
+      onDualLangChange(val);
+      if (val && secondaryLang === primaryLang) {
+        const fallback =
+          (versions.find((v) => v.val !== primaryLang)?.val as 'ko' | 'en' | 'de') ?? 'ko';
+        onSecondaryLangChange(fallback);
+      }
+    },
+    [
+      onDualLangChange,
+      onSecondaryLangChange,
+      primaryLang,
+      secondaryLang,
+      versions,
+    ]
+  );
+
+  const handleSelectSecondaryLang = useCallback(
+    (val: string) => {
+      onSecondaryLangChange(val);
+      onCloseSecondarySelector();
+    },
+    [onSecondaryLangChange, onCloseSecondarySelector]
+  );
+
+  const handleFontScalePress = useCallback(
+    (step: number) => {
+      onFontScaleChange(step);
+    },
+    [onFontScaleChange]
+  );
+
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.75}>
       <View className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between">
@@ -53,14 +87,7 @@ export function SettingsDrawer({
           </Text>
           <Switch
             value={dualLang}
-            onValueChange={(val) => {
-              onDualLangChange(val);
-              if (val && secondaryLang === primaryLang) {
-                const fallback =
-                  (versions.find((v) => v.val !== primaryLang)?.val as 'ko' | 'en' | 'de') ?? 'ko';
-                onSecondaryLangChange(fallback);
-              }
-            }}
+            onValueChange={handleDualLangValueChange}
           />
         </View>
 
@@ -86,10 +113,7 @@ export function SettingsDrawer({
                   .map((opt) => (
                     <Pressable
                       key={opt.val}
-                      onPress={() => {
-                        onSecondaryLangChange(opt.val);
-                        onCloseSecondarySelector();
-                      }}
+                      onPress={() => handleSelectSecondaryLang(opt.val)}
                       className="px-4 py-3 active:bg-gray-200 dark:active:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
                       <Text className="text-base text-gray-900 dark:text-white">
@@ -113,7 +137,7 @@ export function SettingsDrawer({
             {fontSteps.map((step) => (
               <Pressable
                 key={step}
-                onPress={() => onFontScaleChange(step)}
+                onPress={() => handleFontScalePress(step)}
                 className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700"
               >
                 <View

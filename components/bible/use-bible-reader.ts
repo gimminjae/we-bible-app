@@ -1,11 +1,17 @@
 import { useBibleQuery } from '@/hooks/use-bible-query';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
+import { getBibleSearchInfo, setBibleSearchInfo } from '@/utils/bible-storage';
 import { makeCopyBibles } from '@/utils/bible.util';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import type { BibleLang } from './types';
+
+const VALID_LANGS: BibleLang[] = ['ko', 'en', 'de'];
+function isValidLang(s: string): s is BibleLang {
+  return VALID_LANGS.includes(s as BibleLang);
+}
 
 async function copyTextToClipboard(text: string): Promise<void> {
   if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -33,6 +39,60 @@ export function useBibleReader() {
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
+  const [hasRestored, setHasRestored] = useState(false);
+
+  const restoreBibleSearchInfoFromStorage = useCallback(() => {
+    if (hasRestored) return;
+    let cancelled = false;
+    getBibleSearchInfo().then((saved) => {
+      if (cancelled || !saved) {
+        setHasRestored(true);
+        return;
+      }
+      const bookExists = BOOKS.some((b) => b.bookCode === saved.bookCode);
+      const currentBook = bookExists
+        ? BOOKS.find((b) => b.bookCode === saved.bookCode)!
+        : BOOKS[0];
+      const maxCh = currentBook?.maxChapter ?? 1;
+      const ch = Math.min(Math.max(1, saved.chapter), maxCh);
+      setBookCode(currentBook?.bookCode ?? 'genesis');
+      setChapter(ch);
+      if (isValidLang(saved.primaryLang)) setPrimaryLang(saved.primaryLang);
+      if (isValidLang(saved.secondaryLang)) setSecondaryLang(saved.secondaryLang);
+      setDualLang(Boolean(saved.dualLang));
+      if (typeof saved.fontScale === 'number' && saved.fontScale >= 0.8 && saved.fontScale <= 1.2) {
+        setFontScale(saved.fontScale);
+      }
+      setHasRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasRestored]);
+
+  const persistBibleSearchInfo = useCallback(() => {
+    if (!hasRestored) return;
+    void setBibleSearchInfo({
+      bookCode,
+      chapter,
+      primaryLang,
+      fontScale,
+      dualLang,
+      secondaryLang,
+    });
+  }, [hasRestored, bookCode, chapter, primaryLang, fontScale, dualLang, secondaryLang]);
+
+  const clearSelectedVersesOnBookOrChapterChange = useCallback(() => {
+    setSelectedVerseNumbers([]);
+  }, []);
+
+  useEffect(restoreBibleSearchInfoFromStorage, [restoreBibleSearchInfoFromStorage]);
+  useEffect(persistBibleSearchInfo, [persistBibleSearchInfo]);
+  useEffect(clearSelectedVersesOnBookOrChapterChange, [
+    bookCode,
+    chapter,
+    clearSelectedVersesOnBookOrChapterChange,
+  ]);
 
   const { data: verses = [], isLoading: loading, error: queryError } = useBibleQuery({
     bookCode,

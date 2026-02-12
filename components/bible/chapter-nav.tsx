@@ -1,10 +1,10 @@
+import { useCallback, useEffect } from 'react';
 import { Pressable, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
 
 const FADE_DURATION = 400;
 
@@ -17,9 +17,11 @@ type ChapterNavProps = {
 export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) {
   const opacity = useSharedValue(visible ? 1 : 0);
 
-  useEffect(() => {
+  const syncNavOpacityToVisible = useCallback(() => {
     opacity.value = withTiming(visible ? 1 : 0, { duration: FADE_DURATION });
   }, [visible, opacity]);
+
+  useEffect(syncNavOpacityToVisible, [syncNavOpacityToVisible]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
