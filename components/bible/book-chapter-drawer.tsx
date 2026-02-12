@@ -48,17 +48,9 @@ export function BookChapterDrawer({
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.75}>
       <View className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between">
         <Text className="text-lg font-bold text-gray-900 dark:text-white">
-          {pickerStep === 'book' ? '성경 책 선택' : '장 선택'}
+          {''}
         </Text>
         <View className="flex-row items-center gap-2">
-          <Pressable
-            onPress={pickerStep === 'chapter' ? onBackToBookList : onClose}
-            className="px-3 py-1.5 rounded-lg bg-primary-100 dark:bg-primary-900/40 active:opacity-80"
-          >
-            <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-              {pickerStep === 'chapter' ? '책 목록' : '닫기'}
-            </Text>
-          </Pressable>
           <Pressable onPress={onClose} className="px-2 py-1">
             <Text className="text-base text-gray-600 dark:text-gray-400">✕</Text>
           </Pressable>
