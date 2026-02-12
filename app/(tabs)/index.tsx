@@ -101,6 +101,7 @@ export default function HomeScreen() {
           selectedVerseNumbers={bible.selectedVerseNumbers}
           favoriteVerseNumbers={bible.favoriteVerseNumbers}
           memoVerseNumbers={bible.memoVerseNumbers}
+          scrollToTopTrigger={`${bible.bookCode}:${bible.chapter}`}
           onVersePress={bible.toggleVerseSelection}
           onSwipePrev={bible.goPrevChapter}
           onSwipeNext={bible.goNextChapter}

@@ -1,6 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Spinner } from '@gluestack-ui/themed';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -18,6 +18,7 @@ type BibleContentProps = {
   selectedVerseNumbers?: number[];
   favoriteVerseNumbers?: number[];
   memoVerseNumbers?: number[];
+  scrollToTopTrigger?: string;
   onVersePress?: (verseNumber: number) => void;
   onSwipePrev?: () => void;
   onSwipeNext?: () => void;
@@ -33,11 +34,18 @@ export function BibleContent({
   selectedVerseNumbers = [],
   favoriteVerseNumbers = [],
   memoVerseNumbers = [],
+  scrollToTopTrigger,
   onVersePress,
   onSwipePrev,
   onSwipeNext,
   onScroll,
 }: BibleContentProps) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollToTopTrigger]);
+
   const handleVersePress = useCallback(
     (verseNumber: number) => {
       onVersePress?.(verseNumber);
@@ -61,6 +69,7 @@ export function BibleContent({
     <GestureDetector gesture={panGesture}>
       <View className="flex-1">
         <ScrollView
+          ref={scrollRef}
           className="flex-1"
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
@@ -86,7 +95,7 @@ export function BibleContent({
                   <Pressable
                     key={i}
                     onPress={() => handleVersePress(verseNum)}
-                    className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                    className="flex-row gap-3 py-1 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                   >
                     <View className="min-w-[36px] items-center pt-0.5">
                       <Text
