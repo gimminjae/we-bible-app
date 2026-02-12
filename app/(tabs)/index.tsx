@@ -6,6 +6,7 @@ import { LanguageDrawer } from '@/components/bible/language-drawer';
 import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
@@ -97,6 +98,7 @@ export default function HomeScreen() {
           dualLang={bible.dualLang}
           fontScale={bible.fontScale}
           selectedVerseNumbers={bible.selectedVerseNumbers}
+          favoriteVerseNumbers={bible.favoriteVerseNumbers}
           onVersePress={bible.toggleVerseSelection}
           onSwipePrev={bible.goPrevChapter}
           onSwipeNext={bible.goNextChapter}
@@ -106,8 +108,22 @@ export default function HomeScreen() {
         <Animated.View
           pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
           style={copyButtonStyle}
-          className="absolute bottom-6 left-0 right-0 items-center"
+          className="absolute bottom-6 left-0 right-0 flex-row items-center justify-center gap-3"
         >
+          <Pressable
+            onPress={
+              bible.allSelectedAreFavorites
+                ? bible.removeSelectedFromFavorites
+                : bible.addSelectedToFavorites
+            }
+            className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+          >
+            <IconSymbol
+              name={bible.allSelectedAreFavorites ? 'heart.fill' : 'heart'}
+              size={24}
+              color={bible.allSelectedAreFavorites ? '#ec4899' : '#6b7280'}
+            />
+          </Pressable>
           <Pressable
             onPress={bible.copySelectedVerses}
             className="bg-primary-500 px-6 py-3 rounded-full shadow-lg active:opacity-90"

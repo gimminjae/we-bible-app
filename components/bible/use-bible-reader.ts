@@ -1,9 +1,11 @@
 import { useBibleQuery } from '@/hooks/use-bible-query';
+import { useFavoriteVerses } from '@/hooks/use-favorite-verses';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
 import { getBibleSearchInfo, setBibleSearchInfo } from '@/utils/bible-storage';
 import { makeCopyBibles } from '@/utils/bible.util';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import type { BibleLang } from './types';
@@ -26,6 +28,7 @@ const LANG_OPTIONS = versions;
 const FONT_STEPS = [0.8, 0.9, 1, 1.1, 1.2] as const;
 
 export function useBibleReader() {
+  const db = useSQLiteContext();
   const [bookCode, setBookCode] = useState('genesis');
   const [chapter, setChapter] = useState(1);
   const [primaryLang, setPrimaryLang] = useState<BibleLang>('ko');
@@ -44,7 +47,7 @@ export function useBibleReader() {
   const restoreBibleSearchInfoFromStorage = useCallback(() => {
     if (hasRestored) return;
     let cancelled = false;
-    getBibleSearchInfo().then((saved) => {
+    getBibleSearchInfo(db).then((saved) => {
       if (cancelled || !saved) {
         setHasRestored(true);
         return;
@@ -68,19 +71,22 @@ export function useBibleReader() {
     return () => {
       cancelled = true;
     };
-  }, [hasRestored]);
+  }, [hasRestored, db]);
 
   const persistBibleSearchInfo = useCallback(() => {
     if (!hasRestored) return;
-    void setBibleSearchInfo({
-      bookCode,
-      chapter,
-      primaryLang,
-      fontScale,
-      dualLang,
-      secondaryLang,
-    });
-  }, [hasRestored, bookCode, chapter, primaryLang, fontScale, dualLang, secondaryLang]);
+    void setBibleSearchInfo(
+      {
+        bookCode,
+        chapter,
+        primaryLang,
+        fontScale,
+        dualLang,
+        secondaryLang,
+      },
+      db
+    );
+  }, [hasRestored, bookCode, chapter, primaryLang, fontScale, dualLang, secondaryLang, db]);
 
   const clearSelectedVersesOnBookOrChapterChange = useCallback(() => {
     setSelectedVerseNumbers([]);
@@ -101,6 +107,29 @@ export function useBibleReader() {
     dualLang,
     secondaryLang,
   });
+
+  const { favoriteVerseNumbers, addVerses: addFavoriteVerses, removeVerses: removeFavoriteVerses } =
+    useFavoriteVerses(bookCode, chapter);
+
+  const allSelectedAreFavorites =
+    selectedVerseNumbers.length > 0 &&
+    selectedVerseNumbers.every((n) => favoriteVerseNumbers.includes(n));
+
+  const addSelectedToFavorites = useCallback(() => {
+    const toAdd = [...new Set(selectedVerseNumbers)].filter((n) => !favoriteVerseNumbers.includes(n));
+    if (toAdd.length > 0) {
+      addFavoriteVerses(toAdd).then(() => setSelectedVerseNumbers([]));
+    }
+  }, [selectedVerseNumbers, favoriteVerseNumbers, addFavoriteVerses]);
+
+  const removeSelectedFromFavorites = useCallback(() => {
+    const toRemove = [...new Set(selectedVerseNumbers)].filter((n) =>
+      favoriteVerseNumbers.includes(n)
+    );
+    if (toRemove.length > 0) {
+      removeFavoriteVerses(toRemove).then(() => setSelectedVerseNumbers([]));
+    }
+  }, [selectedVerseNumbers, favoriteVerseNumbers, removeFavoriteVerses]);
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load') : null;
 
@@ -225,6 +254,8 @@ export function useBibleReader() {
     loading,
     error,
     selectedVerseNumbers,
+    favoriteVerseNumbers,
+    allSelectedAreFavorites,
     pickerStep,
     showSecondarySelector,
     BOOKS,
@@ -251,6 +282,8 @@ export function useBibleReader() {
     toggleVerseSelection,
     clearVerseSelection,
     copySelectedVerses,
+    addSelectedToFavorites,
+    removeSelectedFromFavorites,
     setDualLang,
     setSecondaryLang,
     setShowSecondarySelector,

@@ -1,3 +1,4 @@
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Spinner } from '@gluestack-ui/themed';
 import { useCallback } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -15,6 +16,7 @@ type BibleContentProps = {
   dualLang: boolean;
   fontScale: number;
   selectedVerseNumbers?: number[];
+  favoriteVerseNumbers?: number[];
   onVersePress?: (verseNumber: number) => void;
   onSwipePrev?: () => void;
   onSwipeNext?: () => void;
@@ -28,6 +30,7 @@ export function BibleContent({
   dualLang,
   fontScale,
   selectedVerseNumbers = [],
+  favoriteVerseNumbers = [],
   onVersePress,
   onSwipePrev,
   onSwipeNext,
@@ -75,19 +78,29 @@ export function BibleContent({
               {verses.map((v, i) => {
                 const verseNum = v.verse ?? i + 1;
                 const isSelected = selectedVerseNumbers.includes(verseNum);
+                const isFavorite = favoriteVerseNumbers.includes(verseNum);
                 return (
                   <Pressable
                     key={i}
                     onPress={() => handleVersePress(verseNum)}
                     className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                   >
-                    <View className="w-7 items-start pt-0.5">
+                    <View className="min-w-[28px] items-center pt-0.5">
                       <Text
                         className="text-gray-900 dark:text-gray-100 text-[15px] leading-6"
                         style={{ fontSize: 16 * fontScale, lineHeight: 24 * fontScale }}
                       >
                         {verseNum}
                       </Text>
+                      {isFavorite ? (
+                        <IconSymbol
+                          name="heart.fill"
+                          size={14}
+                          color="#ec4899"
+                        />
+                      ) : (
+                        <View style={{ width: 14, height: 14 }} />
+                      )}
                     </View>
                     <View className="flex-1">
                       <Text
