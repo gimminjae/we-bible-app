@@ -117,10 +117,17 @@ export function useBibleReader() {
 
   const addSelectedToFavorites = useCallback(() => {
     const toAdd = [...new Set(selectedVerseNumbers)].filter((n) => !favoriteVerseNumbers.includes(n));
-    if (toAdd.length > 0) {
-      addFavoriteVerses(toAdd).then(() => setSelectedVerseNumbers([]));
+    if (toAdd.length === 0) return;
+    const versesWithText = toAdd
+      .map((verseNum) => {
+        const v = verses.find((x) => x.verse === verseNum);
+        return v ? { verse: verseNum, text: v.primary } : null;
+      })
+      .filter((x): x is { verse: number; text: string } => x != null);
+    if (versesWithText.length > 0) {
+      addFavoriteVerses(versesWithText).then(() => setSelectedVerseNumbers([]));
     }
-  }, [selectedVerseNumbers, favoriteVerseNumbers, addFavoriteVerses]);
+  }, [selectedVerseNumbers, favoriteVerseNumbers, verses, addFavoriteVerses]);
 
   const removeSelectedFromFavorites = useCallback(() => {
     const toRemove = [...new Set(selectedVerseNumbers)].filter((n) =>

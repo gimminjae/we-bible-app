@@ -21,3 +21,13 @@ export type VersionOption = {
   txt: string;
   description: string;
 };
+
+/** 관심 구절 한 건 (DB 저장/리스트 페이지용) */
+export type FavoriteVerseRecord = {
+  bookCode: string;
+  chapter: number;
+  verse: number;
+  verseText: string;
+  /** 등록 시각 'YYYY-MM-DD HH:mm:ss' */
+  createdAt: string;
+};

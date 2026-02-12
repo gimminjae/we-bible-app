@@ -3,9 +3,12 @@ import {
   getFavoritesForChapter,
   initFavoriteVersesTable,
   removeFavorites as dbRemoveFavorites,
+  type FavoriteVerseInput,
 } from '@/utils/favorite-verses-db';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
+
+export type { FavoriteVerseInput };
 
 export function useFavoriteVerses(bookCode: string, chapter: number) {
   const db = useSQLiteContext();
@@ -43,9 +46,9 @@ export function useFavoriteVerses(bookCode: string, chapter: number) {
   }, [initDone, refetch]);
 
   const addVerses = useCallback(
-    async (verseNumbers: number[]) => {
-      if (verseNumbers.length === 0) return;
-      await dbAddFavorites(db, bookCode, chapter, verseNumbers);
+    async (verses: FavoriteVerseInput[]) => {
+      if (verses.length === 0) return;
+      await dbAddFavorites(db, bookCode, chapter, verses);
       await refetch();
     },
     [db, bookCode, chapter, refetch]
