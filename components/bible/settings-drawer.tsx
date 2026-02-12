@@ -138,7 +138,7 @@ export function SettingsDrawer({
               <Pressable
                 key={step}
                 onPress={() => handleFontScalePress(step)}
-                className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700"
+                className="flex-1 h-6 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700"
               >
                 <View
                   className={`h-full rounded-full ${fontScale >= step ? 'bg-primary-500' : ''}`}
