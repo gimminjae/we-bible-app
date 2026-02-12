@@ -4,6 +4,6 @@ export { BookChapterDrawer } from './book-chapter-drawer';
 export { ChapterNav } from './chapter-nav';
 export { LanguageDrawer } from './language-drawer';
 export { SettingsDrawer } from './settings-drawer';
-export type { BibleLang, DisplayVerse, VersionOption } from './types';
+export type { BibleLang, DisplayVerse, FavoriteVerseId, FavoriteVerseRecord, VersionOption } from './types';
 export { useBibleReader } from './use-bible-reader';
 

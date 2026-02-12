@@ -1,12 +1,13 @@
 import { useBibleQuery } from '@/hooks/use-bible-query';
 import { useFavoriteVerses } from '@/hooks/use-favorite-verses';
+import { useMemoVerses } from '@/hooks/use-memo-verses';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
 import { getBibleSearchInfo, setBibleSearchInfo } from '@/utils/bible-storage';
 import { makeCopyBibles } from '@/utils/bible.util';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import type { BibleLang } from './types';
 
@@ -40,6 +41,7 @@ export function useBibleReader() {
   const [pickerStep, setPickerStep] = useState<'book' | 'chapter'>('book');
   const [showLangDrawer, setShowLangDrawer] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showMemoDrawer, setShowMemoDrawer] = useState(false);
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
   const [hasRestored, setHasRestored] = useState(false);
@@ -110,6 +112,7 @@ export function useBibleReader() {
 
   const { favoriteVerseNumbers, addVerses: addFavoriteVerses, removeVerses: removeFavoriteVerses } =
     useFavoriteVerses(bookCode, chapter);
+  const { memoVerseNumbers, addMemo: addMemoToDb } = useMemoVerses(bookCode, chapter);
 
   const allSelectedAreFavorites =
     selectedVerseNumbers.length > 0 &&
@@ -142,6 +145,34 @@ export function useBibleReader() {
 
   const currentBook = BOOKS.find((b) => b.bookCode === bookCode);
   const bookName = getBookName(bookCode, primaryLang);
+
+  const memoInitialContent = useMemo(() => {
+    if (!selectedVerseNumbers.length || !bookName) return '';
+    const uniqueVerseNumbers = [...new Set(selectedVerseNumbers)].sort((a, b) => a - b);
+    const contentList = uniqueVerseNumbers
+      .map((verseNum) => {
+        const v = verses.find((x) => x.verse === verseNum);
+        return v ? { verse: v.verse, content: v.primary, bookName, chapter } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+    return makeCopyBibles(contentList);
+  }, [selectedVerseNumbers, verses, bookName, chapter]);
+
+  const openMemoDrawer = useCallback(() => setShowMemoDrawer(true), []);
+  const closeMemoDrawer = useCallback(() => setShowMemoDrawer(false), []);
+
+  const saveMemo = useCallback(
+    (title: string, content: string) => {
+      const toSave = [...new Set(selectedVerseNumbers)];
+      if (toSave.length === 0) return;
+      const verseText = memoInitialContent;
+      addMemoToDb(title, content, verseText, toSave).then(() => {
+        setSelectedVerseNumbers([]);
+        setShowMemoDrawer(false);
+      });
+    },
+    [selectedVerseNumbers, memoInitialContent, addMemoToDb]
+  );
   const maxChapter = currentBook?.maxChapter ?? 1;
 
   const goPrevChapter = useCallback(() => {
@@ -262,6 +293,7 @@ export function useBibleReader() {
     error,
     selectedVerseNumbers,
     favoriteVerseNumbers,
+    memoVerseNumbers,
     allSelectedAreFavorites,
     pickerStep,
     showSecondarySelector,
@@ -274,6 +306,7 @@ export function useBibleReader() {
     showBookDrawer,
     showLangDrawer,
     showSettingsDrawer,
+    showMemoDrawer,
     // actions
     goPrevChapter,
     goNextChapter,
@@ -285,6 +318,10 @@ export function useBibleReader() {
     openSettings,
     closeLangDrawer,
     closeSettingsDrawer,
+    openMemoDrawer,
+    closeMemoDrawer,
+    memoInitialContent,
+    saveMemo,
     onSelectPrimaryLang,
     toggleVerseSelection,
     clearVerseSelection,

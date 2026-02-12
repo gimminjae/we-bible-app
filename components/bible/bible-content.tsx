@@ -17,6 +17,7 @@ type BibleContentProps = {
   fontScale: number;
   selectedVerseNumbers?: number[];
   favoriteVerseNumbers?: number[];
+  memoVerseNumbers?: number[];
   onVersePress?: (verseNumber: number) => void;
   onSwipePrev?: () => void;
   onSwipeNext?: () => void;
@@ -31,6 +32,7 @@ export function BibleContent({
   fontScale,
   selectedVerseNumbers = [],
   favoriteVerseNumbers = [],
+  memoVerseNumbers = [],
   onVersePress,
   onSwipePrev,
   onSwipeNext,
@@ -76,31 +78,35 @@ export function BibleContent({
           ) : (
             <View className="gap-4">
               {verses.map((v, i) => {
-                const verseNum = v.verse ?? i + 1;
+                const verseNum = Number(v.verse) || i + 1;
                 const isSelected = selectedVerseNumbers.includes(verseNum);
                 const isFavorite = favoriteVerseNumbers.includes(verseNum);
+                const hasMemo = memoVerseNumbers.includes(verseNum);
                 return (
                   <Pressable
                     key={i}
                     onPress={() => handleVersePress(verseNum)}
                     className="flex-row gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                   >
-                    <View className="min-w-[28px] items-center pt-0.5">
+                    <View className="min-w-[36px] items-center pt-0.5">
                       <Text
                         className="text-gray-900 dark:text-gray-100 text-[15px] leading-6"
                         style={{ fontSize: 16 * fontScale, lineHeight: 24 * fontScale }}
                       >
                         {verseNum}
                       </Text>
-                      {isFavorite ? (
-                        <IconSymbol
-                          name="heart.fill"
-                          size={14}
-                          color="#ec4899"
-                        />
-                      ) : (
-                        <View style={{ width: 14, height: 14 }} />
-                      )}
+                      <View className="flex-row items-center justify-center gap-0.5">
+                        {isFavorite ? (
+                          <IconSymbol name="heart.fill" size={14} color="#ec4899" />
+                        ) : (
+                          <View style={{ width: 14, height: 14 }} />
+                        )}
+                        {hasMemo ? (
+                          <IconSymbol name="note.text" size={14} color="#b45309" />
+                        ) : (
+                          <View style={{ width: 14, height: 14 }} />
+                        )}
+                      </View>
                     </View>
                     <View className="flex-1">
                       <Text

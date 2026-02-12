@@ -12,12 +12,14 @@ import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
+import { initMemosTable } from '@/utils/memo-db';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import '@/global.css';
 
 async function initDb(db: SQLiteDatabase) {
   await initFavoriteVersesTable(db);
   await initBibleStateTable(db);
+  await initMemosTable(db);
 }
 
 const queryClient = new QueryClient();

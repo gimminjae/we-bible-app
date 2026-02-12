@@ -24,6 +24,7 @@ const MAPPING = {
   'sun.max.fill': 'light-mode',
   'heart': 'favorite-border',
   'heart.fill': 'favorite',
+  'note.text': 'note',
 } as IconMapping;
 
 /**

@@ -16,19 +16,27 @@ export type UseBibleQueryParams = {
   secondaryLang: BibleLang;
 };
 
+/** API가 언어별로 verse를 number 또는 string으로 줄 수 있으므로 항상 number로 정규화 (관심/메모 절 번호 매칭용) */
 function normalizeToDisplayVerse(
   primary: BibleVerse[],
   secondary?: BibleVerse[]
 ): DisplayVerse[] {
   const normalizedPrimary = Array.isArray(primary) ? primary : [];
   const normalizedSecondary = Array.isArray(secondary) ? secondary : [];
-  return normalizedPrimary.map((p, index) => ({
-    verse: p.verse ?? index + 1,
-    primary: p.content ?? '',
-    ...(normalizedSecondary[index] != null && {
-      secondary: normalizedSecondary[index]?.content ?? '',
-    }),
-  }));
+  return normalizedPrimary.map((p, index) => {
+    const rawVerse = p.verse;
+    const verse =
+      typeof rawVerse === 'number' && !Number.isNaN(rawVerse)
+        ? rawVerse
+        : Number(rawVerse) || index + 1;
+    return {
+      verse,
+      primary: p.content ?? '',
+      ...(normalizedSecondary[index] != null && {
+        secondary: normalizedSecondary[index]?.content ?? '',
+      }),
+    };
+  });
 }
 
 async function fetchBibleVerses(params: UseBibleQueryParams): Promise<DisplayVerse[]> {

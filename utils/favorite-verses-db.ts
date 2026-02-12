@@ -3,6 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 const TABLE = 'favorite_verses';
 
+/** 관심 구절 식별 키: 오직 (book_code, chapter, verse). verse_text·created_at은 보기용 */
+
 /** 현재 시각을 'YYYY-MM-DD HH:mm:ss' 형식으로 반환 */
 function nowString(): string {
   const d = new Date();
@@ -31,6 +33,7 @@ export async function initFavoriteVersesTable(db: SQLiteDatabase): Promise<void>
   }
 }
 
+/** 현재 장에서 관심인 절 번호만 조회 (식별: book_code + chapter + verse) */
 export async function getFavoritesForChapter(
   db: SQLiteDatabase,
   bookCode: string,
@@ -44,8 +47,10 @@ export async function getFavoritesForChapter(
   return rows.map((r) => r.verse);
 }
 
+/** 추가 시 입력. verse=식별용 절 번호, text=보기용 구절 본문 */
 export type FavoriteVerseInput = { verse: number; text: string };
 
+/** 관심 추가. 식별은 (book_code, chapter, verse)로만 함. verse_text·created_at은 보기용 저장 */
 export async function addFavorites(
   db: SQLiteDatabase,
   bookCode: string,
@@ -65,6 +70,7 @@ export async function addFavorites(
   }
 }
 
+/** 관심 해제. 식별은 (book_code, chapter, verse)로만 함 */
 export async function removeFavorites(
   db: SQLiteDatabase,
   bookCode: string,
@@ -81,7 +87,7 @@ export async function removeFavorites(
   );
 }
 
-/** 관심 구절 리스트 페이지용: 전체 관심 구절 조회 (최신 추가 순) */
+/** 리스트용 전체 조회. 각 행 식별은 (book_code, chapter, verse). verse_text·created_at은 표시용 */
 export async function getAllFavorites(
   db: SQLiteDatabase
 ): Promise<FavoriteVerseRecord[]> {

@@ -3,6 +3,7 @@ import { BibleHeader } from '@/components/bible/bible-header';
 import { BookChapterDrawer } from '@/components/bible/book-chapter-drawer';
 import { ChapterNav } from '@/components/bible/chapter-nav';
 import { LanguageDrawer } from '@/components/bible/language-drawer';
+import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
@@ -99,6 +100,7 @@ export default function HomeScreen() {
           fontScale={bible.fontScale}
           selectedVerseNumbers={bible.selectedVerseNumbers}
           favoriteVerseNumbers={bible.favoriteVerseNumbers}
+          memoVerseNumbers={bible.memoVerseNumbers}
           onVersePress={bible.toggleVerseSelection}
           onSwipePrev={bible.goPrevChapter}
           onSwipeNext={bible.goNextChapter}
@@ -125,12 +127,25 @@ export default function HomeScreen() {
             />
           </Pressable>
           <Pressable
+            onPress={bible.openMemoDrawer}
+            className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 items-center justify-center active:opacity-80"
+          >
+            <IconSymbol name="note.text" size={24} color="#b45309" />
+          </Pressable>
+          <Pressable
             onPress={bible.copySelectedVerses}
             className="bg-primary-500 px-6 py-3 rounded-full shadow-lg active:opacity-90"
           >
             <Text className="text-white font-semibold">복사</Text>
           </Pressable>
         </Animated.View>
+
+        <MemoDrawer
+          isOpen={bible.showMemoDrawer}
+          onClose={bible.closeMemoDrawer}
+          initialVerseText={bible.memoInitialContent}
+          onSave={bible.saveMemo}
+        />
 
         <ChapterNav
           visible={navVisible && !copyButtonVisible}

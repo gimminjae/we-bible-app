@@ -99,6 +99,7 @@ export function BottomSheet({
           style={[
             {
               maxHeight,
+              height: maxHeight,
               width: '100%',
               backgroundColor: 'transparent',
               borderTopLeftRadius: 16,
@@ -111,6 +112,7 @@ export function BottomSheet({
           <View
             className="bg-white dark:bg-gray-900"
             style={{
+              flex: 1,
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
               overflow: 'hidden',
