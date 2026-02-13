@@ -1,6 +1,7 @@
 import { getAllFavorites } from '@/utils/favorite-verses-db';
 import type { FavoriteVerseRecord } from '@/components/bible/types';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useI18n } from '@/utils/i18n';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ function formatDate(raw: string): string {
 export default function FavoriteListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const { t } = useI18n();
   const [items, setItems] = useState<FavoriteVerseRecord[]>([]);
 
   const load = useCallback(() => {
@@ -42,9 +44,9 @@ export default function FavoriteListScreen() {
       <View className="px-4 pt-4 pb-3 flex-row items-center gap-3">
         <IconSymbol name="chevron.right" size={18} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
         <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
-          뒤로
+          {t('common.back')}
         </Text>
-        <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">관심 성경 구절</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.favoritesTitle')}</Text>
       </View>
 
       <ScrollView
@@ -53,7 +55,7 @@ export default function FavoriteListScreen() {
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <Text className="text-gray-500 dark:text-gray-400 mt-6">등록된 관심 구절이 없습니다.</Text>
+          <Text className="text-gray-500 dark:text-gray-400 mt-6">{t('mypage.emptyFavorites')}</Text>
         ) : (
           items.map((item, idx) => (
             <View

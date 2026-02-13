@@ -8,6 +8,7 @@ import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
@@ -23,6 +24,7 @@ const NAV_HIDE_DELAY_MS = 3000;
 
 export default function HomeScreen() {
   const bible = useBibleReader();
+  const { t } = useI18n();
   const [navVisible, setNavVisible] = useState(true);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -137,7 +139,7 @@ export default function HomeScreen() {
             onPress={bible.copySelectedVerses}
             className="bg-primary-500 px-6 py-3 rounded-full shadow-lg active:opacity-90"
           >
-            <Text className="text-white font-semibold">복사</Text>
+            <Text className="text-white font-semibold">{t('common.copy')}</Text>
           </Pressable>
         </Animated.View>
 

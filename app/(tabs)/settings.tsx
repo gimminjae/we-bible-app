@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppSettings } from '@/contexts/app-settings';
+import { useI18n } from '@/utils/i18n';
 import type { AppLanguage } from '@/utils/app-settings-storage';
 
 const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
@@ -18,6 +19,7 @@ const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
 
 export default function SettingsScreen() {
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
+  const { t } = useI18n();
   const [languageSelectOpen, setLanguageSelectOpen] = useState(false);
 
   const handleToggleTheme = useCallback(() => {
@@ -54,13 +56,13 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
-          설정
+          {t('settings.title')}
         </Text>
 
         {/* 시스템 언어 */}
         <View className="mb-6">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            시스템 언어
+            {t('settings.systemLanguage')}
           </Text>
           <Pressable
             onPress={handleOpenLanguageSelect}
@@ -80,14 +82,14 @@ export default function SettingsScreen() {
         {/* 화이트/다크 모드 */}
         <View className="mb-6">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            테마
+            {t('settings.theme')}
           </Text>
           <Pressable
             onPress={handleToggleTheme}
             className="flex-row items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
           >
             <Text className="text-base text-gray-900 dark:text-white">
-              {theme === 'light' ? '라이트 모드' : '다크 모드'}
+              {theme === 'light' ? t('settings.lightMode') : t('settings.darkMode')}
             </Text>
             <View className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center">
               <IconSymbol
@@ -115,7 +117,7 @@ export default function SettingsScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              언어 선택
+              {t('settings.languageSelect')}
             </Text>
             {LANGUAGE_OPTIONS.map((opt) => (
               <Pressable

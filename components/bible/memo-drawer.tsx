@@ -1,4 +1,5 @@
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -24,6 +25,7 @@ export function MemoDrawer({
   initialVerseText,
   onSave,
 }: MemoDrawerProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const contentRef = useRef<TextInput>(null);
@@ -47,13 +49,13 @@ export function MemoDrawer({
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.85}>
       <View className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between">
-        <Text className="text-lg font-bold text-gray-900 dark:text-white">묵상 메모</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-white">{t('memoDrawer.title')}</Text>
         <View className="flex-row items-center gap-2">
           <Pressable
             onPress={handleSave}
             className="px-3 py-1.5 rounded-lg bg-primary-500 active:opacity-90"
           >
-            <Text className="text-sm font-semibold text-white">저장</Text>
+            <Text className="text-sm font-semibold text-white">{t('memoDrawer.save')}</Text>
           </Pressable>
           <Pressable onPress={onClose} className="px-2 py-1">
             <Text className="text-base text-gray-600 dark:text-gray-400">✕</Text>
@@ -71,19 +73,19 @@ export function MemoDrawer({
           showsVerticalScrollIndicator
         >
           <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            제목
+            {t('memoDrawer.titleLabel')}
           </Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
-            placeholder="메모 제목 (선택)"
+            placeholder={t('memoDrawer.titlePlaceholder')}
             placeholderTextColor="#9ca3af"
             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
           />
           {initialVerseText ? (
             <>
               <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                성경 구절
+                {t('memoDrawer.verseTextLabel')}
               </Text>
               <View className="bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2.5 mb-4">
                 <Text
@@ -96,13 +98,13 @@ export function MemoDrawer({
             </>
           ) : null}
           <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            내용
+            {t('memoDrawer.contentLabel')}
           </Text>
           <TextInput
             ref={contentRef}
             value={content}
             onChangeText={setContent}
-            placeholder="묵상 내용을 입력하세요"
+            placeholder={t('memoDrawer.contentPlaceholder')}
             placeholderTextColor="#9ca3af"
             multiline
             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base"

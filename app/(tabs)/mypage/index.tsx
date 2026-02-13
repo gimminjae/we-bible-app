@@ -1,10 +1,12 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
+import { useI18n } from '@/utils/i18n';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MyPageScreen() {
   const router = useRouter();
+  const { t } = useI18n();
 
   return (
     <SafeAreaView
@@ -16,7 +18,7 @@ export default function MyPageScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-8">마이페이지</Text>
+        <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-8">{t('mypage.title')}</Text>
 
         <Pressable
           onPress={() => router.push('/(tabs)/mypage/favorites')}
@@ -25,7 +27,7 @@ export default function MyPageScreen() {
           <View className="flex-row items-center gap-3">
             <IconSymbol name="heart.fill" size={20} color="#ec4899" />
             <Text className="text-base font-semibold text-gray-900 dark:text-white">
-              관심 성경 구절 목록
+              {t('mypage.favoritesMenu')}
             </Text>
           </View>
           <IconSymbol name="chevron.right" size={18} color="#9ca3af" />
@@ -38,7 +40,7 @@ export default function MyPageScreen() {
           <View className="flex-row items-center gap-3">
             <IconSymbol name="note.text" size={20} color="#b45309" />
             <Text className="text-base font-semibold text-gray-900 dark:text-white">
-              묵상 메모 목록
+              {t('mypage.memosMenu')}
             </Text>
           </View>
           <IconSymbol name="chevron.right" size={18} color="#9ca3af" />
