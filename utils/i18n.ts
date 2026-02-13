@@ -49,7 +49,7 @@ const messages = {
       oldTestament: '구약',
       newTestament: '신약',
       category: {
-        pentateuch: '모세5경',
+        pentateuch: '모세오경',
         history: '역사서',
         poetry: '시가서',
         prophecy: '예언서',
