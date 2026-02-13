@@ -48,6 +48,14 @@ const messages = {
     bibleDrawer: {
       oldTestament: '구약',
       newTestament: '신약',
+      category: {
+        pentateuch: '모세5경',
+        history: '역사서',
+        poetry: '시가서',
+        prophecy: '예언서',
+        gospels: '복음서',
+        epistles: '서신서',
+      },
     },
   },
   en: {
@@ -96,6 +104,14 @@ const messages = {
     bibleDrawer: {
       oldTestament: 'Old Testament',
       newTestament: 'New Testament',
+      category: {
+        pentateuch: 'Pentateuch',
+        history: 'Historical Books',
+        poetry: 'Poetry/Wisdom',
+        prophecy: 'Prophetic Books',
+        gospels: 'Gospels',
+        epistles: 'Epistles',
+      },
     },
   },
 } as const;

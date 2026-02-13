@@ -3,7 +3,161 @@ import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-type BookInfo = { bookCode: string; maxChapter: number; bookSeq?: number };
+type BookInfo = { bookCode: string; maxChapter: number };
+type CategoryKey =
+  | 'ot'
+  | 'nt'
+  | 'pentateuch'
+  | 'history'
+  | 'poetry'
+  | 'prophecy'
+  | 'gospels'
+  | 'epistles';
+
+const CATEGORY_BOOK_CODES: Record<CategoryKey, string[]> = {
+  ot: [
+    'genesis',
+    'exodus',
+    'leviticus',
+    'numbers',
+    'deuteronomy',
+    'joshua',
+    'judges',
+    'ruth',
+    '1samuel',
+    '2samuel',
+    '1kings',
+    '2kings',
+    '1chronicles',
+    '2chronicles',
+    'ezra',
+    'nehemiah',
+    'esther',
+    'job',
+    'psalms',
+    'proverbs',
+    'ecclesiastes',
+    'songofsolomon',
+    'isaiah',
+    'jeremiah',
+    'lamentations',
+    'ezekiel',
+    'daniel',
+    'hosea',
+    'joel',
+    'amos',
+    'obadiah',
+    'jonah',
+    'micah',
+    'nahum',
+    'habakkuk',
+    'zephaniah',
+    'haggai',
+    'zechariah',
+    'malachi',
+  ],
+  nt: [
+    'matthew',
+    'mark',
+    'luke',
+    'john',
+    'acts',
+    'romans',
+    '1corinthians',
+    '2corinthians',
+    'galatians',
+    'ephesians',
+    'philippians',
+    'colossians',
+    '1thessalonians',
+    '2thessalonians',
+    '1timothy',
+    '2timothy',
+    'titus',
+    'philemon',
+    'hebrews',
+    'james',
+    '1peter',
+    '2peter',
+    '1john',
+    '2john',
+    '3john',
+    'jude',
+    'revelation',
+  ],
+  pentateuch: ['genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy'],
+  history: [
+    'joshua',
+    'judges',
+    'ruth',
+    '1samuel',
+    '2samuel',
+    '1kings',
+    '2kings',
+    '1chronicles',
+    '2chronicles',
+    'ezra',
+    'nehemiah',
+    'esther',
+  ],
+  poetry: ['job', 'psalms', 'proverbs', 'ecclesiastes', 'songofsolomon'],
+  prophecy: [
+    'isaiah',
+    'jeremiah',
+    'lamentations',
+    'ezekiel',
+    'daniel',
+    'hosea',
+    'joel',
+    'amos',
+    'obadiah',
+    'jonah',
+    'micah',
+    'nahum',
+    'habakkuk',
+    'zephaniah',
+    'haggai',
+    'zechariah',
+    'malachi',
+  ],
+  gospels: ['matthew', 'mark', 'luke', 'john'],
+  epistles: [
+    'acts',
+    'romans',
+    '1corinthians',
+    '2corinthians',
+    'galatians',
+    'ephesians',
+    'philippians',
+    'colossians',
+    '1thessalonians',
+    '2thessalonians',
+    '1timothy',
+    '2timothy',
+    'titus',
+    'philemon',
+    'hebrews',
+    'james',
+    '1peter',
+    '2peter',
+    '1john',
+    '2john',
+    '3john',
+    'jude',
+    'revelation',
+  ],
+};
+
+const CATEGORY_BUTTONS: CategoryKey[] = [
+  'ot',
+  'nt',
+  'pentateuch',
+  'history',
+  'poetry',
+  'prophecy',
+  'gospels',
+  'epistles',
+];
 
 type BookChapterDrawerProps = {
   isOpen: boolean;
@@ -32,23 +186,19 @@ export function BookChapterDrawer({
   onSelectChapter,
   onBackToBookList,
 }: BookChapterDrawerProps) {
-  const [testament, setTestament] = useState<'ot' | 'nt'>('ot');
+  const [category, setCategory] = useState<CategoryKey>('ot');
   const { t } = useI18n();
 
   useEffect(() => {
     if (isOpen && pickerStep === 'book') {
-      setTestament('ot');
+      setCategory('ot');
     }
   }, [isOpen, pickerStep]);
 
   const filteredBooks = useMemo(() => {
-    return books.filter((b) => {
-      const seq = b.bookSeq ?? 0;
-      if (seq <= 0) return false;
-      if (testament === 'ot') return seq <= 39;
-      return seq >= 40;
-    });
-  }, [books, testament]);
+    const allowedCodes = new Set(CATEGORY_BOOK_CODES[category]);
+    return books.filter((b) => allowedCodes.has(b.bookCode));
+  }, [books, category]);
 
   const handleSelectBook = useCallback(
     (code: string) => {
@@ -82,23 +232,25 @@ export function BookChapterDrawer({
         {pickerStep === 'book'
           ? (
             <>
-              <View className="flex-row items-center gap-2 mb-3">
-                <Pressable
-                  onPress={() => setTestament('ot')}
-                  className={`px-4 py-2 rounded-xl ${testament === 'ot' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
-                >
-                  <Text className={`text-base font-semibold ${testament === 'ot' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                    {t('bibleDrawer.oldTestament')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setTestament('nt')}
-                  className={`px-4 py-2 rounded-xl ${testament === 'nt' ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
-                >
-                  <Text className={`text-base font-semibold ${testament === 'nt' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                    {t('bibleDrawer.newTestament')}
-                  </Text>
-                </Pressable>
+              <View className="flex-row flex-wrap items-center gap-2 mb-3">
+                {CATEGORY_BUTTONS.map((categoryKey) => {
+                  const selected = category === categoryKey;
+                  return (
+                    <Pressable
+                      key={categoryKey}
+                      onPress={() => setCategory(categoryKey)}
+                      className={`px-3.5 py-2 rounded-xl ${selected ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
+                    >
+                      <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                        {categoryKey === 'ot'
+                          ? t('bibleDrawer.oldTestament')
+                          : categoryKey === 'nt'
+                            ? t('bibleDrawer.newTestament')
+                            : t(`bibleDrawer.category.${categoryKey}`)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
               {filteredBooks.map((b) => (
                 <Pressable
