@@ -38,6 +38,7 @@ const messages = {
     memoDrawer: {
       title: '묵상 메모',
       save: '저장',
+      cancel: '취소',
       titleLabel: '제목',
       titlePlaceholder: '메모 제목 (선택)',
       verseTextLabel: '성경 구절',
@@ -81,6 +82,7 @@ const messages = {
     memoDrawer: {
       title: 'Meditation Memo',
       save: 'Save',
+      cancel: 'Cancel',
       titleLabel: 'Title',
       titlePlaceholder: 'Memo title (optional)',
       verseTextLabel: 'Bible verses',

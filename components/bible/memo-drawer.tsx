@@ -48,19 +48,8 @@ export function MemoDrawer({
 
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.85}>
-      <View className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between">
+      <View className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
         <Text className="text-lg font-bold text-gray-900 dark:text-white">{t('memoDrawer.title')}</Text>
-        <View className="flex-row items-center gap-2">
-          <Pressable
-            onPress={handleSave}
-            className="px-3 py-1.5 rounded-lg bg-primary-500 active:opacity-90"
-          >
-            <Text className="text-sm font-semibold text-white">{t('memoDrawer.save')}</Text>
-          </Pressable>
-          <Pressable onPress={onClose} className="px-2 py-1">
-            <Text className="text-base text-gray-600 dark:text-gray-400">✕</Text>
-          </Pressable>
-        </View>
       </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -68,7 +57,7 @@ export function MemoDrawer({
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 16 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
         >
@@ -111,6 +100,22 @@ export function MemoDrawer({
             style={{ textAlignVertical: 'top', minHeight: 200 }}
           />
         </ScrollView>
+        <View className="px-4 pt-2 pb-4 border-t border-gray-100 dark:border-gray-800 flex-row gap-3">
+          <Pressable
+            onPress={onClose}
+            className="flex-1 h-12 rounded-xl bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+          >
+            <Text className="text-base font-semibold text-gray-800 dark:text-gray-100">
+              {t('memoDrawer.cancel')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleSave}
+            className="flex-1 h-12 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+          >
+            <Text className="text-base font-semibold text-white">{t('memoDrawer.save')}</Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </BottomSheet>
   );
