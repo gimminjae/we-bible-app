@@ -23,7 +23,7 @@ export function BibleHeader({
         <View className="flex-row items-center gap-2">
           <Pressable
             onPress={onOpenBookPicker}
-            className="px-4 py-2.5 rounded-xl border-2 border-primary-500 bg-primary-50 dark:bg-primary-950/40 active:opacity-80"
+            className="px-4 py-2.5 rounded-xl bg-primary-50 dark:bg-primary-950/40 active:opacity-80"
           >
             <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
               {bookName} {chapter}
@@ -31,7 +31,7 @@ export function BibleHeader({
           </Pressable>
           <Pressable
             onPress={onOpenLangPicker}
-            className="px-4 py-2.5 rounded-xl border-2 border-primary-500 bg-primary-50 dark:bg-primary-950/40 active:opacity-80"
+            className="px-4 py-2.5 rounded-xl bg-primary-50 dark:bg-primary-950/40 active:opacity-80"
           >
             <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
               {langLabel}

@@ -45,6 +45,10 @@ const messages = {
       contentLabel: '내용',
       contentPlaceholder: '묵상 내용을 입력하세요',
     },
+    bibleDrawer: {
+      oldTestament: '구약',
+      newTestament: '신약',
+    },
   },
   en: {
     tabs: {
@@ -88,6 +92,10 @@ const messages = {
       verseTextLabel: 'Bible verses',
       contentLabel: 'Content',
       contentPlaceholder: 'Write your meditation notes',
+    },
+    bibleDrawer: {
+      oldTestament: 'Old Testament',
+      newTestament: 'New Testament',
     },
   },
 } as const;
