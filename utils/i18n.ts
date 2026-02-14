@@ -29,6 +29,7 @@ const messages = {
       emptyFavorites: '등록된 관심 구절이 없습니다.',
       emptyMemos: '등록된 메모가 없습니다.',
       memoDetailTitle: '메모 상세',
+      editMemo: '수정',
       memoNotFound: '메모를 찾을 수 없습니다.',
       untitled: '(제목 없음)',
       verseText: '성경 구절',
@@ -37,6 +38,7 @@ const messages = {
     },
     memoDrawer: {
       title: '묵상 메모',
+      editTitle: '메모 수정',
       save: '저장',
       cancel: '취소',
       titleLabel: '제목',
@@ -85,6 +87,7 @@ const messages = {
       emptyFavorites: 'No favorite verses yet.',
       emptyMemos: 'No memos yet.',
       memoDetailTitle: 'Memo detail',
+      editMemo: 'Edit',
       memoNotFound: 'Memo not found.',
       untitled: '(Untitled)',
       verseText: 'Bible verses',
@@ -93,6 +96,7 @@ const messages = {
     },
     memoDrawer: {
       title: 'Meditation Memo',
+      editTitle: 'Edit Memo',
       save: 'Save',
       cancel: 'Cancel',
       titleLabel: 'Title',

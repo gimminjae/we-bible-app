@@ -17,6 +17,10 @@ type MemoDrawerProps = {
   /** 제목·내용 사이에 표시할 성경 구절 텍스트 (저장 시 verseText 필드로 저장) */
   initialVerseText: string;
   onSave: (title: string, content: string) => void;
+  /** 수정 모드: 기존 메모 데이터 */
+  editMemo?: { id: number; title: string; content: string; verseText: string };
+  /** 수정 모드에서 저장 시 호출 */
+  onSaveEdit?: (id: number, title: string, content: string) => void;
 };
 
 export function MemoDrawer({
@@ -24,32 +28,48 @@ export function MemoDrawer({
   onClose,
   initialVerseText,
   onSave,
+  editMemo,
+  onSaveEdit,
 }: MemoDrawerProps) {
   const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const contentRef = useRef<TextInput>(null);
+  const isEditMode = Boolean(editMemo);
 
   useEffect(() => {
     if (isOpen) {
-      setTitle('');
-      setContent('');
-      const t = setTimeout(() => {
+      if (editMemo) {
+        setTitle(editMemo.title);
+        setContent(editMemo.content);
+      } else {
+        setTitle('');
+        setContent('');
+      }
+      const timer = setTimeout(() => {
         contentRef.current?.focus();
       }, 400);
-      return () => clearTimeout(t);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, editMemo]);
 
   const handleSave = useCallback(() => {
-    onSave(title.trim(), content.trim());
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    if (isEditMode && editMemo && onSaveEdit) {
+      onSaveEdit(editMemo.id, trimmedTitle, trimmedContent);
+    } else {
+      onSave(trimmedTitle, trimmedContent);
+    }
     onClose();
-  }, [title, content, onSave, onClose]);
+  }, [title, content, isEditMode, editMemo, onSave, onSaveEdit, onClose]);
 
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.85}>
       <View className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-        <Text className="text-lg font-bold text-gray-900 dark:text-white">{t('memoDrawer.title')}</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-white">
+          {isEditMode ? t('memoDrawer.editTitle') : t('memoDrawer.title')}
+        </Text>
       </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -71,7 +91,7 @@ export function MemoDrawer({
             placeholderTextColor="#9ca3af"
             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
           />
-          {initialVerseText ? (
+          {(initialVerseText || editMemo?.verseText) ? (
             <>
               <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                 {t('memoDrawer.verseTextLabel')}
@@ -81,7 +101,7 @@ export function MemoDrawer({
                   className="text-gray-900 dark:text-gray-100 text-base leading-6"
                   selectable
                 >
-                  {initialVerseText}
+                  {editMemo?.verseText ?? initialVerseText}
                 </Text>
               </View>
             </>

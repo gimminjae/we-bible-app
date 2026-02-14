@@ -1,10 +1,11 @@
+import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getMemoById, type MemoRecord } from '@/utils/memo-db';
+import { getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useI18n } from '@/utils/i18n';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatDate(raw: string): string {
@@ -22,6 +23,17 @@ export default function MemoDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const memoId = useMemo(() => Number(params.id || 0), [params.id]);
   const [memo, setMemo] = useState<MemoRecord | null>(null);
+  const [showEditDrawer, setShowEditDrawer] = useState(false);
+
+  const handleSaveEdit = useCallback(
+    async (id: number, title: string, content: string) => {
+      await updateMemo(db, id, title, content);
+      const updated = await getMemoById(db, id);
+      if (updated) setMemo(updated);
+      setShowEditDrawer(false);
+    },
+    [db]
+  );
 
   useEffect(() => {
     let active = true;
@@ -43,12 +55,22 @@ export default function MemoDetailScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center gap-3">
-        <IconSymbol name="chevron.right" size={18} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
-        <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
-          {t('common.back')}
-        </Text>
-        <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.memoDetailTitle')}</Text>
+      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-3">
+          <IconSymbol name="chevron.right" size={18} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
+          <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
+            {t('common.back')}
+          </Text>
+          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.memoDetailTitle')}</Text>
+        </View>
+        {memo ? (
+          <Pressable
+            onPress={() => setShowEditDrawer(true)}
+            className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+          >
+            <Text className="text-sm font-semibold text-white">{t('mypage.editMemo')}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView
@@ -83,6 +105,22 @@ export default function MemoDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      {memo ? (
+        <MemoDrawer
+          isOpen={showEditDrawer}
+          onClose={() => setShowEditDrawer(false)}
+          initialVerseText={memo.verseText}
+          onSave={() => {}}
+          editMemo={{
+            id: memo.id,
+            title: memo.title,
+            content: memo.content,
+            verseText: memo.verseText,
+          }}
+          onSaveEdit={handleSaveEdit}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -107,6 +107,21 @@ export async function getAllMemos(db: SQLiteDatabase): Promise<MemoRecord[]> {
   }));
 }
 
+/** 메모 수정 */
+export async function updateMemo(
+  db: SQLiteDatabase,
+  id: number,
+  title: string,
+  content: string
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE ${MEMOS_TABLE} SET title = ?, content = ? WHERE id = ?`,
+    title.trim() || '',
+    content.trim() || '',
+    id
+  );
+}
+
 /** 메모 상세 조회 */
 export async function getMemoById(db: SQLiteDatabase, id: number): Promise<MemoRecord | null> {
   const row = await db.getFirstAsync<{
