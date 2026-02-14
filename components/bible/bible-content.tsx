@@ -1,10 +1,49 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spinner } from '@gluestack-ui/themed';
 import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import type { DisplayVerse } from './types';
+
+function BibleVerseSkeleton() {
+  const opacity = useSharedValue(0.5);
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(0.8, { duration: 800 }), -1, true);
+  }, [opacity]);
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <View className="gap-2">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <View key={i} className="flex-row gap-3 py-1">
+          <View className="min-w-[36px] items-center pt-0.5">
+            <Animated.View
+              style={[animatedStyle]}
+              className="h-5 w-6 rounded bg-gray-200 dark:bg-gray-700"
+            />
+            <View style={{ width: 14, height: 14 }} />
+          </View>
+          <View className="flex-1 gap-1">
+            <Animated.View
+              style={[animatedStyle]}
+              className="h-5 rounded bg-gray-200 dark:bg-gray-700"
+            />
+            <Animated.View
+              style={[animatedStyle]}
+              className="h-5 w-[80%] rounded bg-gray-200 dark:bg-gray-700"
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 const SWIPE_THRESHOLD = 50;
 const VELOCITY_THRESHOLD = 200;
@@ -77,15 +116,13 @@ export function BibleContent({
           scrollEventThrottle={160}
         >
           {loading ? (
-            <View className="py-16 items-center justify-center">
-              <Spinner size="large" />
-            </View>
+            <BibleVerseSkeleton />
           ) : error ? (
             <View className="py-12 items-center">
               <Text className="text-red-500 dark:text-red-400 text-center text-base">{error}</Text>
             </View>
           ) : (
-            <View className="gap-4">
+            <View className="gap-2">
               {verses.map((v, i) => {
                 const verseNum = Number(v.verse) || i + 1;
                 const isSelected = selectedVerseNumbers.includes(verseNum);
