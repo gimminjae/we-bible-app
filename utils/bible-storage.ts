@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
+const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const BIBLE_STATE_TABLE = 'bible_state';
 const MAX_AGE = 60 * 60 * 24 * 365; // 1년
 
@@ -99,6 +100,41 @@ export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | 
   );
   if (row?.value === 'light' || row?.value === 'dark') return row.value;
   return null;
+}
+
+/** 특정 성경 위치로 이동 예약 (관심 목록 등에서 사용) */
+export type PendingBibleNavigation = { bookCode: string; chapter: number };
+
+export async function setPendingBibleNavigation(
+  db: SQLiteDatabase,
+  nav: PendingBibleNavigation
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    PENDING_NAVIGATION_KEY,
+    JSON.stringify(nav)
+  );
+}
+
+export async function getPendingBibleNavigation(
+  db: SQLiteDatabase
+): Promise<PendingBibleNavigation | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    PENDING_NAVIGATION_KEY
+  );
+  if (!row?.value) return null;
+  try {
+    const parsed = JSON.parse(row.value) as PendingBibleNavigation;
+    if (typeof parsed?.bookCode === 'string' && typeof parsed?.chapter === 'number') {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+export async function clearPendingBibleNavigation(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, PENDING_NAVIGATION_KEY);
 }
 
 /** DB에 테마 저장 */

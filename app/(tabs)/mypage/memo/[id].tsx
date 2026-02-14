@@ -1,11 +1,11 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
+import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useI18n } from '@/utils/i18n';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatDate(raw: string): string {
@@ -34,6 +34,25 @@ export default function MemoDetailScreen() {
     },
     [db]
   );
+
+  const handleDeletePress = useCallback(() => {
+    if (!memo) return;
+    Alert.alert(
+      t('mypage.deleteMemoConfirm'),
+      '',
+      [
+        { text: t('mypage.deleteCancel'), style: 'cancel' },
+        {
+          text: t('mypage.deleteConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteMemo(db, memo.id);
+            router.back();
+          },
+        },
+      ]
+    );
+  }, [db, memo, router, t]);
 
   useEffect(() => {
     let active = true;
@@ -64,12 +83,20 @@ export default function MemoDetailScreen() {
           <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.memoDetailTitle')}</Text>
         </View>
         {memo ? (
-          <Pressable
-            onPress={() => setShowEditDrawer(true)}
-            className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
-          >
-            <Text className="text-sm font-semibold text-white">{t('mypage.editMemo')}</Text>
-          </Pressable>
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={() => setShowEditDrawer(true)}
+              className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+            >
+              <Text className="text-sm font-semibold text-white">{t('mypage.editMemo')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleDeletePress}
+              className="px-3 py-2 rounded-lg bg-red-500 active:opacity-90"
+            >
+              <Text className="text-sm font-semibold text-white">{t('mypage.deleteMemo')}</Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
 

@@ -27,6 +27,7 @@ const MAPPING = {
   'heart': 'favorite-border',
   'heart.fill': 'favorite',
   'note.text': 'note',
+  'trash.fill': 'delete',
 } as IconMapping;
 
 /**

@@ -122,6 +122,11 @@ export async function updateMemo(
   );
 }
 
+/** 메모 삭제 */
+export async function deleteMemo(db: SQLiteDatabase, id: number): Promise<void> {
+  await db.runAsync(`DELETE FROM ${MEMOS_TABLE} WHERE id = ?`, id);
+}
+
 /** 메모 상세 조회 */
 export async function getMemoById(db: SQLiteDatabase, id: number): Promise<MemoRecord | null> {
   const row = await db.getFirstAsync<{

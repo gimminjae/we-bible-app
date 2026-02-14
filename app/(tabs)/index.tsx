@@ -9,6 +9,12 @@ import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useI18n } from '@/utils/i18n';
+import {
+  clearPendingBibleNavigation,
+  getPendingBibleNavigation,
+} from '@/utils/bible-storage';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
@@ -23,8 +29,20 @@ const COPY_BUTTON_FADE_DURATION = 300;
 const NAV_HIDE_DELAY_MS = 3000;
 
 export default function HomeScreen() {
+  const db = useSQLiteContext();
   const bible = useBibleReader();
   const { t } = useI18n();
+
+  useFocusEffect(
+    useCallback(() => {
+      getPendingBibleNavigation(db).then((nav) => {
+        if (nav) {
+          bible.goToBookChapter(nav.bookCode, nav.chapter);
+          clearPendingBibleNavigation(db);
+        }
+      });
+    }, [db, bible.goToBookChapter])
+  );
   const [navVisible, setNavVisible] = useState(true);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

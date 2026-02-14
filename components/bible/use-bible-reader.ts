@@ -215,6 +215,15 @@ export function useBibleReader() {
     setShowBookDrawer(false);
   }, []);
 
+  const goToBookChapter = useCallback((code: string, ch: number) => {
+    const bookExists = BOOKS.some((b) => b.bookCode === code);
+    const targetBook = bookExists ? BOOKS.find((b) => b.bookCode === code)! : BOOKS[0];
+    const maxCh = targetBook?.maxChapter ?? 1;
+    const safeCh = Math.min(Math.max(1, ch), maxCh);
+    setBookCode(targetBook?.bookCode ?? code);
+    setChapter(safeCh);
+  }, []);
+
   const closeBookDrawer = useCallback(() => setShowBookDrawer(false), []);
   const openLangPicker = useCallback(() => {
     setShowLangDrawer(true);
@@ -313,6 +322,7 @@ export function useBibleReader() {
     openBookPicker,
     selectBook,
     selectChapter,
+    goToBookChapter,
     closeBookDrawer,
     openLangPicker,
     openSettings,
