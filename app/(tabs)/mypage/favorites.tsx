@@ -118,7 +118,7 @@ export default function FavoriteListScreen() {
                 onPress={() => handleItemPress(item)}
                 className="flex-1 px-4 py-3 active:opacity-90"
               >
-                <Text className="font-semibold text-sm text-primary-600 dark:text-primary-400 font-medium">
+                <Text className="font-semibold text-sm text-primary-600 dark:text-primary-400">
                   {getBookName(item.bookCode, appLanguage)} {item.chapter}:
                   {item.verse}
                 </Text>
