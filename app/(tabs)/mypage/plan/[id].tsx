@@ -1,3 +1,4 @@
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useAppSettings } from "@/contexts/app-settings"
@@ -15,7 +16,7 @@ import { useFocusEffect } from "@react-navigation/native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { Alert, Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 const OT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq <= 39)
@@ -316,7 +317,7 @@ export default function PlanDetailScreen() {
       </ScrollView>
 
       {chapterModalBookIndex !== null && plan && (
-        <ChapterEditModal
+        <ChapterEditDrawer
           visible={chapterModalBookIndex !== null}
           onClose={() => setChapterModalBookIndex(null)}
           plan={plan}
@@ -334,7 +335,7 @@ export default function PlanDetailScreen() {
   )
 }
 
-type ChapterEditModalProps = {
+type ChapterEditDrawerProps = {
   visible: boolean
   onClose: () => void
   plan: PlanRecord
@@ -345,7 +346,7 @@ type ChapterEditModalProps = {
   t: (key: string) => string
 }
 
-function ChapterEditModal({
+function ChapterEditDrawer({
   visible,
   onClose,
   plan,
@@ -354,8 +355,7 @@ function ChapterEditModal({
   appLanguage,
   onSaved,
   t,
-}: ChapterEditModalProps) {
-  const [addMode, setAddMode] = useState(true)
+}: ChapterEditDrawerProps) {
   const [localStatus, setLocalStatus] = useState<GoalStatus>(plan.goalStatus)
 
   useEffect(() => {
@@ -375,7 +375,7 @@ function ChapterEditModal({
         if (i !== bookIndex) return row
         const arr = [...row]
         if (chIndex >= 0 && chIndex < arr.length) {
-          arr[chIndex] = addMode ? 1 : 0
+          arr[chIndex] = (arr[chIndex] ?? 0) === 1 ? 0 : 1
         }
         return arr
       })
@@ -384,9 +384,13 @@ function ChapterEditModal({
   }
 
   const checkAll = () => {
+    const allRead = Array.from(
+      { length: book.maxChapter },
+      (_, i) => chapters[i] ?? 0,
+    ).every((c) => c === 1)
     setLocalStatus((prev) => {
       const next = prev.map((row, i) =>
-        i === bookIndex ? row.map(() => (addMode ? 1 : 0)) : row,
+        i === bookIndex ? row.map(() => (allRead ? 0 : 1)) : row,
       )
       return next
     })
@@ -399,76 +403,49 @@ function ChapterEditModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-white dark:bg-gray-900 rounded-t-2xl max-h-[80%]">
-          <View className="px-4 py-3 flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
-            <Text className="text-lg font-bold text-gray-900 dark:text-white">
-              {getBookName(book.bookCode, appLanguage)}
-            </Text>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-sm text-gray-600 dark:text-gray-400">
-                {t("mypage.addMode")}
-              </Text>
-              <Button
-                onPress={() => setAddMode(!addMode)}
-                action={addMode ? "primary" : "secondary"}
-                size="xs"
-              >
-                <ButtonText>{addMode ? "+" : "-"}</ButtonText>
-              </Button>
-              <Button onPress={onClose} action="default" size="sm">
-                <Text className="text-gray-600 dark:text-gray-400">✕</Text>
-              </Button>
-            </View>
-          </View>
-          <ScrollView
-            className="p-4"
-            contentContainerStyle={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 8,
-            }}
-          >
-            {Array.from({ length: book.maxChapter }, (_, i) => i).map(
-              (chIndex) => {
-                const isRead = (chapters[chIndex] ?? 0) === 1
-                return (
-                  <Button
-                    key={chIndex}
-                    onPress={() => toggleChapter(chIndex)}
-                    action={isRead ? "primary" : "default"}
-                    variant="outline"
-                    size="xs"
-                    className="w-12 h-12 rounded-full p-0 min-h-0 items-center justify-center"
-                  >
-                    <Text className="text-xs text-gray-500 dark:text-gray-400 absolute -top-1">
-                      {isRead ? 1 : 0}
-                    </Text>
-                    <Text
-                      className={`text-sm font-medium ${
-                        isRead
-                          ? "text-white"
-                          : "text-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {chIndex + 1}
-                    </Text>
-                  </Button>
-                )
-              },
-            )}
-          </ScrollView>
-          <View className="px-4 pb-6 pt-2 flex-row gap-3">
-            <Button onPress={handleSave} action="primary" className="flex-1">
-              <ButtonText>{t("mypage.savePlan")}</ButtonText>
-            </Button>
-            <Button onPress={checkAll} action="secondary" className="flex-1">
-              <ButtonText>{t("mypage.checkAll")}</ButtonText>
-            </Button>
-          </View>
-        </View>
+    <BottomSheet visible={visible} onClose={onClose} heightFraction={0.8}>
+      <View className="px-6 py-3 flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
+        <Text className="text-lg font-bold text-gray-900 dark:text-white">
+          {getBookName(book.bookCode, appLanguage)}
+        </Text>
+        <Pressable onPress={onClose} className="px-2 py-1">
+          <Text className="text-base text-gray-600 dark:text-gray-400">✕</Text>
+        </Pressable>
       </View>
-    </Modal>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          paddingHorizontal: 24,
+          paddingVertical: 16,
+        }}
+      >
+        {Array.from({ length: book.maxChapter }, (_, i) => i).map((chIndex) => {
+          const isRead = (chapters[chIndex] ?? 0) === 1
+          return (
+            <Button
+              key={chIndex}
+              onPress={() => toggleChapter(chIndex)}
+              action={isRead ? "positive" : "secondary"}
+              variant={isRead ? "solid" : "outline"}
+              size="xs"
+              className="w-12 h-12 rounded-full p-0 min-h-0 items-center justify-center"
+            >
+              <Text className="text-sm font-medium">{chIndex + 1}</Text>
+            </Button>
+          )
+        })}
+      </ScrollView>
+      <View className="px-6 pb-6 pt-2 flex-row gap-3">
+        <Button onPress={handleSave} action="primary" className="flex-1">
+          <ButtonText>{t("mypage.savePlan")}</ButtonText>
+        </Button>
+        <Button onPress={checkAll} action="secondary" className="flex-1">
+          <ButtonText>{t("mypage.checkAll")}</ButtonText>
+        </Button>
+      </View>
+    </BottomSheet>
   )
 }
