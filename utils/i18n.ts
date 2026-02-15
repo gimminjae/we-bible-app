@@ -58,6 +58,9 @@ const messages = {
       deletePrayerContentConfirm: '이 기도 내용을 삭제하시겠습니까?',
       editPrayer: '수정',
       deletePrayer: '삭제',
+      prayerForTargetFormat: '{target}을 위한 기도',
+      prayerRequestedForFormat: '{requester}이 기도부탁한 {target}을 위한 기도',
+      prayerNameSuffix: '님',
     },
     prayerDrawer: {
       addTitle: '기도 등록',
@@ -152,6 +155,9 @@ const messages = {
       deletePrayerContentConfirm: 'Are you sure you want to delete this prayer content?',
       editPrayer: 'Edit',
       deletePrayer: 'Delete',
+      prayerForTargetFormat: 'Prayer for {target}',
+      prayerRequestedForFormat: 'Prayer for {target} requested by {requester}',
+      prayerNameSuffix: '',
     },
     prayerDrawer: {
       addTitle: 'Add prayer',
