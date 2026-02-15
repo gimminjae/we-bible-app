@@ -15,6 +15,7 @@ import '@/global.css';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
 import { initMemosTable } from '@/utils/memo-db';
+import { initPlansTable } from '@/utils/plan-db';
 import { initPrayersTable } from '@/utils/prayer-db';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -22,6 +23,7 @@ async function initDb(db: SQLiteDatabase) {
   await initFavoriteVersesTable(db);
   await initBibleStateTable(db);
   await initMemosTable(db);
+  await initPlansTable(db);
   await initPrayersTable(db);
 }
 

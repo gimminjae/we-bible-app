@@ -54,12 +54,25 @@ export default function MyPageScreen() {
 
         <Pressable
           onPress={() => router.push("/(tabs)/mypage/prayers")}
-          className="px-4 py-8 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-center justify-between"
+          className="mb-4 px-4 py-8 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-center justify-between"
         >
           <View className="flex-row items-center gap-3">
             <IconSymbol name="hands.sparkles" size={20} color="#6366f1" />
             <Text className="text-base font-semibold text-gray-900 dark:text-white">
               {t("mypage.prayersMenu")}
+            </Text>
+          </View>
+          <IconSymbol name="chevron.right" size={18} color="#9ca3af" />
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push("/(tabs)/mypage/plans")}
+          className="px-4 py-8 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-center justify-between"
+        >
+          <View className="flex-row items-center gap-3">
+            <IconSymbol name="book.fill" size={20} color="#059669" />
+            <Text className="text-base font-semibold text-gray-900 dark:text-white">
+              {t("mypage.plansMenu")}
             </Text>
           </View>
           <IconSymbol name="chevron.right" size={18} color="#9ca3af" />
