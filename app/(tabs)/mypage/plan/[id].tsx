@@ -448,7 +448,7 @@ function ChapterEditDrawer({
               size="xs"
               className="w-12 h-12 rounded-full p-0 min-h-0 items-center justify-center"
             >
-              <Text className="text-sm font-medium">{chIndex + 1}</Text>
+              <ButtonText className="text-xs font-medium">{chIndex + 1}</ButtonText>
             </Button>
           )
         })}
