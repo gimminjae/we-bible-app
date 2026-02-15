@@ -16,7 +16,14 @@ import { useFocusEffect } from "@react-navigation/native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Pressable, ScrollView, Text, View } from "react-native"
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 const OT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq <= 39)
@@ -75,6 +82,7 @@ export default function PlanDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>()
   const planId = useMemo(() => Number(params.id || 0), [params.id])
   const [plan, setPlan] = useState<PlanRecord | null>(null)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"ot" | "nt">("ot")
   const [chapterModalBookIndex, setChapterModalBookIndex] = useState<
     number | null
@@ -84,11 +92,14 @@ export default function PlanDetailScreen() {
     let active = true
     if (!planId) {
       setPlan(null)
+      setLoading(false)
       return
     }
+    setLoading(true)
     getPlanById(db, planId).then((row) => {
       if (!active) return
       setPlan(row)
+      setLoading(false)
     })
     return () => {
       active = false
@@ -141,10 +152,14 @@ export default function PlanDetailScreen() {
         className="flex-1 bg-gray-50 dark:bg-gray-950"
         edges={["top", "bottom", "left", "right"]}
       >
-        <View className="p-4">
-          <Text className="text-gray-500 dark:text-gray-400">
-            {t("mypage.planNotFound")}
-          </Text>
+        <View className="flex-1 items-center justify-center p-4">
+          {loading ? (
+            <ActivityIndicator size="large" color="#6b7280" />
+          ) : (
+            <Text className="text-center text-gray-500 dark:text-gray-400">
+              {t("mypage.planNotFound")}
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     )
