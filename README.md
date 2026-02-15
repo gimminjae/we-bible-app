@@ -13,8 +13,9 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~성경 언어버전 선택~~
 - ~~성경복사~~
 - ~~기도목록~~
-- 성경읽기표
-- 성경 목표세워 읽기
+- ~~성경읽기표~~
+- ~~성경 목표세워 읽기~~
+- 성경 잔디
 - 소셜 로그인
 - sqlite 파일 데이터 동기화
 - 푯대말씀 기능
