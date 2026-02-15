@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/toast-context';
 import {
   deletePrayer,
   deletePrayerContent,
@@ -26,6 +27,7 @@ export default function PrayerDetailScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{ id?: string }>();
   const prayerId = useMemo(() => Number(params.id || 0), [params.id]);
   const [prayer, setPrayer] = useState<PrayRecord | null>(null);
@@ -59,12 +61,13 @@ export default function PrayerDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             await deletePrayer(db, prayer.id);
+            showToast(t('toast.prayerDeleted'), '🙏');
             router.back();
           },
         },
       ]
     );
-  }, [db, prayer, router, t]);
+  }, [db, prayer, router, showToast, t]);
 
   const handleDeleteContent = useCallback(
     (content: PrayContent) => {
@@ -78,13 +81,14 @@ export default function PrayerDetailScreen() {
             style: 'destructive',
             onPress: async () => {
               await deletePrayerContent(db, content.id);
+              showToast(t('toast.prayerContentDeleted'), '🙏');
               load();
             },
           },
         ]
       );
     },
-    [db, load, t]
+    [db, load, showToast, t]
   );
 
   const handleEditPress = useCallback(() => {

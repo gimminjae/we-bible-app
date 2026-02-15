@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/toast-context';
 import { useI18n } from '@/utils/i18n';
 import { addPrayer } from '@/utils/prayer-db';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -19,6 +20,7 @@ export default function AddPrayerScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const [requester, setRequester] = useState('');
   const [target, setTarget] = useState('');
   const [content, setContent] = useState('');
@@ -27,6 +29,7 @@ export default function AddPrayerScreen() {
     if (!content.trim()) return;
     const id = await addPrayer(db, requester, target, content);
     if (id) {
+      showToast(t('toast.prayerAdded'), '🙏');
       router.replace({
         pathname: '/(tabs)/mypage/prayer/[id]',
         params: { id: String(id) },
@@ -34,7 +37,7 @@ export default function AddPrayerScreen() {
     } else {
       router.back();
     }
-  }, [db, requester, target, content, router]);
+  }, [db, requester, target, content, router, showToast, t]);
 
   return (
     <SafeAreaView

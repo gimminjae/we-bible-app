@@ -1,6 +1,7 @@
 import type { FavoriteVerseRecord } from "@/components/bible/types"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useToast } from "@/contexts/toast-context"
 import { getBookName } from "@/services/bible"
 import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { getAllFavorites, removeFavorites } from "@/utils/favorite-verses-db"
@@ -25,6 +26,7 @@ export default function FavoriteListScreen() {
   const router = useRouter()
   const { t } = useI18n()
   const { appLanguage } = useAppSettings()
+  const { showToast } = useToast()
   const [items, setItems] = useState<FavoriteVerseRecord[]>([])
 
   const load = useCallback(() => {
@@ -69,11 +71,12 @@ export default function FavoriteListScreen() {
           onPress: async () => {
             await removeFavorites(db, item.bookCode, item.chapter, [item.verse])
             load()
+            showToast(t("toast.favoriteRemoved"), "❤️")
           },
         },
       ])
     },
-    [db, load, t],
+    [db, load, showToast, t],
   )
 
   return (

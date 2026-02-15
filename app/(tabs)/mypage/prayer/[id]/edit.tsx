@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/toast-context';
 import { useI18n } from '@/utils/i18n';
 import {
   addPrayerContent,
@@ -27,6 +28,7 @@ export default function EditPrayerScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{ id?: string }>();
   const prayerId = useMemo(() => Number(params.id || 0), [params.id]);
   const [requester, setRequester] = useState('');
@@ -90,8 +92,9 @@ export default function EditPrayerScreen() {
         await addPrayerContent(db, prayerId, item.content);
       }
     }
+    showToast(t('toast.prayerUpdated'), '🙏');
     router.back();
-  }, [db, prayerId, requester, target, contents, deletedIds, router]);
+  }, [db, prayerId, requester, target, contents, deletedIds, router, showToast, t]);
 
   return (
     <SafeAreaView

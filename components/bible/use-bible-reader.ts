@@ -1,6 +1,8 @@
+import { useToast } from '@/contexts/toast-context';
 import { useBibleQuery } from '@/hooks/use-bible-query';
 import { useFavoriteVerses } from '@/hooks/use-favorite-verses';
 import { useMemoVerses } from '@/hooks/use-memo-verses';
+import { useI18n } from '@/utils/i18n';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
 import { getBibleSearchInfo, setBibleSearchInfo } from '@/utils/bible-storage';
 import { makeCopyBibles } from '@/utils/bible.util';
@@ -30,6 +32,8 @@ const FONT_STEPS = [0.8, 0.9, 1, 1.1, 1.2] as const;
 
 export function useBibleReader() {
   const db = useSQLiteContext();
+  const { showToast } = useToast();
+  const { t } = useI18n();
   const [bookCode, setBookCode] = useState('genesis');
   const [chapter, setChapter] = useState(1);
   const [primaryLang, setPrimaryLang] = useState<BibleLang>('ko');
@@ -128,18 +132,24 @@ export function useBibleReader() {
       })
       .filter((x): x is { verse: number; text: string } => x != null);
     if (versesWithText.length > 0) {
-      addFavoriteVerses(versesWithText).then(() => setSelectedVerseNumbers([]));
+      addFavoriteVerses(versesWithText).then(() => {
+        setSelectedVerseNumbers([]);
+        showToast(t('toast.favoriteAdded'), '❤️');
+      });
     }
-  }, [selectedVerseNumbers, favoriteVerseNumbers, verses, addFavoriteVerses]);
+  }, [selectedVerseNumbers, favoriteVerseNumbers, verses, addFavoriteVerses, showToast, t]);
 
   const removeSelectedFromFavorites = useCallback(() => {
     const toRemove = [...new Set(selectedVerseNumbers)].filter((n) =>
       favoriteVerseNumbers.includes(n)
     );
     if (toRemove.length > 0) {
-      removeFavoriteVerses(toRemove).then(() => setSelectedVerseNumbers([]));
+      removeFavoriteVerses(toRemove).then(() => {
+        setSelectedVerseNumbers([]);
+        showToast(t('toast.favoriteRemoved'), '❤️');
+      });
     }
-  }, [selectedVerseNumbers, favoriteVerseNumbers, removeFavoriteVerses]);
+  }, [selectedVerseNumbers, favoriteVerseNumbers, removeFavoriteVerses, showToast, t]);
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load') : null;
 
@@ -169,9 +179,10 @@ export function useBibleReader() {
       addMemoToDb(title, content, verseText, toSave).then(() => {
         setSelectedVerseNumbers([]);
         setShowMemoDrawer(false);
+        showToast(t('toast.memoAdded'), '📝');
       });
     },
-    [selectedVerseNumbers, memoInitialContent, addMemoToDb]
+    [selectedVerseNumbers, memoInitialContent, addMemoToDb, showToast, t]
   );
   const maxChapter = currentBook?.maxChapter ?? 1;
 
@@ -282,8 +293,9 @@ export function useBibleReader() {
     if (text) {
       await copyTextToClipboard(text);
       setSelectedVerseNumbers([]);
+      showToast(t('toast.copySuccess'), '😊');
     }
-  }, [selectedVerseNumbers, verses, bookName, chapter]);
+  }, [selectedVerseNumbers, verses, bookName, chapter, showToast, t]);
 
   const langLabel = primaryLang === 'ko' ? '한국어' : primaryLang === 'en' ? 'English' : 'German';
 

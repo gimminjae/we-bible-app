@@ -1,5 +1,6 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/toast-context';
 import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useI18n } from '@/utils/i18n';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -20,6 +21,7 @@ export default function MemoDetailScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{ id?: string }>();
   const memoId = useMemo(() => Number(params.id || 0), [params.id]);
   const [memo, setMemo] = useState<MemoRecord | null>(null);
@@ -31,8 +33,9 @@ export default function MemoDetailScreen() {
       const updated = await getMemoById(db, id);
       if (updated) setMemo(updated);
       setShowEditDrawer(false);
+      showToast(t('toast.memoUpdated'), '📝');
     },
-    [db]
+    [db, showToast, t]
   );
 
   const handleDeletePress = useCallback(() => {
@@ -47,12 +50,13 @@ export default function MemoDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             await deleteMemo(db, memo.id);
+            showToast(t('toast.memoDeleted'), '📝');
             router.back();
           },
         },
       ]
     );
-  }, [db, memo, router, t]);
+  }, [db, memo, router, showToast, t]);
 
   useEffect(() => {
     let active = true;

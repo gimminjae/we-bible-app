@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
+import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
@@ -36,10 +37,12 @@ function RootLayoutContent() {
   return (
     <GluestackUIProvider mode={theme}>
       <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
+        <ToastProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+        </ToastProvider>
         <StatusBar style="auto" />
       </ThemeProvider>
     </GluestackUIProvider>
