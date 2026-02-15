@@ -28,6 +28,7 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'note.text': 'note',
   'trash.fill': 'delete',
+  'hands.sparkles': 'volunteer-activism',
 } as IconMapping;
 
 /**
