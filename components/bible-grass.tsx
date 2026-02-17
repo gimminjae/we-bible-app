@@ -184,7 +184,7 @@ export function BibleGrass() {
       const g = buildGrid(y)
       return getChaptersByYear(grassData, g) > 0
     })
-    return [...result, 2025, 2024]
+    return result
   }, [allYears, grassData])
 
   useEffect(() => {
@@ -211,9 +211,7 @@ export function BibleGrass() {
           {t("grass.title").replace("{count}", String(totalChapters))}
         </Text>
         <Pressable
-          onPress={() =>
-            selectableYears.length > 0 && setYearSelectOpen(true)
-          }
+          onPress={() => selectableYears.length > 0 && setYearSelectOpen(true)}
           disabled={selectableYears.length === 0}
           className="flex-row items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[72px]"
         >
