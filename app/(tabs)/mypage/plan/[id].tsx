@@ -413,7 +413,14 @@ function ChapterEditDrawer({
 
   const handleSave = async () => {
     const { updateGoalStatus } = await import("@/utils/plan-db")
+    const { syncGrassFromPlanSave } = await import("@/utils/grass-db")
     await updateGoalStatus(db, plan.id, localStatus)
+    await syncGrassFromPlanSave(
+      db,
+      book.bookCode,
+      plan.goalStatus[bookIndex] ?? [],
+      localStatus[bookIndex] ?? [],
+    )
     onSaved()
   }
 

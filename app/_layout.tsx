@@ -15,6 +15,7 @@ import '@/global.css';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
 import { initMemosTable } from '@/utils/memo-db';
+import { initGrassTable } from '@/utils/grass-db';
 import { initPlansTable } from '@/utils/plan-db';
 import { initPrayersTable } from '@/utils/prayer-db';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -25,6 +26,7 @@ async function initDb(db: SQLiteDatabase) {
   await initMemosTable(db);
   await initPlansTable(db);
   await initPrayersTable(db);
+  await initGrassTable(db);
 }
 
 const queryClient = new QueryClient();

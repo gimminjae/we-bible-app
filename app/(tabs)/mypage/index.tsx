@@ -1,3 +1,4 @@
+import { BibleGrass } from "@/components/bible-grass"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useI18n } from "@/utils/i18n"
 import { useRouter } from "expo-router"
@@ -25,6 +26,8 @@ export default function MyPageScreen() {
         <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
           {t("mypage.title")}
         </Text>
+
+        <BibleGrass />
 
         <Pressable
           onPress={() => router.push("/(tabs)/mypage/favorites")}
