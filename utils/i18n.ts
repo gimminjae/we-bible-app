@@ -86,6 +86,10 @@ const messages = {
     },
     grass: {
       title: '지난 1년간 {count}장을 읽었어요',
+      streakStart: '이제 시작! 힘내서 달려봐요!',
+      streakMonth: '습관을 잘 유지중이에요!',
+      streakMonthPlus: '대단해요! 한 달 넘게 성경읽기를 유지중이에요!',
+      streakNone: '연속 읽기를 시작해보세요!',
       selectYear: '연도 선택',
       less: '적음',
       more: '많음',
@@ -260,6 +264,10 @@ const messages = {
     },
     grass: {
       title: '{count} chapters read in the last year',
+      streakStart: "You've started! Keep going!",
+      streakMonth: "You've been reading the Bible for almost a month!",
+      streakMonthPlus: "Amazing! You've been reading the Bible for over a month!",
+      streakNone: 'Start your reading streak!',
       selectYear: 'Select year',
       less: 'Less',
       more: 'More',

@@ -56,6 +56,44 @@ export function getChapterCountForDate(
   return day.reduce((sum, e) => sum + e.readChapter.length, 0);
 }
 
+function toDateString(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * 어제까지 이어지는 연속 읽기 일수.
+ * selectedYear 내에서만 계산.
+ * includesYesterday: 어제 읽었는지 (연속 유지 중인지)
+ */
+export function getStreakUpToYesterday(
+  data: GrassDataMap,
+  selectedYear: number
+): { streak: number; includesYesterday: boolean } {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = toDateString(yesterday);
+
+  if (yesterday.getFullYear() !== selectedYear) {
+    return { streak: 0, includesYesterday: false };
+  }
+
+  if (getChapterCountForDate(data, yesterdayStr) === 0) {
+    return { streak: 0, includesYesterday: false };
+  }
+
+  let streak = 1;
+  let d = new Date(yesterday);
+  d.setDate(d.getDate() - 1);
+
+  while (d.getFullYear() === selectedYear && getChapterCountForDate(data, toDateString(d)) > 0) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+
+  return { streak, includesYesterday: true };
+}
+
 /** Merge/replace book entry for a date. Used when syncing from plan save. */
 export async function syncGrassForBook(
   db: SQLiteDatabase,
@@ -84,7 +122,13 @@ export async function syncGrassForBook(
   );
 }
 
-/** Sync grass when user saves in ChapterEditDrawer. prevChapters/newChapters are 1-based chapter numbers. */
+/**
+ * Sync grass when user saves in ChapterEditDrawer.
+ * 기존 잔디 데이터와 비교하여 변경분만 반영:
+ * - prev에 있던 장을 new에서 해제 → 잔디에서 제거
+ * - new에서 체크한 장 → 잔디에 추가
+ * - 다른 읽기표 등에서 온 장은 유지
+ */
 export async function syncGrassFromPlanSave(
   db: SQLiteDatabase,
   bookCode: string,
@@ -100,5 +144,36 @@ export async function syncGrassFromPlanSave(
     if (p === 1) prevChapters.push(ch);
     if (n === 1) newChapters.push(ch);
   }
-  await syncGrassForBook(db, todayString(), bookCode, newChapters);
+
+  const rows = await db.getAllAsync<{ data: string }>(
+    `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
+    todayString()
+  );
+
+  let dayData: GrassDayEntry[] = rows[0]
+    ? parseJson<GrassDayEntry[]>(rows[0].data ?? '[]', [])
+    : [];
+
+  const existingEntry = dayData.find((e) => e.bookCode === bookCode);
+  const currentChapters = existingEntry?.readChapter ?? [];
+
+  // (기존 잔디 - 이전 읽기표) ∪ 새 읽기표
+  const prevSet = new Set(prevChapters);
+  const resultChapters = [
+    ...currentChapters.filter((ch) => !prevSet.has(ch)),
+    ...newChapters,
+  ]
+    .filter((ch, i, arr) => arr.indexOf(ch) === i)
+    .sort((a, b) => a - b);
+
+  const nextDayData = dayData.filter((e) => e.bookCode !== bookCode);
+  if (resultChapters.length > 0) {
+    nextDayData.push({ bookCode, readChapter: resultChapters });
+  }
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
+    todayString(),
+    JSON.stringify(nextDayData)
+  );
 }

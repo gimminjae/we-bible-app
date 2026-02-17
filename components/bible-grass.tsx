@@ -11,6 +11,7 @@ import { useI18n } from "@/utils/i18n"
 import {
   getChapterCountForDate,
   getGrassData,
+  getStreakUpToYesterday,
   type GrassDataMap,
 } from "@/utils/grass-db"
 
@@ -174,6 +175,11 @@ export function BibleGrass() {
     [grid, grassData],
   )
 
+  const { streak, includesYesterday } = useMemo(
+    () => getStreakUpToYesterday(grassData, selectedYear),
+    [grassData, selectedYear],
+  )
+
   const allYears = useMemo(() => {
     const current = new Date().getFullYear()
     return [current, current - 1, current - 2, current - 3, current - 4]
@@ -208,7 +214,15 @@ export function BibleGrass() {
     <View className="mb-6 px-4 py-5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden">
       <View className="flex-row items-center justify-between mb-3">
         <Text className="text-sm text-gray-600 dark:text-gray-400 flex-1">
-          {t("grass.title").replace("{count}", String(totalChapters))}
+          {includesYesterday
+            ? streak <= 6
+              ? t("grass.streakStart")
+              : streak <= 30
+                ? t("grass.streakMonth")
+                : t("grass.streakMonthPlus")
+            : totalChapters > 0
+              ? t("grass.streakStart")
+              : t("grass.streakNone")}
         </Text>
         <Pressable
           onPress={() => selectableYears.length > 0 && setYearSelectOpen(true)}
