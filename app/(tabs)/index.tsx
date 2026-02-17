@@ -8,6 +8,7 @@ import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import {
   clearPendingBibleNavigation,
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const db = useSQLiteContext();
   const bible = useBibleReader();
   const { t } = useI18n();
+  const { scale, moderateScale } = useResponsive();
 
   useFocusEffect(
     useCallback(() => {
@@ -130,8 +132,19 @@ export default function HomeScreen() {
 
         <Animated.View
           pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
-          style={copyButtonStyle}
-          className="absolute bottom-6 left-0 right-0 flex-row items-center justify-center gap-3"
+          style={[
+            copyButtonStyle,
+            {
+              position: 'absolute',
+              bottom: scale(24),
+              left: 0,
+              right: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: scale(12),
+            },
+          ]}
         >
           <Pressable
             onPress={
@@ -139,25 +152,36 @@ export default function HomeScreen() {
                 ? bible.removeSelectedFromFavorites
                 : bible.addSelectedToFavorites
             }
-            className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            className="rounded-full bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            style={{ width: scale(48), height: scale(48) }}
           >
             <IconSymbol
               name={bible.allSelectedAreFavorites ? 'heart.fill' : 'heart'}
-              size={24}
+              size={moderateScale(24)}
               color={bible.allSelectedAreFavorites ? '#ec4899' : '#6b7280'}
             />
           </Pressable>
           <Pressable
             onPress={bible.openMemoDrawer}
-            className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 items-center justify-center active:opacity-80"
+            className="rounded-full bg-amber-100 dark:bg-amber-900/40 items-center justify-center active:opacity-80"
+            style={{ width: scale(48), height: scale(48) }}
           >
-            <IconSymbol name="note.text" size={24} color="#b45309" />
+            <IconSymbol name="note.text" size={moderateScale(24)} color="#b45309" />
           </Pressable>
           <Pressable
             onPress={bible.copySelectedVerses}
-            className="bg-primary-500 px-6 py-3 rounded-full shadow-lg active:opacity-90"
+            className="bg-primary-500 rounded-full shadow-lg active:opacity-90"
+            style={{
+              paddingHorizontal: scale(24),
+              paddingVertical: scale(12),
+            }}
           >
-            <Text className="text-white font-semibold">{t('common.copy')}</Text>
+            <Text
+              style={{ fontSize: moderateScale(16) }}
+              className="text-white font-semibold"
+            >
+              {t('common.copy')}
+            </Text>
           </Pressable>
         </Animated.View>
 

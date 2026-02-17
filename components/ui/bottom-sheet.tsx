@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, Modal, Pressable, View } from 'react-native';
+import { scale } from '@/utils/responsive';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -113,10 +114,10 @@ export function BottomSheet({
             className="bg-white dark:bg-gray-900"
             style={{
               flex: 1,
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
+              borderTopLeftRadius: scale(16),
+              borderTopRightRadius: scale(16),
               overflow: 'hidden',
-              paddingBottom: 34,
+              paddingBottom: scale(34),
             }}
           >
             {children}

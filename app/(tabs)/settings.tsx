@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppSettings } from '@/contexts/app-settings';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import type { AppLanguage } from '@/utils/app-settings-storage';
 
@@ -20,6 +21,7 @@ const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
 export default function SettingsScreen() {
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
   const { t } = useI18n();
+  const { scale, moderateScale } = useResponsive();
   const [languageSelectOpen, setLanguageSelectOpen] = useState(false);
 
   const handleToggleTheme = useCallback(() => {
@@ -52,49 +54,79 @@ export default function SettingsScreen() {
     >
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40 }}
+        contentContainerStyle={{
+          paddingHorizontal: scale(20),
+          paddingTop: scale(24),
+          paddingBottom: scale(40),
+        }}
         showsVerticalScrollIndicator={false}
       >
-        <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
+        <Text
+          className="font-bold text-gray-900 dark:text-white"
+          style={{ fontSize: moderateScale(24), marginBottom: scale(32) }}
+        >
           {t('settings.title')}
         </Text>
 
         {/* 시스템 언어 */}
-        <View className="mb-6">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+        <View style={{ marginBottom: scale(24) }}>
+          <Text
+            className="font-medium text-gray-500 dark:text-gray-400"
+            style={{ fontSize: moderateScale(14), marginBottom: scale(8) }}
+          >
             {t('settings.systemLanguage')}
           </Text>
           <Pressable
             onPress={handleOpenLanguageSelect}
-            className="flex-row items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+            className="flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+            style={{
+              paddingHorizontal: scale(16),
+              paddingVertical: scale(12),
+            }}
           >
-            <Text className="text-base text-gray-900 dark:text-white">
+            <Text
+              style={{ fontSize: moderateScale(16) }}
+              className="text-gray-900 dark:text-white"
+            >
               {currentLanguageLabel}
             </Text>
             <IconSymbol
               name="chevron.down"
-              size={18}
+              size={moderateScale(18)}
               color={theme === 'light' ? '#374151' : '#9ca3af'}
             />
           </Pressable>
         </View>
 
         {/* 화이트/다크 모드 */}
-        <View className="mb-6">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+        <View style={{ marginBottom: scale(24) }}>
+          <Text
+            className="font-medium text-gray-500 dark:text-gray-400"
+            style={{ fontSize: moderateScale(14), marginBottom: scale(8) }}
+          >
             {t('settings.theme')}
           </Text>
           <Pressable
             onPress={handleToggleTheme}
-            className="flex-row items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+            className="flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+            style={{
+              paddingHorizontal: scale(16),
+              paddingVertical: scale(12),
+            }}
           >
-            <Text className="text-base text-gray-900 dark:text-white">
+            <Text
+              style={{ fontSize: moderateScale(16) }}
+              className="text-gray-900 dark:text-white"
+            >
               {theme === 'light' ? t('settings.lightMode') : t('settings.darkMode')}
             </Text>
-            <View className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center">
+            <View
+              className="rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center"
+              style={{ width: scale(40), height: scale(40) }}
+            >
               <IconSymbol
                 name={theme === 'light' ? 'moon.fill' : 'sun.max.fill'}
-                size={22}
+                size={moderateScale(22)}
                 color={theme === 'light' ? '#374151' : '#f59e0b'}
               />
             </View>
@@ -113,19 +145,31 @@ export default function SettingsScreen() {
           onPress={handleCloseLanguageSelect}
         >
           <Pressable
-            className="bg-gray-50 dark:bg-gray-900 rounded-t-2xl px-4 pb-8 pt-4"
+            className="bg-gray-50 dark:bg-gray-900 rounded-t-2xl"
+            style={{
+              paddingHorizontal: scale(16),
+              paddingBottom: scale(32),
+              paddingTop: scale(16),
+            }}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <Text
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(16) }}
+            >
               {t('settings.languageSelect')}
             </Text>
             {LANGUAGE_OPTIONS.map((opt) => (
               <Pressable
                 key={opt.value}
                 onPress={() => handleSelectLanguage(opt.value)}
-                className="py-3.5 rounded-xl active:bg-gray-200 dark:active:bg-gray-800"
+                className="rounded-xl active:bg-gray-200 dark:active:bg-gray-800"
+                style={{ paddingVertical: scale(14) }}
               >
-                <Text className="text-base text-gray-900 dark:text-white">
+                <Text
+                  style={{ fontSize: moderateScale(16) }}
+                  className="text-gray-900 dark:text-white"
+                >
                   {opt.label}
                 </Text>
               </Pressable>

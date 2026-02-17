@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, {
@@ -12,6 +13,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { DisplayVerse } from './types';
 
 function BibleVerseSkeleton() {
+  const { scale, moderateScale } = useResponsive();
   const opacity = useSharedValue(0.5);
   useEffect(() => {
     opacity.value = withRepeat(withTiming(0.8, { duration: 800 }), -1, true);
@@ -19,24 +21,24 @@ function BibleVerseSkeleton() {
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <View className="gap-2">
+    <View style={{ gap: scale(8) }}>
       {Array.from({ length: 12 }).map((_, i) => (
-        <View key={i} className="flex-row gap-3 py-1">
-          <View className="min-w-[36px] items-center pt-0.5">
+        <View key={i} className="flex-row py-1" style={{ gap: scale(12) }}>
+          <View className="items-center pt-0.5" style={{ minWidth: scale(36) }}>
             <Animated.View
-              style={[animatedStyle]}
-              className="h-5 w-6 rounded bg-gray-200 dark:bg-gray-700"
+              style={[animatedStyle, { height: scale(20), width: scale(24), borderRadius: 4 }]}
+              className="bg-gray-200 dark:bg-gray-700"
             />
-            <View style={{ width: 14, height: 14 }} />
+            <View style={{ width: moderateScale(14), height: moderateScale(14) }} />
           </View>
-          <View className="flex-1 gap-1">
+          <View className="flex-1" style={{ gap: scale(4) }}>
             <Animated.View
-              style={[animatedStyle]}
-              className="h-5 rounded bg-gray-200 dark:bg-gray-700"
+              style={[animatedStyle, { height: scale(20), borderRadius: 4 }]}
+              className="bg-gray-200 dark:bg-gray-700"
             />
             <Animated.View
-              style={[animatedStyle]}
-              className="h-5 w-[80%] rounded bg-gray-200 dark:bg-gray-700"
+              style={[animatedStyle, { height: scale(20), width: '80%', borderRadius: 4 }]}
+              className="bg-gray-200 dark:bg-gray-700"
             />
           </View>
         </View>
@@ -80,6 +82,7 @@ export function BibleContent({
   onScroll,
 }: BibleContentProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const { scale, moderateScale } = useResponsive();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -110,7 +113,11 @@ export function BibleContent({
         <ScrollView
           ref={scrollRef}
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40 }}
+          contentContainerStyle={{
+            paddingHorizontal: scale(16),
+            paddingTop: scale(20),
+            paddingBottom: scale(40),
+          }}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={160}
@@ -118,11 +125,16 @@ export function BibleContent({
           {loading ? (
             <BibleVerseSkeleton />
           ) : error ? (
-            <View className="py-12 items-center">
-              <Text className="text-red-500 dark:text-red-400 text-center text-base">{error}</Text>
+            <View className="items-center" style={{ paddingVertical: scale(48) }}>
+              <Text
+                className="text-red-500 dark:text-red-400 text-center"
+                style={{ fontSize: moderateScale(16) }}
+              >
+                {error}
+              </Text>
             </View>
           ) : (
-            <View className="gap-2">
+            <View style={{ gap: scale(8) }}>
               {verses.map((v, i) => {
                 const verseNum = Number(v.verse) || i + 1;
                 const isSelected = selectedVerseNumbers.includes(verseNum);
@@ -132,42 +144,74 @@ export function BibleContent({
                   <Pressable
                     key={i}
                     onPress={() => handleVersePress(verseNum)}
-                    className="flex-row gap-3 py-1 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                    className="flex-row py-1 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                    style={{ gap: scale(12) }}
                   >
-                    <View className="min-w-[36px] items-center pt-0.5">
+                    <View className="items-center pt-0.5" style={{ minWidth: scale(36) }}>
                       <Text
-                        className="text-gray-900 dark:text-gray-100 text-[15px] leading-6"
-                        style={{ fontSize: 16 * fontScale, lineHeight: 24 * fontScale }}
+                        className="text-gray-900 dark:text-gray-100"
+                        style={{
+                          fontSize: moderateScale(16) * fontScale,
+                          lineHeight: moderateScale(24) * fontScale,
+                        }}
                       >
                         {verseNum}
                       </Text>
-                      <View className="flex-row items-center justify-center gap-0.5">
+                      <View
+                        className="flex-row items-center justify-center"
+                        style={{ gap: scale(2) }}
+                      >
                         {isFavorite ? (
-                          <IconSymbol name="heart.fill" size={14} color="#ec4899" />
+                          <IconSymbol
+                            name="heart.fill"
+                            size={moderateScale(14)}
+                            color="#ec4899"
+                          />
                         ) : (
-                          <View style={{ width: 14, height: 14 }} />
+                          <View
+                            style={{
+                              width: moderateScale(14),
+                              height: moderateScale(14),
+                            }}
+                          />
                         )}
                         {hasMemo ? (
-                          <IconSymbol name="note.text" size={14} color="#b45309" />
+                          <IconSymbol
+                            name="note.text"
+                            size={moderateScale(14)}
+                            color="#b45309"
+                          />
                         ) : (
-                          <View style={{ width: 14, height: 14 }} />
+                          <View
+                            style={{
+                              width: moderateScale(14),
+                              height: moderateScale(14),
+                            }}
+                          />
                         )}
                       </View>
                     </View>
                     <View className="flex-1">
                       <Text
-                        className={`text-gray-900 dark:text-gray-100 text-[15px] leading-6 ${isSelected ? 'underline decoration-dotted' : ''}`}
+                        className={`text-gray-900 dark:text-gray-100 ${isSelected ? 'underline decoration-dotted' : ''}`}
                         style={[
-                          { fontSize: 16 * fontScale, lineHeight: 24 * fontScale },
+                          {
+                            fontSize: moderateScale(16) * fontScale,
+                            lineHeight: moderateScale(24) * fontScale,
+                          },
                         ]}
                       >
                         {v.primary}
                       </Text>
                       {dualLang && v.secondary ? (
                         <Text
-                          className="text-gray-600 dark:text-gray-400 text-sm mt-1 leading-5"
+                          className="text-gray-600 dark:text-gray-400"
                           style={[
-                            { fontSize: 14 * fontScale, lineHeight: 20 * fontScale },
+                            {
+                              fontSize: moderateScale(14) * fontScale,
+                              lineHeight: moderateScale(20) * fontScale,
+                              marginTop: scale(4),
+                            },
                           ]}
                         >
                           {v.secondary}

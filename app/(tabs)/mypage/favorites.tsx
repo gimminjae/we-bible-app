@@ -11,6 +11,7 @@ import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"
 import { Alert, Pressable, ScrollView, Text, View } from "react-native"
+import { useResponsive } from "@/hooks/use-responsive"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 function formatDate(raw: string): string {
@@ -27,6 +28,7 @@ export default function FavoriteListScreen() {
   const { t } = useI18n()
   const { appLanguage } = useAppSettings()
   const { showToast } = useToast()
+  const { scale, moderateScale } = useResponsive()
   const [items, setItems] = useState<FavoriteVerseRecord[]>([])
 
   const load = useCallback(() => {
@@ -84,60 +86,94 @@ export default function FavoriteListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center gap-3">
+      <View
+        className="flex-row items-center"
+        style={{
+          paddingHorizontal: scale(16),
+          paddingTop: scale(16),
+          paddingBottom: scale(12),
+          gap: scale(12),
+        }}
+      >
         <IconSymbol
           name="chevron.right"
-          size={18}
+          size={moderateScale(18)}
           color="#9ca3af"
           style={{ transform: [{ rotate: "180deg" }] }}
         />
         <Text
           onPress={() => router.back()}
-          className="text-base text-gray-700 dark:text-gray-300"
+          className="text-gray-700 dark:text-gray-300"
+          style={{ fontSize: moderateScale(16) }}
         >
           {t("common.back")}
         </Text>
-        <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
+        <Text
+          className="font-bold text-gray-900 dark:text-white"
+          style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}
+        >
           {t("mypage.favoritesTitle")}
         </Text>
       </View>
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        contentContainerStyle={{
+          paddingHorizontal: scale(16),
+          paddingBottom: scale(24),
+        }}
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <Text className="text-gray-500 dark:text-gray-400 mt-6">
+          <Text
+            className="text-gray-500 dark:text-gray-400"
+            style={{ marginTop: scale(24) }}
+          >
             {t("mypage.emptyFavorites")}
           </Text>
         ) : (
           items.map((item, idx) => (
             <View
               key={`${item.bookCode}:${item.chapter}:${item.verse}:${idx}`}
-              className="mb-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-start"
+              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-start"
+              style={{ marginBottom: scale(12) }}
             >
               <Pressable
                 onPress={() => handleItemPress(item)}
-                className="flex-1 px-4 py-3 active:opacity-90"
+                className="flex-1 active:opacity-90"
+                style={{ paddingHorizontal: scale(16), paddingVertical: scale(12) }}
               >
-                <Text className="font-semibold text-sm text-primary-600 dark:text-primary-400">
+                <Text
+                  className="font-semibold text-primary-600 dark:text-primary-400"
+                  style={{ fontSize: moderateScale(14) }}
+                >
                   {getBookName(item.bookCode, appLanguage)} {item.chapter}:
                   {item.verse}
                 </Text>
-                <Text className="text-base text-gray-900 dark:text-white leading-6 mt-1">
+                <Text
+                  className="text-gray-900 dark:text-white"
+                  style={{
+                    fontSize: moderateScale(16),
+                    lineHeight: moderateScale(24),
+                    marginTop: scale(4),
+                  }}
+                >
                   {item.verseText}
                 </Text>
-                <Text className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <Text
+                  className="text-gray-500 dark:text-gray-400"
+                  style={{ fontSize: moderateScale(14), marginTop: scale(8) }}
+                >
                   {formatDate(item.createdAt)}
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => handleDeletePress(item)}
-                hitSlop={8}
-                className="p-3 active:bg-gray-100 dark:active:bg-gray-800"
+                hitSlop={scale(8)}
+                className="active:bg-gray-100 dark:active:bg-gray-800"
+                style={{ padding: scale(12) }}
               >
-                <IconSymbol name="trash.fill" size={20} color="#6b7280" />
+                <IconSymbol name="trash.fill" size={moderateScale(20)} color="#6b7280" />
               </Pressable>
             </View>
           ))

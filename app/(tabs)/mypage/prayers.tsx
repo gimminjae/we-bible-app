@@ -6,6 +6,7 @@ import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"
 import { Pressable, ScrollView, Text, View } from "react-native"
+import { useResponsive } from "@/hooks/use-responsive"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 function formatDate(raw: string): string {
@@ -58,6 +59,7 @@ export default function PrayerListScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { t } = useI18n()
+  const { scale, moderateScale } = useResponsive()
   const [items, setItems] = useState<PrayListItem[]>([])
 
   const load = useCallback(() => {
@@ -82,29 +84,38 @@ export default function PrayerListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
+      <View
+        className="flex-row items-center justify-between"
+        style={{
+          paddingHorizontal: scale(16),
+          paddingTop: scale(16),
+          paddingBottom: scale(12),
+        }}
+      >
+        <View className="flex-row items-center" style={{ gap: scale(12) }}>
           <IconSymbol
             name="chevron.right"
-            size={18}
+            size={moderateScale(18)}
             color="#9ca3af"
             style={{ transform: [{ rotate: "180deg" }] }}
           />
           <Text
             onPress={() => router.back()}
-            className="text-base text-gray-700 dark:text-gray-300"
+            className="text-gray-700 dark:text-gray-300"
+            style={{ fontSize: moderateScale(16) }}
           >
             {t("common.back")}
           </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
+          <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>
             {t("mypage.prayersTitle")}
           </Text>
         </View>
         <Pressable
           onPress={handleAddPress}
-          className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+          className="rounded-lg bg-primary-500 active:opacity-90"
+          style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
         >
-          <Text className="text-sm font-semibold text-white">
+          <Text className="font-semibold text-white" style={{ fontSize: moderateScale(14) }}>
             {t("mypage.addPrayer")}
           </Text>
         </Pressable>
@@ -112,11 +123,14 @@ export default function PrayerListScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        contentContainerStyle={{
+          paddingHorizontal: scale(16),
+          paddingBottom: scale(24),
+        }}
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <Text className="text-gray-500 dark:text-gray-400 mt-6">
+          <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>
             {t("mypage.emptyPrayers")}
           </Text>
         ) : (
@@ -129,9 +143,10 @@ export default function PrayerListScreen() {
                   params: { id: String(item.id) },
                 })
               }
-              className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+              style={{ marginBottom: scale(12), paddingHorizontal: scale(16), paddingVertical: scale(12) }}
             >
-              <Text className="text-sm text-primary-600 dark:text-primary-400 font-medium">
+              <Text className="text-primary-600 dark:text-primary-400 font-medium" style={{ fontSize: moderateScale(14) }}>
                 {getPrayerLabelSegments(item.requester, item.target, t).map(
                   (seg, i) =>
                     seg.bold ? (
@@ -145,11 +160,16 @@ export default function PrayerListScreen() {
               </Text>
               <Text
                 numberOfLines={2}
-                className="text-base text-gray-900 dark:text-white leading-6 mt-1"
+                className="text-gray-900 dark:text-white"
+                style={{
+                  fontSize: moderateScale(16),
+                  lineHeight: moderateScale(24),
+                  marginTop: scale(4),
+                }}
               >
                 {item.latestContent || "-"}
               </Text>
-              <Text className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(14), marginTop: scale(8) }}>
                 {formatDate(item.latestContentAt)}
               </Text>
             </Pressable>

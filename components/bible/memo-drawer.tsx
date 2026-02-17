@@ -1,4 +1,5 @@
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -32,6 +33,7 @@ export function MemoDrawer({
   onSaveEdit,
 }: MemoDrawerProps) {
   const { t } = useI18n();
+  const { scale, moderateScale } = useResponsive();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const contentRef = useRef<TextInput>(null);
@@ -66,8 +68,18 @@ export function MemoDrawer({
 
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.85}>
-      <View className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-        <Text className="text-lg font-bold text-gray-900 dark:text-white">
+      <View
+        className="border-b border-gray-100 dark:border-gray-800"
+        style={{
+          paddingHorizontal: scale(16),
+          paddingTop: scale(16),
+          paddingBottom: scale(12),
+        }}
+      >
+        <Text
+          className="font-bold text-gray-900 dark:text-white"
+          style={{ fontSize: moderateScale(18) }}
+        >
           {isEditMode ? t('memoDrawer.editTitle') : t('memoDrawer.title')}
         </Text>
       </View>
@@ -77,11 +89,18 @@ export function MemoDrawer({
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 16 }}
+          contentContainerStyle={{
+            paddingHorizontal: scale(16),
+            paddingVertical: scale(12),
+            paddingBottom: scale(16),
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
         >
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+          <Text
+            className="font-medium text-gray-600 dark:text-gray-400"
+            style={{ fontSize: moderateScale(14), marginBottom: scale(6) }}
+          >
             {t('memoDrawer.titleLabel')}
           </Text>
           <TextInput
@@ -89,16 +108,33 @@ export function MemoDrawer({
             onChangeText={setTitle}
             placeholder={t('memoDrawer.titlePlaceholder')}
             placeholderTextColor="#9ca3af"
-            className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+            className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg"
+            style={{
+              paddingHorizontal: scale(12),
+              paddingVertical: scale(10),
+              fontSize: moderateScale(16),
+              marginBottom: scale(16),
+            }}
           />
           {(initialVerseText || editMemo?.verseText) ? (
             <>
-              <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              <Text
+                className="font-medium text-gray-600 dark:text-gray-400"
+                style={{ fontSize: moderateScale(14), marginBottom: scale(6) }}
+              >
                 {t('memoDrawer.verseTextLabel')}
               </Text>
-              <View className="bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2.5 mb-4">
+              <View
+                className="bg-gray-100 dark:bg-gray-800 rounded-lg"
+                style={{
+                  paddingHorizontal: scale(12),
+                  paddingVertical: scale(10),
+                  marginBottom: scale(16),
+                }}
+              >
                 <Text
-                  className="text-gray-900 dark:text-gray-100 text-base leading-6"
+                  className="text-gray-900 dark:text-gray-100"
+                  style={{ fontSize: moderateScale(16), lineHeight: moderateScale(24) }}
                   selectable
                 >
                   {editMemo?.verseText ?? initialVerseText}
@@ -106,7 +142,10 @@ export function MemoDrawer({
               </View>
             </>
           ) : null}
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+          <Text
+            className="font-medium text-gray-600 dark:text-gray-400"
+            style={{ fontSize: moderateScale(14), marginBottom: scale(6) }}
+          >
             {t('memoDrawer.contentLabel')}
           </Text>
           <TextInput
@@ -116,24 +155,48 @@ export function MemoDrawer({
             placeholder={t('memoDrawer.contentPlaceholder')}
             placeholderTextColor="#9ca3af"
             multiline
-            className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base"
-            style={{ textAlignVertical: 'top', minHeight: 200 }}
+            className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg"
+            style={{
+              textAlignVertical: 'top',
+              minHeight: scale(200),
+              paddingHorizontal: scale(12),
+              paddingVertical: scale(10),
+              fontSize: moderateScale(16),
+            }}
           />
         </ScrollView>
-        <View className="px-4 pt-2 pb-4 border-t border-gray-100 dark:border-gray-800 flex-row gap-3">
+        <View
+          className="border-t border-gray-100 dark:border-gray-800 flex-row"
+          style={{
+            paddingHorizontal: scale(16),
+            paddingTop: scale(8),
+            paddingBottom: scale(16),
+            gap: scale(12),
+          }}
+        >
           <Pressable
             onPress={onClose}
-            className="flex-1 h-12 rounded-xl bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            className="flex-1 rounded-xl bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            style={{ height: scale(48) }}
           >
-            <Text className="text-base font-semibold text-gray-800 dark:text-gray-100">
+            <Text
+              className="font-semibold text-gray-800 dark:text-gray-100"
+              style={{ fontSize: moderateScale(16) }}
+            >
               {t('memoDrawer.cancel')}
             </Text>
           </Pressable>
           <Pressable
             onPress={handleSave}
-            className="flex-1 h-12 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+            className="flex-1 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+            style={{ height: scale(48) }}
           >
-            <Text className="text-base font-semibold text-white">{t('memoDrawer.save')}</Text>
+            <Text
+              className="font-semibold text-white"
+              style={{ fontSize: moderateScale(16) }}
+            >
+              {t('memoDrawer.save')}
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

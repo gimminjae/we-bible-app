@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useResponsive } from '@/hooks/use-responsive';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatDate(raw: string): string {
@@ -41,6 +42,7 @@ export default function PlanListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { scale, moderateScale } = useResponsive();
   const [items, setItems] = useState<PlanListItem[]>([]);
 
   const load = useCallback(() => {
@@ -65,18 +67,25 @@ export default function PlanListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
+      <View
+        className="flex-row items-center justify-between"
+        style={{
+          paddingHorizontal: scale(16),
+          paddingTop: scale(16),
+          paddingBottom: scale(12),
+        }}
+      >
+        <View className="flex-row items-center" style={{ gap: scale(12) }}>
           <IconSymbol
             name="chevron.right"
-            size={18}
+            size={moderateScale(18)}
             color="#9ca3af"
             style={{ transform: [{ rotate: '180deg' }] }}
           />
-          <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
+          <Text onPress={() => router.back()} className="text-gray-700 dark:text-gray-300" style={{ fontSize: moderateScale(16) }}>
             {t('common.back')}
           </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
+          <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>
             {t('mypage.plansTitle')}
           </Text>
         </View>
@@ -88,15 +97,15 @@ export default function PlanListScreen() {
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 24,
+          paddingHorizontal: scale(16),
+          paddingBottom: scale(24),
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <View className="flex-1 justify-center py-16">
-            <Text className="text-gray-500 dark:text-gray-400 text-center text-base">
+          <View className="flex-1 justify-center" style={{ paddingVertical: scale(64) }}>
+            <Text className="text-gray-500 dark:text-gray-400 text-center" style={{ fontSize: moderateScale(16) }}>
               {t('mypage.emptyPlans')}
             </Text>
           </View>
@@ -110,33 +119,34 @@ export default function PlanListScreen() {
                   params: { id: String(item.id) },
                 })
               }
-              className="mb-3 px-4 py-5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 active:opacity-90"
+              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 active:opacity-90"
+              style={{ marginBottom: scale(12), paddingHorizontal: scale(16), paddingVertical: scale(20) }}
             >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-base font-semibold text-gray-900 dark:text-white flex-1">
+              <View className="flex-row items-center justify-between" style={{ marginBottom: scale(8) }}>
+                <Text className="font-semibold text-gray-900 dark:text-white flex-1" style={{ fontSize: moderateScale(16) }}>
                   {item.planName || t('mypage.planDetailTitle')}
                 </Text>
-                <View className="bg-primary-100 dark:bg-primary-900/40 px-2.5 py-1 rounded-lg">
-                  <Text className="text-sm font-bold text-primary-600 dark:text-primary-400">
+                <View className="bg-primary-100 dark:bg-primary-900/40 rounded-lg" style={{ paddingHorizontal: scale(10), paddingVertical: scale(4) }}>
+                  <Text className="font-bold text-primary-600 dark:text-primary-400" style={{ fontSize: moderateScale(14) }}>
                     {item.goalPercent.toFixed(1)}%
                   </Text>
                 </View>
               </View>
-              <Text className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <Text className="text-gray-600 dark:text-gray-400" style={{ fontSize: moderateScale(14), marginBottom: scale(12) }}>
                 {getGoalSummary(item.selectedBookCodes, t)}
               </Text>
-              <View className="flex-row items-center gap-2">
-                <IconSymbol name="calendar" size={14} color="#9ca3af" />
-                <Text className="text-sm text-gray-500 dark:text-gray-400">
+              <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                <IconSymbol name="calendar" size={moderateScale(14)} color="#9ca3af" />
+                <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(14) }}>
                   {t('mypage.planStartDate')} {formatDate(item.startDate)} ~ {t('mypage.planEndDate')}{' '}
                   {formatDate(item.endDate)}
                 </Text>
               </View>
-              <View className="flex-row items-center gap-1 mt-2">
-                <Text className="text-xs text-primary-600 dark:text-primary-400 font-medium">
+              <View className="flex-row items-center" style={{ gap: scale(4), marginTop: scale(8) }}>
+                <Text className="text-primary-600 dark:text-primary-400 font-medium" style={{ fontSize: moderateScale(12) }}>
                   {item.restDay}
                 </Text>
-                <Text className="text-xs text-gray-500 dark:text-gray-400">
+                <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(12) }}>
                   {t('mypage.planDaysRemaining')}
                 </Text>
               </View>

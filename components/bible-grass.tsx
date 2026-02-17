@@ -5,8 +5,9 @@ import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Modal, Pressable, ScrollView, Text, View } from "react-native"
 
-import { getBookName } from "@/services/bible"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useResponsive } from "@/hooks/use-responsive"
+import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
 
 import {
@@ -200,6 +201,7 @@ export function BibleGrass() {
   const db = useSQLiteContext()
   const { t } = useI18n()
   const { theme, appLanguage } = useAppSettings()
+  const { scale, moderateScale } = useResponsive()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear(),
@@ -258,14 +260,20 @@ export function BibleGrass() {
     [grassData],
   )
 
-  const cellSize = 14
-  const cellGap = 3
-  const monthGap = 5
-  const dayLabelWidth = 24
+  const cellSize = scale(14)
+  const cellGap = scale(3)
+  const monthGap = scale(5)
+  const dayLabelWidth = scale(24)
   const gridWidth = dayLabelWidth + cellGap + 53 * cellSize + 52 * cellGap
 
   return (
-    <View className="mb-6 px-5 py-6 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <View
+      className="mb-6 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
+      style={{
+        paddingHorizontal: scale(20),
+        paddingVertical: scale(24),
+      }}
+    >
       <View className="flex-row items-center justify-between mb-3">
         <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
           {includesYesterday
@@ -281,7 +289,16 @@ export function BibleGrass() {
         <Pressable
           onPress={() => selectableYears.length > 0 && setYearSelectOpen(true)}
           disabled={selectableYears.length === 0}
-          className="flex-row items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[80px]"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: scale(8),
+            paddingHorizontal: scale(16),
+            paddingVertical: scale(10),
+            borderRadius: scale(8),
+            minWidth: scale(80),
+          }}
+          className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
         >
           <Text
             className={`text-base font-medium ${selectableYears.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}
@@ -290,7 +307,7 @@ export function BibleGrass() {
           </Text>
           <IconSymbol
             name="chevron.down"
-            size={16}
+            size={moderateScale(16)}
             color={
               selectableYears.length === 0
                 ? "#9ca3af"
@@ -305,13 +322,16 @@ export function BibleGrass() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={true}
-        contentContainerStyle={{ paddingBottom: 8 }}
+        contentContainerStyle={{ paddingBottom: scale(8) }}
       >
         <View style={{ minWidth: gridWidth }}>
           {/* Month row - 각 월 1일 열에 정확히 정렬 */}
           <View
             className="flex-row mb-1"
-            style={{ marginLeft: dayLabelWidth + cellGap, height: 16 }}
+            style={{
+              marginLeft: dayLabelWidth + cellGap,
+              height: scale(16),
+            }}
           >
             {monthLabels.map(({ col, label }) => (
               <View
@@ -319,10 +339,13 @@ export function BibleGrass() {
                 style={{
                   position: "absolute",
                   left: getColumnLeft(col, grid, cellSize, cellGap, monthGap),
-                  width: 32,
+                  width: scale(32),
                 }}
               >
-                <Text className="text-[11px] text-gray-500 dark:text-gray-400">
+                <Text
+                  style={{ fontSize: moderateScale(11) }}
+                  className="text-gray-500 dark:text-gray-400"
+                >
                   {t(`grass.month.${label}`)}
                 </Text>
               </View>
@@ -335,11 +358,12 @@ export function BibleGrass() {
               {DAY_LABELS.map((label) => (
                 <Text
                   key={label}
-                  className="text-[11px] text-gray-500 dark:text-gray-400"
                   style={{
+                    fontSize: moderateScale(11),
                     height: cellSize + cellGap,
                     lineHeight: cellSize + cellGap,
                   }}
+                  className="text-gray-500 dark:text-gray-400"
                 >
                   {t(`grass.day.${label.toLowerCase()}`)}
                 </Text>
@@ -389,7 +413,8 @@ export function BibleGrass() {
                             className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
                           >
                             <Text
-                              className={`text-[8px] font-bold ${level === 0 ? "text-gray-600 dark:text-gray-400" : "text-white"}`}
+                              style={{ fontSize: moderateScale(8) }}
+                              className={`font-bold ${level === 0 ? "text-gray-600 dark:text-gray-400" : "text-white"}`}
                               numberOfLines={1}
                             >
                               {dayNum}
@@ -417,10 +442,18 @@ export function BibleGrass() {
           onPress={() => setYearSelectOpen(false)}
         >
           <Pressable
-            className="bg-gray-50 dark:bg-gray-900 rounded-t-2xl px-4 pb-8 pt-4"
+            className="bg-gray-50 dark:bg-gray-900 rounded-t-2xl"
+            style={{
+              paddingHorizontal: scale(16),
+              paddingBottom: scale(32),
+              paddingTop: scale(16),
+            }}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <Text
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(16) }}
+            >
               {t("grass.selectYear")}
             </Text>
             {selectableYears.map((y) => (
@@ -430,10 +463,16 @@ export function BibleGrass() {
                   setSelectedYear(y)
                   setYearSelectOpen(false)
                 }}
-                className="py-3.5 rounded-xl active:bg-gray-200 dark:active:bg-gray-800"
+                className="rounded-xl active:bg-gray-200 dark:active:bg-gray-800"
+                style={{ paddingVertical: scale(14) }}
               >
                 <Text
-                  className={`text-base ${selectedYear === y ? "font-semibold text-primary-600 dark:text-primary-400" : "text-gray-900 dark:text-white"}`}
+                  className={
+                    selectedYear === y
+                      ? "font-semibold text-primary-600 dark:text-primary-400"
+                      : "text-gray-900 dark:text-white"
+                  }
+                  style={{ fontSize: moderateScale(16) }}
                 >
                   {y}
                 </Text>
@@ -444,8 +483,11 @@ export function BibleGrass() {
       </Modal>
 
       {/* Legend */}
-      <View className="flex-row items-center gap-2 mt-3">
-        <Text className="text-[11px] text-gray-500 dark:text-gray-400">
+      <View className="flex-row items-center mt-3" style={{ gap: scale(8) }}>
+        <Text
+          style={{ fontSize: moderateScale(11) }}
+          className="text-gray-500 dark:text-gray-400"
+        >
           {t("grass.less")}
         </Text>
         <View className="flex-row gap-0.5">
@@ -457,15 +499,24 @@ export function BibleGrass() {
             />
           ))}
         </View>
-        <Text className="text-[11px] text-gray-500 dark:text-gray-400">
+        <Text
+          style={{ fontSize: moderateScale(11) }}
+          className="text-gray-500 dark:text-gray-400"
+        >
           {t("grass.more")}
         </Text>
       </View>
 
       {/* 날짜별 읽은 성경 */}
-      <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+      <View
+        className="border-t border-gray-200 dark:border-gray-700"
+        style={{ marginTop: scale(12), paddingTop: scale(12) }}
+      >
         {selectedDate ? (
-          <Text className="text-base text-gray-700 dark:text-gray-300">
+          <Text
+            className="text-gray-700 dark:text-gray-300"
+            style={{ fontSize: moderateScale(12) }}
+          >
             {grassData[selectedDate] && grassData[selectedDate].length > 0
               ? selectedDate === getTodayString()
                 ? t("grass.todayReadFormat").replace(
@@ -477,10 +528,7 @@ export function BibleGrass() {
                     ),
                   )
                 : t("grass.dateReadFormat")
-                    .replace(
-                      "{date}",
-                      formatDateForDisplay(selectedDate, t),
-                    )
+                    .replace("{date}", formatDateForDisplay(selectedDate, t))
                     .replace(
                       "{books}",
                       formatReadingSummary(
@@ -492,11 +540,12 @@ export function BibleGrass() {
               : t("grass.noReadingOnDate")}
           </Text>
         ) : recentDates.length > 0 ? (
-          <View className="gap-2.5">
+          <View style={{ gap: scale(10) }}>
             {recentDates.map((dateStr) => (
               <Text
                 key={dateStr}
-                className="text-base text-gray-700 dark:text-gray-300"
+                className="text-gray-700 dark:text-gray-300"
+                style={{ fontSize: moderateScale(12) }}
               >
                 {dateStr === getTodayString()
                   ? t("grass.todayReadFormat").replace(
@@ -508,10 +557,7 @@ export function BibleGrass() {
                       ),
                     )
                   : t("grass.dateReadFormat")
-                      .replace(
-                        "{date}",
-                        formatDateForDisplay(dateStr, t),
-                      )
+                      .replace("{date}", formatDateForDisplay(dateStr, t))
                       .replace(
                         "{books}",
                         formatReadingSummary(

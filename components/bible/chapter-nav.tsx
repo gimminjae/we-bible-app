@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Pressable, Text } from 'react-native';
+import { useResponsive } from '@/hooks/use-responsive';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -15,6 +16,7 @@ type ChapterNavProps = {
 };
 
 export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) {
+  const { scale, moderateScale } = useResponsive();
   const opacity = useSharedValue(visible ? 1 : 0);
 
   const syncNavOpacityToVisible = useCallback(() => {
@@ -30,20 +32,42 @@ export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) 
   return (
     <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
-      style={animatedStyle}
-      className="absolute bottom-6 left-0 right-0 flex-row justify-center gap-5"
+      style={[
+        animatedStyle,
+        {
+          position: 'absolute',
+          bottom: scale(24),
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: scale(20),
+        },
+      ]}
     >
       <Pressable
         onPress={onPrev}
-        className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        className="rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        style={{ width: scale(56), height: scale(56) }}
       >
-        <Text className="text-white text-xl font-medium">←</Text>
+        <Text
+          style={{ fontSize: moderateScale(20), color: 'white' }}
+          className="font-medium"
+        >
+          ←
+        </Text>
       </Pressable>
       <Pressable
         onPress={onNext}
-        className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        className="rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        style={{ width: scale(56), height: scale(56) }}
       >
-        <Text className="text-white text-xl font-medium">→</Text>
+        <Text
+          style={{ fontSize: moderateScale(20), color: 'white' }}
+          className="font-medium"
+        >
+          →
+        </Text>
       </Pressable>
     </Animated.View>
   );

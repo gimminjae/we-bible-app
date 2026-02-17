@@ -1,4 +1,5 @@
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { useResponsive } from "@/hooks/use-responsive"
 import { useI18n } from "@/utils/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Pressable, ScrollView, Text, View } from "react-native"
@@ -189,6 +190,7 @@ export function BookChapterDrawer({
 }: BookChapterDrawerProps) {
   const [category, setCategory] = useState<CategoryKey>("ot")
   const { t } = useI18n()
+  const { scale, moderateScale } = useResponsive()
 
   useEffect(() => {
     if (isOpen && pickerStep === "book") {
@@ -216,25 +218,44 @@ export function BookChapterDrawer({
 
   return (
     <BottomSheet visible={isOpen} onClose={onClose} heightFraction={0.75}>
-      <View className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between">
-        <Text className="text-lg font-bold text-gray-900 dark:text-white">
+      <View
+        className="border-b border-gray-100 dark:border-gray-800 flex-row items-center justify-between"
+        style={{
+          paddingHorizontal: scale(16),
+          paddingTop: scale(16),
+          paddingBottom: scale(8),
+        }}
+      >
+        <Text
+          className="font-bold text-gray-900 dark:text-white"
+          style={{ fontSize: moderateScale(18) }}
+        >
           {""}
         </Text>
-        <View className="flex-row items-center gap-2">
-          <Pressable onPress={onClose} className="px-2 py-1">
-            <Text className="text-base text-gray-600 dark:text-gray-400">
+        <View className="flex-row items-center" style={{ gap: scale(8) }}>
+          <Pressable onPress={onClose} style={{ paddingHorizontal: scale(8), paddingVertical: scale(4) }}>
+            <Text
+              className="text-gray-600 dark:text-gray-400"
+              style={{ fontSize: moderateScale(16) }}
+            >
               ✕
             </Text>
           </Pressable>
         </View>
       </View>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+        contentContainerStyle={{
+          paddingHorizontal: scale(16),
+          paddingVertical: scale(8),
+        }}
         showsVerticalScrollIndicator
       >
         {pickerStep === "book" ? (
           <>
-            <View className="flex-row flex-wrap items-center gap-2 mb-3">
+            <View
+              className="flex-row flex-wrap items-center"
+              style={{ gap: scale(8), marginBottom: scale(12) }}
+            >
               {CATEGORY_BUTTONS.map((categoryKey) => {
                 const selected = category === categoryKey
                 return (
@@ -261,9 +282,13 @@ export function BookChapterDrawer({
               <Pressable
                 key={b.bookCode}
                 onPress={() => handleSelectBook(b.bookCode)}
-                className="py-3.5 px-1 rounded-xl active:bg-gray-100 dark:active:bg-gray-800"
+                className="rounded-xl active:bg-gray-100 dark:active:bg-gray-800"
+                style={{ paddingVertical: scale(14), paddingHorizontal: scale(4) }}
               >
-                <Text className="text-base text-gray-900 dark:text-white">
+                <Text
+                  className="text-gray-900 dark:text-white"
+                  style={{ fontSize: moderateScale(16) }}
+                >
                   {getBookName(b.bookCode, primaryLang)} ({b.maxChapter})
                 </Text>
               </Pressable>
@@ -272,12 +297,19 @@ export function BookChapterDrawer({
         ) : (
           <View className="flex-row flex-wrap">
             {Array.from({ length: maxChapter }, (_, i) => i + 1).map((ch) => (
-              <View key={ch} className="w-1/5 p-1">
+              <View key={ch} className="w-1/5" style={{ padding: scale(4) }}>
                 <Pressable
                   onPress={() => handleSelectChapter(ch)}
-                  className="py-2.5 px-1 rounded-lg items-center justify-center active:bg-gray-100 dark:active:bg-gray-800"
+                  className="rounded-lg items-center justify-center active:bg-gray-100 dark:active:bg-gray-800"
+                  style={{
+                    paddingVertical: scale(10),
+                    paddingHorizontal: scale(4),
+                  }}
                 >
-                  <Text className="text-base text-gray-900 dark:text-white">
+                  <Text
+                    className="text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(16) }}
+                  >
                     {ch}
                   </Text>
                 </Pressable>
