@@ -165,7 +165,28 @@ function formatDateForDisplay(
   return `${t(`grass.month.${monthKey}`)} ${d}${t("grass.daySuffix")}`
 }
 
-/** 날짜별 읽은 성경 포맷: "창세기 1,2장, 마태복음 3장" */
+/** 연속된 장 번호를 범위로 포맷: [1,2,3,4,5,6] -> "1 ~ 6", [1,2,3,4,7,10] -> "1 ~ 4, 7, 10" */
+function formatChapterRanges(chapters: number[]): string {
+  if (chapters.length === 0) return ""
+  const sorted = [...chapters].sort((a, b) => a - b)
+  const parts: string[] = []
+  let rangeStart = sorted[0]
+  let rangeEnd = sorted[0]
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === rangeEnd + 1) {
+      rangeEnd = sorted[i]
+    } else {
+      parts.push(rangeStart === rangeEnd ? String(rangeStart) : `${rangeStart} ~ ${rangeEnd}`)
+      rangeStart = sorted[i]
+      rangeEnd = sorted[i]
+    }
+  }
+  parts.push(rangeStart === rangeEnd ? String(rangeStart) : `${rangeStart} ~ ${rangeEnd}`)
+  return parts.join(", ")
+}
+
+/** 날짜별 읽은 성경 포맷: "창세기 1 ~ 6장, 마태복음 1 ~ 4, 7장" */
 function formatReadingSummary(
   entries: GrassDayEntry[],
   getBookName: (code: string, lang: string) => string,
@@ -174,7 +195,7 @@ function formatReadingSummary(
   return entries
     .map((e) => {
       const name = getBookName(e.bookCode, appLanguage)
-      const chStr = [...e.readChapter].sort((a, b) => a - b).join(",")
+      const chStr = formatChapterRanges(e.readChapter)
       return `${name} ${chStr}장`
     })
     .join(", ")
