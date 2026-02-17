@@ -5,6 +5,7 @@ import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Modal, Pressable, ScrollView, Text, View } from "react-native"
 
+import { getBookName } from "@/services/bible"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useI18n } from "@/utils/i18n"
 
@@ -13,6 +14,7 @@ import {
   getGrassData,
   getStreakUpToYesterday,
   type GrassDataMap,
+  type GrassDayEntry,
 } from "@/utils/grass-db"
 
 import { IconSymbol } from "@/components/ui/icon-symbol"
@@ -152,15 +154,58 @@ function shouldHideCell(cell: CellInfo): boolean {
   return !cell.dateStr
 }
 
+/** YYYY-MM-DD → "2월 16일" (ko) / "Feb 16" (en) */
+function formatDateForDisplay(
+  dateStr: string,
+  t: (key: string) => string,
+): string {
+  const [, m, d] = dateStr.split("-").map(Number)
+  const monthKey = MONTH_KEYS[m - 1]
+  return `${t(`grass.month.${monthKey}`)} ${d}${t("grass.daySuffix")}`
+}
+
+/** 날짜별 읽은 성경 포맷: "창세기 1,2장, 마태복음 3장" */
+function formatReadingSummary(
+  entries: GrassDayEntry[],
+  getBookName: (code: string, lang: string) => string,
+  appLanguage: string,
+): string {
+  return entries
+    .map((e) => {
+      const name = getBookName(e.bookCode, appLanguage)
+      const chStr = [...e.readChapter].sort((a, b) => a - b).join(",")
+      return `${name} ${chStr}장`
+    })
+    .join(", ")
+}
+
+/** 읽은 기록이 있는 날짜 중 최근 n일 (최신순) */
+function getRecentDatesWithData(
+  grassData: GrassDataMap,
+  limit: number,
+): string[] {
+  return Object.keys(grassData)
+    .filter((date) => grassData[date]?.length > 0)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, limit)
+}
+
+function getTodayString(): string {
+  const d = new Date()
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 export function BibleGrass() {
   const db = useSQLiteContext()
   const { t } = useI18n()
-  const { theme } = useAppSettings()
+  const { theme, appLanguage } = useAppSettings()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear(),
   )
   const [yearSelectOpen, setYearSelectOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const load = useCallback(() => {
     getGrassData(db).then(setGrassData)
@@ -199,21 +244,30 @@ export function BibleGrass() {
     }
   }, [selectableYears, selectedYear])
 
+  useEffect(() => {
+    setSelectedDate(null)
+  }, [selectedYear])
+
   const monthLabels = useMemo(
     () => getMonthLabels(selectedYear),
     [selectedYear],
   )
 
-  const cellSize = 12
-  const cellGap = 2
-  const monthGap = 4
-  const dayLabelWidth = 20
+  const recentDates = useMemo(
+    () => getRecentDatesWithData(grassData, 3),
+    [grassData],
+  )
+
+  const cellSize = 14
+  const cellGap = 3
+  const monthGap = 5
+  const dayLabelWidth = 24
   const gridWidth = dayLabelWidth + cellGap + 53 * cellSize + 52 * cellGap
 
   return (
-    <View className="mb-6 px-4 py-5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <View className="mb-6 px-5 py-6 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-sm text-gray-600 dark:text-gray-400 flex-1">
+        <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
           {includesYesterday
             ? streak <= 6
               ? t("grass.streakStart")
@@ -227,16 +281,16 @@ export function BibleGrass() {
         <Pressable
           onPress={() => selectableYears.length > 0 && setYearSelectOpen(true)}
           disabled={selectableYears.length === 0}
-          className="flex-row items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[72px]"
+          className="flex-row items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[80px]"
         >
           <Text
-            className={`text-sm font-medium ${selectableYears.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}
+            className={`text-base font-medium ${selectableYears.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}
           >
             {selectedYear}
           </Text>
           <IconSymbol
             name="chevron.down"
-            size={14}
+            size={16}
             color={
               selectableYears.length === 0
                 ? "#9ca3af"
@@ -257,7 +311,7 @@ export function BibleGrass() {
           {/* Month row - 각 월 1일 열에 정확히 정렬 */}
           <View
             className="flex-row mb-1"
-            style={{ marginLeft: dayLabelWidth + cellGap, height: 14 }}
+            style={{ marginLeft: dayLabelWidth + cellGap, height: 16 }}
           >
             {monthLabels.map(({ col, label }) => (
               <View
@@ -265,10 +319,10 @@ export function BibleGrass() {
                 style={{
                   position: "absolute",
                   left: getColumnLeft(col, grid, cellSize, cellGap, monthGap),
-                  width: 28,
+                  width: 32,
                 }}
               >
-                <Text className="text-[10px] text-gray-500 dark:text-gray-400">
+                <Text className="text-[11px] text-gray-500 dark:text-gray-400">
                   {t(`grass.month.${label}`)}
                 </Text>
               </View>
@@ -277,11 +331,11 @@ export function BibleGrass() {
 
           {/* Day labels + Grid */}
           <View className="flex-row" style={{ gap: cellGap }}>
-            <View className="pt-0.5" style={{ width: 20 }}>
+            <View className="pt-0.5" style={{ width: dayLabelWidth }}>
               {DAY_LABELS.map((label) => (
                 <Text
                   key={label}
-                  className="text-[10px] text-gray-500 dark:text-gray-400"
+                  className="text-[11px] text-gray-500 dark:text-gray-400"
                   style={{
                     height: cellSize + cellGap,
                     lineHeight: cellSize + cellGap,
@@ -323,8 +377,9 @@ export function BibleGrass() {
                         const level = count <= 0 ? 0 : count >= 4 ? 4 : count
                         const dayNum = cell!.dateStr.slice(-2).replace(/^0/, "")
                         return (
-                          <View
+                          <Pressable
                             key={rowIdx}
+                            onPress={() => setSelectedDate(cell!.dateStr)}
                             style={{
                               width: cellSize,
                               height: cellSize,
@@ -334,12 +389,12 @@ export function BibleGrass() {
                             className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
                           >
                             <Text
-                              className={`text-[7px] font-bold ${level === 0 ? "text-gray-600 dark:text-gray-400" : "text-white"}`}
+                              className={`text-[8px] font-bold ${level === 0 ? "text-gray-600 dark:text-gray-400" : "text-white"}`}
                               numberOfLines={1}
                             >
                               {dayNum}
                             </Text>
-                          </View>
+                          </Pressable>
                         )
                       })}
                     </View>
@@ -390,7 +445,7 @@ export function BibleGrass() {
 
       {/* Legend */}
       <View className="flex-row items-center gap-2 mt-3">
-        <Text className="text-[10px] text-gray-500 dark:text-gray-400">
+        <Text className="text-[11px] text-gray-500 dark:text-gray-400">
           {t("grass.less")}
         </Text>
         <View className="flex-row gap-0.5">
@@ -402,9 +457,77 @@ export function BibleGrass() {
             />
           ))}
         </View>
-        <Text className="text-[10px] text-gray-500 dark:text-gray-400">
+        <Text className="text-[11px] text-gray-500 dark:text-gray-400">
           {t("grass.more")}
         </Text>
+      </View>
+
+      {/* 날짜별 읽은 성경 */}
+      <View className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+        {selectedDate ? (
+          <Text className="text-base text-gray-700 dark:text-gray-300">
+            {grassData[selectedDate] && grassData[selectedDate].length > 0
+              ? selectedDate === getTodayString()
+                ? t("grass.todayReadFormat").replace(
+                    "{books}",
+                    formatReadingSummary(
+                      grassData[selectedDate],
+                      getBookName,
+                      appLanguage,
+                    ),
+                  )
+                : t("grass.dateReadFormat")
+                    .replace(
+                      "{date}",
+                      formatDateForDisplay(selectedDate, t),
+                    )
+                    .replace(
+                      "{books}",
+                      formatReadingSummary(
+                        grassData[selectedDate],
+                        getBookName,
+                        appLanguage,
+                      ),
+                    )
+              : t("grass.noReadingOnDate")}
+          </Text>
+        ) : recentDates.length > 0 ? (
+          <View className="gap-2.5">
+            {recentDates.map((dateStr) => (
+              <Text
+                key={dateStr}
+                className="text-base text-gray-700 dark:text-gray-300"
+              >
+                {dateStr === getTodayString()
+                  ? t("grass.todayReadFormat").replace(
+                      "{books}",
+                      formatReadingSummary(
+                        grassData[dateStr],
+                        getBookName,
+                        appLanguage,
+                      ),
+                    )
+                  : t("grass.dateReadFormat")
+                      .replace(
+                        "{date}",
+                        formatDateForDisplay(dateStr, t),
+                      )
+                      .replace(
+                        "{books}",
+                        formatReadingSummary(
+                          grassData[dateStr],
+                          getBookName,
+                          appLanguage,
+                        ),
+                      )}
+              </Text>
+            ))}
+          </View>
+        ) : (
+          <Text className="text-base text-gray-500 dark:text-gray-400">
+            {t("grass.noDataYet")}
+          </Text>
+        )}
       </View>
     </View>
   )
