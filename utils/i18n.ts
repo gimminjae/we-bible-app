@@ -122,6 +122,22 @@ const messages = {
         nov: '11월',
         dec: '12월',
       },
+      guide: {
+        title: '성경 잔디 가이드',
+        overviewTitle: '1. 성경 잔디란?',
+        overviewBody:
+          '성경 잔디는 날짜별 성경 읽기 활동을 시각적으로 보여주는 기능이에요. 나의 성경읽기 습관과 읽기 이력을 한눈에 파악할 수 있어요.',
+        sourceTitle: '2. 어떤 기준으로 기록되나요?',
+        sourceBody:
+          '성경 잔디는 읽기표에서 체크한 내용을 기반으로 기록돼요. 체크한 장 수에 따라 해당 날짜의 잔디 색이 진해져요.',
+        colorTitle: '3. 잔디 색 기준',
+        color0: '0장: 기록 없음',
+        color1: '1장',
+        color2: '3장',
+        color3: '5장',
+        color4: '10장 이상',
+        close: '닫기',
+      },
     },
     planDrawer: {
       addTitle: '읽기표 만들기',
@@ -305,6 +321,22 @@ const messages = {
         oct: 'Oct',
         nov: 'Nov',
         dec: 'Dec',
+      },
+      guide: {
+        title: 'Bible Grass Guide',
+        overviewTitle: '1. What is Bible Grass?',
+        overviewBody:
+          'Bible Grass visualizes your daily Bible reading activity. It helps you quickly understand your reading habits and history.',
+        sourceTitle: '2. How is it recorded?',
+        sourceBody:
+          'Bible Grass is recorded based on chapters checked in your reading chart. The more chapters you check for a date, the deeper the grass color becomes.',
+        colorTitle: '3. Grass color levels',
+        color0: '0 chapters: no record',
+        color1: '1 chapter',
+        color2: '3 chapters',
+        color3: '5 chapters',
+        color4: '10+ chapters',
+        close: 'Close',
       },
     },
     planDrawer: {

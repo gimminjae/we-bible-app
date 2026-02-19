@@ -27,6 +27,7 @@ const MAPPING = {
   'heart': 'favorite-border',
   'heart.fill': 'favorite',
   'note.text': 'note',
+  'exclamationmark.circle': 'error-outline',
   'trash.fill': 'delete',
   'hands.sparkles': 'volunteer-activism',
   'calendar': 'event',

@@ -228,6 +228,7 @@ export function BibleGrass() {
     new Date().getFullYear(),
   )
   const [yearSelectOpen, setYearSelectOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const load = useCallback(() => {
@@ -296,17 +297,29 @@ export function BibleGrass() {
       }}
     >
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
-          {includesYesterday
-            ? streak <= 6
-              ? t("grass.streakStart")
-              : streak <= 30
-                ? t("grass.streakMonth")
-                : t("grass.streakMonthPlus")
-            : totalChapters > 0
-              ? t("grass.streakStart")
-              : t("grass.streakNone")}
-        </Text>
+        <View className="flex-1 flex-row items-center pr-2">
+          <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
+            {includesYesterday
+              ? streak <= 6
+                ? t("grass.streakStart")
+                : streak <= 30
+                  ? t("grass.streakMonth")
+                  : t("grass.streakMonthPlus")
+              : totalChapters > 0
+                ? t("grass.streakStart")
+                : t("grass.streakNone")}
+          </Text>
+          <Pressable
+            onPress={() => setGuideOpen(true)}
+            className="ml-2 p-1 rounded-full active:opacity-80"
+          >
+            <IconSymbol
+              name="exclamationmark.circle"
+              size={moderateScale(18)}
+              color={theme === "dark" ? "#9ca3af" : "#6b7280"}
+            />
+          </Pressable>
+        </View>
         <Pressable
           onPress={() => selectableYears.length > 0 && setYearSelectOpen(true)}
           disabled={selectableYears.length === 0}
@@ -419,7 +432,16 @@ export function BibleGrass() {
                           grassData,
                           cell!.dateStr,
                         )
-                        const level = count <= 0 ? 0 : count >= 4 ? 4 : count
+                        const level =
+                          count <= 0
+                            ? 0
+                            : count >= 10
+                              ? 4
+                              : count >= 5
+                                ? 3
+                                : count >= 3
+                                  ? 2
+                                  : 1
                         const dayNum = cell!.dateStr.slice(-2).replace(/^0/, "")
                         return (
                           <Pressable
@@ -503,6 +525,104 @@ export function BibleGrass() {
         </Pressable>
       </Modal>
 
+      <Modal
+        visible={guideOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGuideOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-center px-5"
+          onPress={() => setGuideOpen(false)}
+        >
+          <Pressable
+            className="bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700"
+            style={{ paddingHorizontal: scale(16), paddingVertical: scale(16) }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="font-bold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(12) }}
+            >
+              {t("grass.guide.title")}
+            </Text>
+
+            <ScrollView
+              style={{ maxHeight: scale(340) }}
+              contentContainerStyle={{ paddingBottom: scale(4) }}
+              showsVerticalScrollIndicator
+            >
+              <View style={{ gap: scale(12) }}>
+                <View>
+                  <Text
+                    className="font-semibold text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(14), marginBottom: scale(4) }}
+                  >
+                    {t("grass.guide.overviewTitle")}
+                  </Text>
+                  <Text
+                    className="text-gray-700 dark:text-gray-300"
+                    style={{ fontSize: moderateScale(13), lineHeight: moderateScale(20) }}
+                  >
+                    {t("grass.guide.overviewBody")}
+                  </Text>
+                </View>
+
+                <View>
+                  <Text
+                    className="font-semibold text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(14), marginBottom: scale(4) }}
+                  >
+                    {t("grass.guide.sourceTitle")}
+                  </Text>
+                  <Text
+                    className="text-gray-700 dark:text-gray-300"
+                    style={{ fontSize: moderateScale(13), lineHeight: moderateScale(20) }}
+                  >
+                    {t("grass.guide.sourceBody")}
+                  </Text>
+                </View>
+
+                <View>
+                  <Text
+                    className="font-semibold text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(14), marginBottom: scale(6) }}
+                  >
+                    {t("grass.guide.colorTitle")}
+                  </Text>
+                  <View style={{ gap: scale(6) }}>
+                    {([0, 1, 2, 3, 4] as const).map((level) => (
+                      <View key={level} className="flex-row items-center" style={{ gap: scale(8) }}>
+                        <View
+                          style={{ width: cellSize, height: cellSize }}
+                          className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
+                        />
+                        <Text
+                          className="text-gray-700 dark:text-gray-300"
+                          style={{ fontSize: moderateScale(13) }}
+                        >
+                          {t(`grass.guide.color${level}`)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            <Pressable
+              onPress={() => setGuideOpen(false)}
+              className="mt-4 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+              style={{ height: scale(44) }}
+            >
+              <Text className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
+                {t("grass.guide.close")}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Legend */}
       <View className="flex-row items-center mt-3" style={{ gap: scale(8) }}>
         <Text
@@ -541,6 +661,16 @@ export function BibleGrass() {
             {grassData[selectedDate] && grassData[selectedDate].length > 0
               ? selectedDate === getTodayString()
                 ? t("grass.todayReadFormat").replace(
+                  "{books}",
+                  formatReadingSummary(
+                    grassData[selectedDate],
+                    getBookName,
+                    appLanguage,
+                  ),
+                )
+                : t("grass.dateReadFormat")
+                  .replace("{date}", formatDateForDisplay(selectedDate, t))
+                  .replace(
                     "{books}",
                     formatReadingSummary(
                       grassData[selectedDate],
@@ -548,16 +678,6 @@ export function BibleGrass() {
                       appLanguage,
                     ),
                   )
-                : t("grass.dateReadFormat")
-                    .replace("{date}", formatDateForDisplay(selectedDate, t))
-                    .replace(
-                      "{books}",
-                      formatReadingSummary(
-                        grassData[selectedDate],
-                        getBookName,
-                        appLanguage,
-                      ),
-                    )
               : t("grass.noReadingOnDate")}
           </Text>
         ) : recentDates.length > 0 ? (
@@ -570,23 +690,23 @@ export function BibleGrass() {
               >
                 {dateStr === getTodayString()
                   ? t("grass.todayReadFormat").replace(
+                    "{books}",
+                    formatReadingSummary(
+                      grassData[dateStr],
+                      getBookName,
+                      appLanguage,
+                    ),
+                  )
+                  : t("grass.dateReadFormat")
+                    .replace("{date}", formatDateForDisplay(dateStr, t))
+                    .replace(
                       "{books}",
                       formatReadingSummary(
                         grassData[dateStr],
                         getBookName,
                         appLanguage,
                       ),
-                    )
-                  : t("grass.dateReadFormat")
-                      .replace("{date}", formatDateForDisplay(dateStr, t))
-                      .replace(
-                        "{books}",
-                        formatReadingSummary(
-                          grassData[dateStr],
-                          getBookName,
-                          appLanguage,
-                        ),
-                      )}
+                    )}
               </Text>
             ))}
           </View>
