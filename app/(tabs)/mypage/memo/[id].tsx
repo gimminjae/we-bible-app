@@ -1,10 +1,10 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
-import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useI18n } from '@/utils/i18n';
-import { useSQLiteContext } from 'expo-sqlite';
+import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -122,10 +122,12 @@ export default function MemoDetailScreen() {
               </Text>
             </View>
 
-            <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-              <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('mypage.verseText')}</Text>
-              <Text className="text-base leading-6 text-gray-900 dark:text-white">{memo.verseText}</Text>
-            </View>
+            {memo.verseText?.trim() ? (
+              <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('mypage.verseText')}</Text>
+                <Text className="text-base leading-6 text-gray-900 dark:text-white">{memo.verseText}</Text>
+              </View>
+            ) : null}
 
             <View className="px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('mypage.content')}</Text>
@@ -142,7 +144,7 @@ export default function MemoDetailScreen() {
           isOpen={showEditDrawer}
           onClose={() => setShowEditDrawer(false)}
           initialVerseText={memo.verseText}
-          onSave={() => {}}
+          onSave={() => { }}
           editMemo={{
             id: memo.id,
             title: memo.title,

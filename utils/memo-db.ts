@@ -51,7 +51,6 @@ export async function addMemo(
   chapter: number,
   verseNumbers: number[]
 ): Promise<void> {
-  if (verseNumbers.length === 0) return;
   const createdAt = nowString();
   const result = await db.runAsync(
     `INSERT INTO ${MEMOS_TABLE} (title, content, verse_text, created_at) VALUES (?, ?, ?, ?)`,
@@ -71,6 +70,22 @@ export async function addMemo(
       verse
     );
   }
+}
+
+/** 성경 구절 참조 없이 메모 저장 */
+export async function addMemoWithoutVerse(
+  db: SQLiteDatabase,
+  title: string,
+  content: string
+): Promise<void> {
+  const createdAt = nowString();
+  await db.runAsync(
+    `INSERT INTO ${MEMOS_TABLE} (title, content, verse_text, created_at) VALUES (?, ?, ?, ?)`,
+    title.trim() || '',
+    content.trim() || '',
+    '',
+    createdAt
+  );
 }
 
 /** 현재 장에서 메모가 있는 절 번호 목록 */

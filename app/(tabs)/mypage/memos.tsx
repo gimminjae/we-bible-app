@@ -1,5 +1,6 @@
+import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getAllMemos, type MemoRecord } from '@/utils/memo-db';
+import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
 import { useI18n } from '@/utils/i18n';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -23,6 +24,7 @@ export default function MemoListScreen() {
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
   const [items, setItems] = useState<MemoRecord[]>([]);
+  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
 
   const load = useCallback(() => {
     let active = true;
@@ -36,6 +38,23 @@ export default function MemoListScreen() {
   }, [db]);
 
   useFocusEffect(load);
+
+  const handleOpenCreateDrawer = useCallback(() => {
+    setShowCreateDrawer(true);
+  }, []);
+
+  const handleCloseCreateDrawer = useCallback(() => {
+    setShowCreateDrawer(false);
+  }, []);
+
+  const handleSaveDirectMemo = useCallback(
+    async (title: string, content: string) => {
+      await addMemoWithoutVerse(db, title, content);
+      const rows = await getAllMemos(db);
+      setItems(rows);
+    },
+    [db]
+  );
 
   return (
     <SafeAreaView
@@ -56,6 +75,14 @@ export default function MemoListScreen() {
           {t('common.back')}
         </Text>
         <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>{t('mypage.memosTitle')}</Text>
+        <View className="flex-1 items-end">
+          <Pressable
+            onPress={handleOpenCreateDrawer}
+            className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+          >
+            <Text className="text-sm font-semibold text-white">{t('mypage.writeMemo')}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -94,6 +121,14 @@ export default function MemoListScreen() {
           })
         )}
       </ScrollView>
+      <MemoDrawer
+        isOpen={showCreateDrawer}
+        onClose={handleCloseCreateDrawer}
+        initialVerseText=""
+        onSave={(title, content) => {
+          void handleSaveDirectMemo(title, content);
+        }}
+      />
     </SafeAreaView>
   );
 }
