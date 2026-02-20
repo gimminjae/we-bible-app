@@ -177,6 +177,8 @@ const messages = {
       startDateLabel: '시작일',
       endDateLabel: '종료일',
       selectBooksLabel: '읽을 성경 선택',
+      selectAll: '전체선택',
+      invalidDateRange: '종료일은 시작일보다 이후여야 합니다.',
     },
     prayerDrawer: {
       addTitle: '기도 등록',
@@ -405,6 +407,8 @@ const messages = {
       startDateLabel: 'Start Date',
       endDateLabel: 'End Date',
       selectBooksLabel: 'Select books to read',
+      selectAll: 'Select all',
+      invalidDateRange: 'End date must be later than start date.',
     },
     prayerDrawer: {
       addTitle: 'Add prayer',

@@ -1,27 +1,32 @@
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button, ButtonText } from '@/components/ui/button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppSettings } from '@/contexts/app-settings';
+import { useToast } from '@/contexts/toast-context';
 import { getBookName } from '@/services/bible';
 import { useI18n } from '@/utils/i18n';
+import {
+  BIBLE_CATEGORY_KEYS,
+  CATEGORY_BOOK_CODES,
+  type BibleCategoryKey,
+} from '@/utils/bible-categories';
 import {
   addPlan,
   BIBLE_BOOKS,
   calcTotalReadCount,
 } from '@/utils/plan-db';
-import { useToast } from '@/contexts/toast-context';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Modal,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const OT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq <= 39);
-const NT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq >= 40);
 
 function todayStr(): string {
   const d = new Date();
@@ -39,7 +44,9 @@ export default function AddPlanScreen() {
   const [startDate, setStartDate] = useState(todayStr());
   const [endDate, setEndDate] = useState('');
   const [selectedBookCodes, setSelectedBookCodes] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'ot' | 'nt'>('ot');
+  const [category, setCategory] = useState<BibleCategoryKey>('ot');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [dateField, setDateField] = useState<'start' | 'end'>('start');
 
   const totalChapters = useMemo(
     () => calcTotalReadCount(Array.from(selectedBookCodes)),
@@ -55,37 +62,29 @@ export default function AddPlanScreen() {
     });
   }, []);
 
-  const selectAllOt = useCallback(() => {
-    const otCodes = new Set(OT_BOOKS.map((b) => b.bookCode));
-    setSelectedBookCodes((prev) => {
-      const next = new Set(prev);
-      const allSelected = OT_BOOKS.every((b) => next.has(b.bookCode));
-      if (allSelected) {
-        OT_BOOKS.forEach((b) => next.delete(b.bookCode));
-      } else {
-        OT_BOOKS.forEach((b) => next.add(b.bookCode));
-      }
-      return next;
-    });
-  }, []);
+  const booksToShow = useMemo(() => {
+    const allowedCodes = new Set(CATEGORY_BOOK_CODES[category]);
+    return BIBLE_BOOKS.filter((b) => allowedCodes.has(b.bookCode));
+  }, [category]);
 
-  const selectAllNt = useCallback(() => {
+  const toggleSelectAllByCategory = useCallback(() => {
     setSelectedBookCodes((prev) => {
       const next = new Set(prev);
-      const allSelected = NT_BOOKS.every((b) => next.has(b.bookCode));
+      const allSelected = booksToShow.every((b) => next.has(b.bookCode));
       if (allSelected) {
-        NT_BOOKS.forEach((b) => next.delete(b.bookCode));
+        booksToShow.forEach((b) => next.delete(b.bookCode));
       } else {
-        NT_BOOKS.forEach((b) => next.add(b.bookCode));
+        booksToShow.forEach((b) => next.add(b.bookCode));
       }
       return next;
     });
-  }, []);
+  }, [booksToShow]);
 
   const handleSave = useCallback(async () => {
     const codes = Array.from(selectedBookCodes);
     if (codes.length === 0) return;
     if (!endDate.trim()) return;
+    if (endDate <= startDate) return;
     const name = planName.trim() || t('mypage.planDetailTitle');
     const id = await addPlan(db, name, startDate, endDate, codes);
     if (id) {
@@ -99,9 +98,27 @@ export default function AddPlanScreen() {
     }
   }, [db, planName, startDate, endDate, selectedBookCodes, router, showToast, t]);
 
-  const canSave = selectedBookCodes.size > 0 && endDate.trim().length > 0;
+  const isDateRangeInvalid = endDate.trim().length > 0 && endDate <= startDate;
+  const canSave = selectedBookCodes.size > 0 && endDate.trim().length > 0 && !isDateRangeInvalid;
 
-  const booksToShow = activeTab === 'ot' ? OT_BOOKS : NT_BOOKS;
+  const selectedDay = dateField === 'start' ? startDate : endDate;
+  const categoryLabel =
+    category === 'ot'
+      ? t('bibleDrawer.oldTestament')
+      : category === 'nt'
+        ? t('bibleDrawer.newTestament')
+        : t(`bibleDrawer.category.${category}`);
+
+  const handleOpenCalendar = useCallback((field: 'start' | 'end') => {
+    setDateField(field);
+    setCalendarOpen(true);
+  }, []);
+
+  const handleSelectDay = useCallback(({ dateString }: { dateString: string }) => {
+    if (dateField === 'start') setStartDate(dateString);
+    else setEndDate(dateString);
+    setCalendarOpen(false);
+  }, [dateField]);
 
   return (
     <SafeAreaView
@@ -147,59 +164,67 @@ export default function AddPlanScreen() {
         <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
           {t('planDrawer.startDateLabel')}
         </Text>
-        <TextInput
-          value={startDate}
-          onChangeText={setStartDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#9ca3af"
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-        />
+        <Pressable
+          onPress={() => handleOpenCalendar('start')}
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-3 mb-4"
+        >
+          <Text className="text-gray-900 dark:text-white text-base">{startDate}</Text>
+        </Pressable>
 
         <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
           {t('planDrawer.endDateLabel')}
         </Text>
-        <TextInput
-          value={endDate}
-          onChangeText={setEndDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#9ca3af"
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-        />
+        <Pressable
+          onPress={() => handleOpenCalendar('end')}
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-3 mb-2"
+        >
+          <Text className={`text-base ${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+            {endDate || 'YYYY-MM-DD'}
+          </Text>
+        </Pressable>
+        {isDateRangeInvalid ? (
+          <Text className="text-red-500 text-xs mb-3">{t('planDrawer.invalidDateRange')}</Text>
+        ) : (
+          <View className="mb-3" />
+        )}
 
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">
             {t('planDrawer.selectBooksLabel')} ({selectedBookCodes.size}권, 총 {totalChapters}장)
           </Text>
-          <View className="flex-row gap-2">
-            <Button
-              onPress={() => setActiveTab('ot')}
-              action={activeTab === 'ot' ? 'primary' : 'secondary'}
-              size="sm"
-            >
-              <ButtonText>{t('bibleDrawer.oldTestament')}</ButtonText>
-            </Button>
-            <Button
-              onPress={() => setActiveTab('nt')}
-              action={activeTab === 'nt' ? 'primary' : 'secondary'}
-              size="sm"
-            >
-              <ButtonText>{t('bibleDrawer.newTestament')}</ButtonText>
-            </Button>
-          </View>
+        </View>
+        <View className="flex-row flex-wrap items-center gap-2 mb-2">
+          {BIBLE_CATEGORY_KEYS.map((categoryKey) => {
+            const selected = category === categoryKey;
+            const label =
+              categoryKey === 'ot'
+                ? t('bibleDrawer.oldTestament')
+                : categoryKey === 'nt'
+                  ? t('bibleDrawer.newTestament')
+                  : t(`bibleDrawer.category.${categoryKey}`);
+            return (
+              <Pressable
+                key={categoryKey}
+                onPress={() => setCategory(categoryKey)}
+                className={`px-3.5 py-2 rounded-xl ${selected ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
+              >
+                <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         <View className="mb-2">
-          <Button
-            onPress={activeTab === 'ot' ? selectAllOt : selectAllNt}
-            action="default"
-            variant="outline"
-            size="sm"
-            className="self-start"
+          <Pressable
+            onPress={toggleSelectAllByCategory}
+            className="self-start rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
           >
-            <ButtonText>
-              {activeTab === 'ot' ? `${t('bibleDrawer.oldTestament')} 전체선택` : `${t('bibleDrawer.newTestament')} 전체선택`}
-            </ButtonText>
-          </Button>
+            <Text className="text-sm font-medium text-gray-900 dark:text-white">
+              {`${categoryLabel} ${t('planDrawer.selectAll')}`}
+            </Text>
+          </Pressable>
         </View>
 
         <View className="flex-row flex-wrap gap-2">
@@ -222,6 +247,43 @@ export default function AddPlanScreen() {
           })}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={calendarOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-center px-5"
+          onPress={() => setCalendarOpen(false)}
+        >
+          <Pressable
+            className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
+            style={{ width: '100%', maxWidth: 380, maxHeight: '90%', alignSelf: 'center' }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="px-4 pt-4 pb-2">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {dateField === 'start' ? t('planDrawer.startDateLabel') : t('planDrawer.endDateLabel')}
+              </Text>
+            </View>
+            <Calendar
+              style={{ alignSelf: 'stretch' }}
+              current={selectedDay || startDate}
+              onDayPress={handleSelectDay}
+              markedDates={{
+                ...(startDate ? { [startDate]: { selected: true } } : {}),
+                ...(endDate ? { [endDate]: { selected: true } } : {}),
+              }}
+              theme={{
+                selectedDayBackgroundColor: '#3b82f6',
+                todayTextColor: '#2563eb',
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
