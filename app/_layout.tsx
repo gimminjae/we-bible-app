@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
+import { AuthProvider } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
 import { initBibleStateTable } from '@/utils/bible-storage';
@@ -59,7 +60,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <SQLiteProvider databaseName="we-bible.db" onInit={initDb}>
           <AppSettingsProvider>
-            <RootLayoutContent />
+            <AuthProvider>
+              <RootLayoutContent />
+            </AuthProvider>
           </AppSettingsProvider>
         </SQLiteProvider>
       </QueryClientProvider>

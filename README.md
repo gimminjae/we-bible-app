@@ -35,6 +35,24 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+3. (Optional) Enable account login with Supabase
+
+   Create a `.env` file at project root:
+
+   ```bash
+   EXPO_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+   ```
+
+   If these values are not set, the app still works normally without login.
+
+4. (Optional) Enable Supabase Google OAuth
+
+   - In Supabase Dashboard: `Authentication > Providers > Google` enable provider.
+   - Add redirect URL using app scheme:
+     - `webibleapp://auth/callback`
+   - In Google Cloud OAuth, register Supabase callback URL and client credentials.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
