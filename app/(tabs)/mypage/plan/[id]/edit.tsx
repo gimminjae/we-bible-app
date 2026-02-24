@@ -3,12 +3,12 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppSettings } from '@/contexts/app-settings';
 import { useToast } from '@/contexts/toast-context';
 import { getBookName } from '@/services/bible';
-import { useI18n } from '@/utils/i18n';
 import {
   BIBLE_CATEGORY_KEYS,
   CATEGORY_BOOK_CODES,
   type BibleCategoryKey,
 } from '@/utils/bible-categories';
+import { useI18n } from '@/utils/i18n';
 import {
   BIBLE_BOOKS,
   calcTotalReadCount,

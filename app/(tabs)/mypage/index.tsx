@@ -1,7 +1,9 @@
 import { BibleGrass } from "@/components/bible-grass"
+import { useAuth } from "@/contexts/auth-context"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useResponsive } from "@/hooks/use-responsive"
 import { useI18n } from "@/utils/i18n"
+import { useMemo } from "react"
 import { useRouter } from "expo-router"
 import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -9,7 +11,15 @@ import { SafeAreaView } from "react-native-safe-area-context"
 export default function MyPageScreen() {
   const router = useRouter()
   const { t } = useI18n()
+  const { session } = useAuth()
   const { scale, moderateScale } = useResponsive()
+  const welcomeName = useMemo(() => {
+    const fullName = session?.user?.user_metadata?.full_name
+    const name = session?.user?.user_metadata?.name
+    const nickname = session?.user?.user_metadata?.nickname
+    const emailLocalPart = session?.user?.email?.split("@")[0]
+    return (fullName || name || nickname || emailLocalPart || "").toString()
+  }, [session])
 
   return (
     <SafeAreaView
@@ -31,6 +41,14 @@ export default function MyPageScreen() {
         >
           {t("mypage.title")}
         </Text>
+        {welcomeName ? (
+          <Text
+            className="font-semibold text-primary-600 dark:text-primary-400"
+            style={{ fontSize: moderateScale(16), marginBottom: scale(16) }}
+          >
+            {t("mypage.welcomeUser").replace("{name}", welcomeName)}
+          </Text>
+        ) : null}
 
         <BibleGrass />
 

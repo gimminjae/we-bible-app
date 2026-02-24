@@ -19,6 +19,35 @@ import {
 } from 'react';
 
 WebBrowser.maybeCompleteAuthSession();
+const LOGIN_AT_KEY = 'auth_login_at';
+const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getStoredLoginAt(): number | null {
+  try {
+    const raw = globalThis.localStorage?.getItem(LOGIN_AT_KEY);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredLoginAt(ms: number): void {
+  try {
+    globalThis.localStorage?.setItem(LOGIN_AT_KEY, String(ms));
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+function clearStoredLoginAt(): void {
+  try {
+    globalThis.localStorage?.removeItem(LOGIN_AT_KEY);
+  } catch {
+    // ignore storage remove errors
+  }
+}
 
 type AuthResult = { error: AuthError | null };
 
@@ -45,21 +74,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    const checkAndRefreshRollingExpiry = async (): Promise<boolean> => {
+      if (!supabase) return false;
+      const { data } = await supabase.auth.getSession();
+      const currentSession = data.session ?? null;
+      if (!currentSession) {
+        clearStoredLoginAt();
+        setSession(null);
+        return false;
+      }
+
+      const loginAt = getStoredLoginAt();
+      if (loginAt && Date.now() - loginAt > ONE_MONTH_MS) {
+        await supabase.auth.signOut();
+        clearStoredLoginAt();
+        setSession(null);
+        return false;
+      }
+
+      // Sliding expiration: valid access resets the 30-day window.
+      setStoredLoginAt(Date.now());
+      setSession(currentSession);
+      return true;
+    };
+
+    checkAndRefreshRollingExpiry().then(() => {
       if (!mounted) return;
-      setSession(data.session ?? null);
       setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (nextSession) {
+        setStoredLoginAt(Date.now());
+      }
+      if (event === 'SIGNED_OUT' || !nextSession) {
+        clearStoredLoginAt();
+      }
       setSession(nextSession);
     });
 
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (!supabase) return;
       if (state === 'active') {
+        void checkAndRefreshRollingExpiry();
         supabase.auth.startAutoRefresh();
       } else {
         supabase.auth.stopAutoRefresh();
@@ -138,6 +197,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     }
     const { error } = await supabase.auth.signOut();
+    if (!error) {
+      clearStoredLoginAt();
+    }
     return { error };
   }, []);
 

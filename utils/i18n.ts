@@ -50,6 +50,7 @@ const messages = {
     },
     mypage: {
       title: '마이페이지',
+      welcomeUser: '{name}님, 환영합니다',
       favoritesMenu: '관심 성경 구절 목록',
       memosMenu: '묵상 메모 목록',
       favoritesTitle: '관심 성경 구절',
@@ -280,6 +281,7 @@ const messages = {
     },
     mypage: {
       title: 'My Page',
+      welcomeUser: 'Welcome, {name}',
       favoritesMenu: 'Favorite verses',
       memosMenu: 'Meditation memos',
       favoritesTitle: 'Favorite verses',
