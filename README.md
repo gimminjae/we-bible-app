@@ -17,7 +17,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~성경 목표세워 읽기~~
 - ~~성경 잔디~~
 - 소셜 로그인
-- sqlite 파일 데이터 동기화
+- ~~sqlite 파일 데이터 동기화~~
 - 푯대말씀 기능
 - 성경 함께 읽기
 
