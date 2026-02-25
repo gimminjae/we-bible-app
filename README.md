@@ -18,8 +18,15 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~성경 잔디~~
 - 소셜 로그인
 - ~~sqlite 파일 데이터 동기화~~
+- 닉네임 변경
+- 비밀번호 재설정
 - 푯대말씀 기능
-- 성경 함께 읽기
+- 공동체(교회) 기능
+- 공동체 초대
+- 공동체 인원 확장 및 결제
+- 성경 읽기표 공동 목표 기능 - 성경 함께 읽기
+- 성경 인물 탐구 기능
+
 
 ## Get started
 
