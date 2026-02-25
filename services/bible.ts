@@ -994,9 +994,8 @@ const bibleService = {
       result =
         (
           await api.get(
-            `https://cdn.jsdelivr.net/gh/wldeh/bible-api/bibles/de-luther1912/books/${
-              bibleInfos.find((val) => val.bookCode === params.bookCode)
-                ?.bookCodeByLang[params.lang]
+            `https://cdn.jsdelivr.net/gh/wldeh/bible-api/bibles/de-luther1912/books/${bibleInfos.find((val) => val.bookCode === params.bookCode)
+              ?.bookCodeByLang[params.lang]
             }/chapters/${params.chapter}.json`
           )
         )?.data || []
@@ -1004,10 +1003,10 @@ const bibleService = {
     return params.lang === "ko"
       ? result
       : result.map((item: any) => ({
-          ...item,
-          content: item?.text,
-          bookName: item?.book,
-        }))
+        ...item,
+        content: item?.text,
+        bookName: item?.book,
+      }))
   },
   async getVersions(params: BibleInfo) {
     return api.get(

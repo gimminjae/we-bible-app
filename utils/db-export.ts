@@ -50,6 +50,25 @@ async function triggerWebDownload(fileName: string, content: string): Promise<vo
 }
 
 export async function exportSQLiteData(db: SQLiteDatabase): Promise<string> {
+  const { content, fileName, uri } = await writeSQLiteExportFile(db);
+
+  if (Platform.OS === 'web') {
+    await triggerWebDownload(fileName, content);
+    return fileName;
+  }
+
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/json',
+      dialogTitle: 'Export SQLite Data',
+      UTI: 'public.json',
+    });
+  }
+
+  return uri;
+}
+
+export async function exportSQLiteJson(db: SQLiteDatabase): Promise<string> {
   const tables = await db.getAllAsync<{ name: string }>(
     `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
   );
@@ -67,28 +86,19 @@ export async function exportSQLiteData(db: SQLiteDatabase): Promise<string> {
     payload.tables[name] = rows;
   }
 
-  const content = JSON.stringify(payload, null, 2);
-  const fileName = buildFileName();
+  return JSON.stringify(payload, null, 2);
+}
 
-  if (Platform.OS === 'web') {
-    await triggerWebDownload(fileName, content);
-    return fileName;
-  }
+export async function writeSQLiteExportFile(
+  db: SQLiteDatabase
+): Promise<{ uri: string; fileName: string; content: string }> {
+  const content = await exportSQLiteJson(db);
+  const fileName = buildFileName();
 
   const file = new File(Paths.document, fileName);
   file.create({ intermediates: true, overwrite: true });
   file.write(content);
-  const uri = file.uri;
-
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/json',
-      dialogTitle: 'Export SQLite Data',
-      UTI: 'public.json',
-    });
-  }
-
-  return uri;
+  return { uri: file.uri, fileName, content };
 }
 
 async function readPickedJsonText(asset: DocumentPicker.DocumentPickerAsset): Promise<string> {
@@ -146,8 +156,15 @@ export async function importSQLiteData(db: SQLiteDatabase): Promise<string | nul
 
   const asset = picked.assets[0];
   const rawText = await readPickedJsonText(asset);
-  const payload = parseImportPayload(rawText);
+  await importSQLiteDataFromJson(db, rawText);
+  return asset.name ?? 'imported.json';
+}
 
+export async function importSQLiteDataFromJson(
+  db: SQLiteDatabase,
+  rawText: string
+): Promise<void> {
+  const payload = parseImportPayload(rawText);
   const existingTables = await getExistingTables(db);
   const entries = Object.entries(payload.tables).filter(([tableName, rows]) => {
     return existingTables.has(tableName) && Array.isArray(rows);
@@ -183,6 +200,4 @@ export async function importSQLiteData(db: SQLiteDatabase): Promise<string | nul
   } finally {
     await db.execAsync('PRAGMA foreign_keys = ON;');
   }
-
-  return asset.name ?? 'imported.json';
 }

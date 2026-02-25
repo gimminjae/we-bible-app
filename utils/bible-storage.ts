@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
 const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
+const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const BIBLE_STATE_TABLE = 'bible_state';
 const MAX_AGE = 60 * 60 * 24 * 365; // 1년
 
@@ -143,5 +144,27 @@ export async function setAppThemeToDb(db: SQLiteDatabase, theme: AppTheme): Prom
     `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
     APP_THEME_KEY,
     theme
+  );
+}
+
+/** 마지막 자동 동기화 시각 조회 (YYYY-MM-DD HH:mm:ss) */
+export async function getLastAutoSyncAtFromDb(db: SQLiteDatabase): Promise<string | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    LAST_AUTO_SYNC_AT_KEY
+  );
+  if (!row?.value) return null;
+  return row.value;
+}
+
+/** 마지막 자동 동기화 시각 저장 (YYYY-MM-DD HH:mm:ss) */
+export async function setLastAutoSyncAtToDb(
+  db: SQLiteDatabase,
+  syncedAt: string
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    LAST_AUTO_SYNC_AT_KEY,
+    syncedAt
   );
 }

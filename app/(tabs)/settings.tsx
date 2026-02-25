@@ -3,8 +3,9 @@ import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import type { AppLanguage } from '@/utils/app-settings-storage';
-import { exportSQLiteData, importSQLiteData } from '@/utils/db-export';
+import { getLastAutoSyncAtFromDb } from '@/utils/bible-storage';
 import { useI18n } from '@/utils/i18n';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import {
@@ -38,8 +39,7 @@ export default function SettingsScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signIn');
   const [authSubmitting, setAuthSubmitting] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [lastAutoSyncAt, setLastAutoSyncAt] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
@@ -155,38 +155,39 @@ export default function SettingsScreen() {
   }, [hasSignUpErrors, signUp, email, password, t]);
 
   const handleSignOut = useCallback(async () => {
-    const { error } = await signOut();
-    if (error) {
-      Alert.alert(t('settings.logoutFailed'), error.message);
-    }
+    Alert.alert(
+      t('settings.logoutConfirmTitle'),
+      t('settings.logoutConfirmMessage'),
+      [
+        {
+          text: t('settings.logoutCancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('settings.logoutConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await signOut();
+            if (error) {
+              Alert.alert(t('settings.logoutFailed'), error.message);
+            }
+          },
+        },
+      ]
+    );
   }, [signOut, t]);
 
-  const handleExportDb = useCallback(async () => {
-    try {
-      setExporting(true);
-      const fileRef = await exportSQLiteData(db);
-      Alert.alert(t('settings.exportSuccess'), fileRef);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert(t('settings.exportFailed'), message);
-    } finally {
-      setExporting(false);
-    }
-  }, [db, t]);
-
-  const handleImportDb = useCallback(async () => {
-    try {
-      setImporting(true);
-      const importedFile = await importSQLiteData(db);
-      if (!importedFile) return;
-      Alert.alert(t('settings.importSuccess'), importedFile);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert(t('settings.importFailed'), message);
-    } finally {
-      setImporting(false);
-    }
-  }, [db, t]);
+  const loadLastAutoSyncAt = useCallback(() => {
+    let active = true;
+    getLastAutoSyncAtFromDb(db).then((value) => {
+      if (!active) return;
+      setLastAutoSyncAt(value);
+    });
+    return () => {
+      active = false;
+    };
+  }, [db]);
+  useFocusEffect(loadLastAutoSyncAt);
 
   return (
     <SafeAreaView
@@ -318,6 +319,15 @@ export default function SettingsScreen() {
                 >
                   {session.user.email}
                 </Text>
+                <Text
+                  className="text-gray-500 dark:text-gray-400"
+                  style={{ fontSize: moderateScale(13) }}
+                >
+                  {t('settings.accountLastSync')}{' '}
+                  {lastAutoSyncAt
+                    ? lastAutoSyncAt.replace('-', '.').replace('-', '.')
+                    : t('settings.accountNoSync')}
+                </Text>
                 <Pressable
                   onPress={handleSignOut}
                   className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
@@ -356,66 +366,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* 데이터 내보내기 */}
-        <View style={{ marginBottom: scale(24) }}>
-          <Text
-            className="font-medium text-gray-500 dark:text-gray-400"
-            style={{ fontSize: moderateScale(14), marginBottom: scale(8) }}
-          >
-            {t('settings.dataSync')}
-          </Text>
-          <View
-            className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-            style={{
-              paddingHorizontal: scale(16),
-              paddingVertical: scale(12),
-              gap: scale(10),
-            }}
-          >
-            <Text
-              className="text-gray-500 dark:text-gray-400"
-              style={{ fontSize: moderateScale(14) }}
-            >
-              {t('settings.exportDesc')}
-            </Text>
-            <View className="flex-row" style={{ gap: scale(8) }}>
-              <Pressable
-                onPress={handleExportDb}
-                disabled={exporting || importing}
-                className="self-start rounded-lg bg-primary-500 active:opacity-90"
-                style={{
-                  paddingHorizontal: scale(14),
-                  paddingVertical: scale(9),
-                  opacity: exporting || importing ? 0.6 : 1,
-                }}
-              >
-                <Text
-                  className="font-semibold text-white"
-                  style={{ fontSize: moderateScale(14) }}
-                >
-                  {exporting ? t('settings.exporting') : t('settings.exportDb')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleImportDb}
-                disabled={exporting || importing}
-                className="self-start rounded-lg bg-gray-700 dark:bg-gray-500 active:opacity-90"
-                style={{
-                  paddingHorizontal: scale(14),
-                  paddingVertical: scale(9),
-                  opacity: exporting || importing ? 0.6 : 1,
-                }}
-              >
-                <Text
-                  className="font-semibold text-white"
-                  style={{ fontSize: moderateScale(14) }}
-                >
-                  {importing ? t('settings.importing') : t('settings.importDb')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
       <Modal
