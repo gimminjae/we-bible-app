@@ -63,6 +63,16 @@ const messages = {
       invalidPasswordRule:
         '비밀번호는 영문, 숫자, 특수문자를 포함하여 6자 이상이어야 합니다.',
       passwordMismatch: '비밀번호와 비밀번호 확인이 일치하지 않습니다.',
+      displayNameLabel: '닉네임:',
+      displayNameEmpty: '(미설정)',
+      changeDisplayName: '닉네임 변경',
+      displayNameTitle: '닉네임 변경',
+      displayNamePlaceholder: '닉네임 입력',
+      displayNameRequired: '닉네임을 입력해 주세요.',
+      displayNameInvalidRule: '닉네임은 2~20자, 한글/영문/숫자/._-만 사용할 수 있습니다.',
+      displayNameSave: '저장',
+      displayNameUpdated: '닉네임이 변경되었습니다.',
+      displayNameUpdateFailed: '닉네임 변경 실패',
     },
     mypage: {
       title: '마이페이지',
@@ -311,6 +321,17 @@ const messages = {
       invalidPasswordRule:
         'Password must be at least 6 characters and include letters, numbers, and special characters.',
       passwordMismatch: 'Password and confirm password do not match.',
+      displayNameLabel: 'Display name:',
+      displayNameEmpty: '(Not set)',
+      changeDisplayName: 'Change display name',
+      displayNameTitle: 'Change display name',
+      displayNamePlaceholder: 'Enter display name',
+      displayNameRequired: 'Please enter a display name.',
+      displayNameInvalidRule:
+        'Display name must be 2-20 chars and use Korean/English letters, numbers, . _ - only.',
+      displayNameSave: 'Save',
+      displayNameUpdated: 'Display name updated.',
+      displayNameUpdateFailed: 'Failed to update display name',
     },
     mypage: {
       title: 'My Page',

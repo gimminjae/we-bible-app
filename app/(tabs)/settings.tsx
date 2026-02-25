@@ -7,7 +7,7 @@ import { getLastAutoSyncAtFromDb } from '@/utils/bible-storage';
 import { useI18n } from '@/utils/i18n';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -25,11 +25,12 @@ const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
 ];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const DISPLAY_NAME_REGEX = /^[A-Za-z0-9가-힣._-]{2,20}$/;
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
-  const { session, loading: authLoading, isConfigured, signIn, signUp, signInWithGoogle, signOut } = useAuth();
+  const { session, loading: authLoading, isConfigured, signIn, signUp, signInWithGoogle, signOut, updateDisplayName } = useAuth();
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
   const [languageSelectOpen, setLanguageSelectOpen] = useState(false);
@@ -43,6 +44,9 @@ export default function SettingsScreen() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+  const [displayNameModalOpen, setDisplayNameModalOpen] = useState(false);
+  const [displayNameInput, setDisplayNameInput] = useState('');
+  const [displayNameSubmitting, setDisplayNameSubmitting] = useState(false);
 
   const handleToggleTheme = useCallback(() => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -66,6 +70,10 @@ export default function SettingsScreen() {
 
   const currentLanguageLabel =
     LANGUAGE_OPTIONS.find((o) => o.value === appLanguage)?.label ?? '한국어';
+  const currentDisplayName = useMemo(
+    () => (session?.user?.user_metadata?.display_name ?? '').toString(),
+    [session]
+  );
 
   const handleOpenAuthModal = useCallback(() => {
     setAuthMode('signIn');
@@ -176,6 +184,39 @@ export default function SettingsScreen() {
       ]
     );
   }, [signOut, t]);
+
+  const handleOpenDisplayNameModal = useCallback(() => {
+    setDisplayNameInput(currentDisplayName);
+    setDisplayNameModalOpen(true);
+  }, [currentDisplayName]);
+
+  const handleCloseDisplayNameModal = useCallback(() => {
+    if (displayNameSubmitting) return;
+    setDisplayNameModalOpen(false);
+  }, [displayNameSubmitting]);
+
+  const displayNameError = useMemo(() => {
+    const normalized = displayNameInput.trim();
+    if (!normalized) return t('settings.displayNameRequired');
+    if (!DISPLAY_NAME_REGEX.test(normalized)) return t('settings.displayNameInvalidRule');
+    return '';
+  }, [displayNameInput, t]);
+
+  const handleUpdateDisplayName = useCallback(async () => {
+    if (displayNameError) {
+      Alert.alert(t('settings.displayNameUpdateFailed'), displayNameError);
+      return;
+    }
+    setDisplayNameSubmitting(true);
+    const { error } = await updateDisplayName(displayNameInput.trim());
+    setDisplayNameSubmitting(false);
+    if (error) {
+      Alert.alert(t('settings.displayNameUpdateFailed'), error.message);
+      return;
+    }
+    setDisplayNameModalOpen(false);
+    Alert.alert(t('settings.displayNameUpdated'));
+  }, [displayNameError, displayNameInput, t, updateDisplayName]);
 
   const loadLastAutoSyncAt = useCallback(() => {
     let active = true;
@@ -323,6 +364,13 @@ export default function SettingsScreen() {
                   className="text-gray-500 dark:text-gray-400"
                   style={{ fontSize: moderateScale(13) }}
                 >
+                  {t('settings.displayNameLabel')}{' '}
+                  {currentDisplayName || t('settings.displayNameEmpty')}
+                </Text>
+                <Text
+                  className="text-gray-500 dark:text-gray-400"
+                  style={{ fontSize: moderateScale(13) }}
+                >
                   {t('settings.accountLastSync')}{' '}
                   {lastAutoSyncAt
                     ? lastAutoSyncAt.replace('-', '.').replace('-', '.')
@@ -338,6 +386,18 @@ export default function SettingsScreen() {
                     style={{ fontSize: moderateScale(14) }}
                   >
                     {t('settings.logout')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleOpenDisplayNameModal}
+                  className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
+                  style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
+                >
+                  <Text
+                    className="font-semibold text-gray-800 dark:text-gray-100"
+                    style={{ fontSize: moderateScale(14) }}
+                  >
+                    {t('settings.changeDisplayName')}
                   </Text>
                 </Pressable>
               </>
@@ -655,6 +715,80 @@ export default function SettingsScreen() {
                 </View>
               </Pressable>
             ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Modal
+        visible={displayNameModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseDisplayNameModal}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-center px-5"
+          onPress={handleCloseDisplayNameModal}
+        >
+          <Pressable
+            className="rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+            style={{ paddingHorizontal: scale(16), paddingVertical: scale(16) }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(12) }}
+            >
+              {t('settings.displayNameTitle')}
+            </Text>
+            <TextInput
+              value={displayNameInput}
+              onChangeText={setDisplayNameInput}
+              autoCapitalize="none"
+              placeholder={t('settings.displayNamePlaceholder')}
+              placeholderTextColor="#9ca3af"
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+              style={{
+                paddingHorizontal: scale(12),
+                paddingVertical: scale(10),
+                fontSize: moderateScale(15),
+                marginBottom: displayNameError ? scale(6) : scale(14),
+              }}
+            />
+            {displayNameError ? (
+              <Text
+                className="text-red-500"
+                style={{ fontSize: moderateScale(12), marginBottom: scale(10) }}
+              >
+                {displayNameError}
+              </Text>
+            ) : null}
+            <View className="flex-row" style={{ gap: scale(8) }}>
+              <Pressable
+                onPress={handleCloseDisplayNameModal}
+                disabled={displayNameSubmitting}
+                className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center"
+                style={{ height: scale(44), opacity: displayNameSubmitting ? 0.7 : 1 }}
+              >
+                <Text
+                  className="font-semibold text-gray-800 dark:text-gray-100"
+                  style={{ fontSize: moderateScale(14) }}
+                >
+                  {t('settings.logoutCancel')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleUpdateDisplayName}
+                disabled={displayNameSubmitting || Boolean(displayNameError)}
+                className="flex-1 rounded-lg bg-primary-500 items-center justify-center"
+                style={{
+                  height: scale(44),
+                  opacity: displayNameSubmitting || Boolean(displayNameError) ? 0.6 : 1,
+                }}
+              >
+                <Text className="font-semibold text-white" style={{ fontSize: moderateScale(14) }}>
+                  {t('settings.displayNameSave')}
+                </Text>
+              </Pressable>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
