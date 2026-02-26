@@ -265,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const normalized = displayName.trim();
     const { data, error } = await supabase.auth.updateUser({
-      data: { display_name: normalized },
+      data: { name: normalized },
     });
     if (!error && data.user) {
       setSession((prev) => (prev ? { ...prev, user: data.user } : prev));

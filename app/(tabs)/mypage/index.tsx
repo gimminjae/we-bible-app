@@ -14,12 +14,9 @@ export default function MyPageScreen() {
   const { session } = useAuth()
   const { scale, moderateScale } = useResponsive()
   const welcomeName = useMemo(() => {
-    const displayName = session?.user?.user_metadata?.display_name
-    const fullName = session?.user?.user_metadata?.full_name
     const name = session?.user?.user_metadata?.name
-    const nickname = session?.user?.user_metadata?.nickname
     const emailLocalPart = session?.user?.email?.split("@")[0]
-    return (displayName || fullName || name || nickname || emailLocalPart || "").toString()
+    return (name || emailLocalPart || "").toString()
   }, [session])
 
   return (

@@ -85,7 +85,7 @@ export default function SettingsScreen() {
   const currentLanguageLabel =
     LANGUAGE_OPTIONS.find((o) => o.value === appLanguage)?.label ?? '한국어';
   const currentDisplayName = useMemo(
-    () => (session?.user?.user_metadata?.display_name ?? '').toString(),
+    () => (session?.user?.user_metadata?.name ?? '').toString(),
     [session]
   );
   const canChangePassword = useMemo(() => {
