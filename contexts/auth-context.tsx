@@ -60,6 +60,7 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<AuthResult>;
   updateDisplayName: (displayName: string) => Promise<AuthResult>;
+  updatePassword: (newPassword: string) => Promise<AuthResult>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -218,6 +219,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   }, []);
 
+  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
+    if (!supabase) {
+      return { error: null };
+    }
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    return { error };
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isConfigured: isSupabaseConfigured,
@@ -228,8 +239,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signOut,
       updateDisplayName,
+      updatePassword,
     }),
-    [session, loading, signIn, signUp, signInWithGoogle, signOut, updateDisplayName]
+    [
+      session,
+      loading,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      signOut,
+      updateDisplayName,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

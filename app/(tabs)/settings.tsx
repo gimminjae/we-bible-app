@@ -30,7 +30,17 @@ const DISPLAY_NAME_REGEX = /^[A-Za-z0-9가-힣._-]{2,20}$/;
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
-  const { session, loading: authLoading, isConfigured, signIn, signUp, signInWithGoogle, signOut, updateDisplayName } = useAuth();
+  const {
+    session,
+    loading: authLoading,
+    isConfigured,
+    signIn,
+    signUp,
+    signInWithGoogle,
+    signOut,
+    updateDisplayName,
+    updatePassword,
+  } = useAuth();
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
   const [languageSelectOpen, setLanguageSelectOpen] = useState(false);
@@ -47,6 +57,10 @@ export default function SettingsScreen() {
   const [displayNameModalOpen, setDisplayNameModalOpen] = useState(false);
   const [displayNameInput, setDisplayNameInput] = useState('');
   const [displayNameSubmitting, setDisplayNameSubmitting] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
   const handleToggleTheme = useCallback(() => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -217,6 +231,59 @@ export default function SettingsScreen() {
     setDisplayNameModalOpen(false);
     Alert.alert(t('settings.displayNameUpdated'));
   }, [displayNameError, displayNameInput, t, updateDisplayName]);
+
+  const handleOpenPasswordModal = useCallback(() => {
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setPasswordModalOpen(true);
+  }, []);
+
+  const handleClosePasswordModal = useCallback(() => {
+    if (passwordSubmitting) return;
+    setPasswordModalOpen(false);
+  }, [passwordSubmitting]);
+
+  const newPasswordRuleError = useMemo(() => {
+    if (!newPassword) return t('settings.requiredPassword');
+    if (!PASSWORD_REGEX.test(newPassword)) return t('settings.invalidPasswordRule');
+    return '';
+  }, [newPassword, t]);
+
+  const newPasswordMatchError = useMemo(() => {
+    if (!newPasswordConfirm) return t('settings.requiredConfirmPassword');
+    if (newPassword !== newPasswordConfirm) return t('settings.passwordMismatch');
+    return '';
+  }, [newPassword, newPasswordConfirm, t]);
+
+  const handleChangePassword = useCallback(async () => {
+    if (newPasswordRuleError || newPasswordMatchError) {
+      return;
+    }
+    setPasswordSubmitting(true);
+    const { error } = await updatePassword(newPassword);
+    setPasswordSubmitting(false);
+    if (error) {
+      Alert.alert(t('settings.passwordChangeFailed'), error.message);
+      return;
+    }
+    setPasswordModalOpen(false);
+    Alert.alert(
+      t('settings.passwordChangeSuccessTitle'),
+      t('settings.passwordChangeReloginMessage'),
+      [
+        {
+          text: t('settings.logoutConfirm'),
+          onPress: async () => {
+            const { error: signOutError } = await signOut();
+            if (signOutError) {
+              Alert.alert(t('settings.logoutFailed'), signOutError.message);
+            }
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  }, [newPassword, newPasswordMatchError, newPasswordRuleError, signOut, t, updatePassword]);
 
   const loadLastAutoSyncAt = useCallback(() => {
     let active = true;
@@ -398,6 +465,18 @@ export default function SettingsScreen() {
                     style={{ fontSize: moderateScale(14) }}
                   >
                     {t('settings.changeDisplayName')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleOpenPasswordModal}
+                  className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
+                  style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
+                >
+                  <Text
+                    className="font-semibold text-gray-800 dark:text-gray-100"
+                    style={{ fontSize: moderateScale(14) }}
+                  >
+                    {t('settings.changePassword')}
                   </Text>
                 </Pressable>
               </>
@@ -786,6 +865,116 @@ export default function SettingsScreen() {
               >
                 <Text className="font-semibold text-white" style={{ fontSize: moderateScale(14) }}>
                   {t('settings.displayNameSave')}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Modal
+        visible={passwordModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={handleClosePasswordModal}
+      >
+        <Pressable className="flex-1 bg-black/40 justify-center px-5" onPress={handleClosePasswordModal}>
+          <Pressable
+            className="rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+            style={{ paddingHorizontal: scale(16), paddingVertical: scale(16) }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(12) }}
+            >
+              {t('settings.changePasswordTitle')}
+            </Text>
+            <Text
+              className="font-medium text-gray-500 dark:text-gray-400"
+              style={{ fontSize: moderateScale(13), marginBottom: scale(6) }}
+            >
+              {t('settings.newPassword')}
+            </Text>
+            <TextInput
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              placeholder="********"
+              placeholderTextColor="#9ca3af"
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+              style={{
+                paddingHorizontal: scale(12),
+                paddingVertical: scale(10),
+                fontSize: moderateScale(15),
+                marginBottom: newPasswordRuleError ? scale(4) : scale(12),
+              }}
+            />
+            {newPasswordRuleError ? (
+              <Text
+                className="text-red-500"
+                style={{ fontSize: moderateScale(12), marginBottom: scale(10) }}
+              >
+                {newPasswordRuleError}
+              </Text>
+            ) : null}
+            <Text
+              className="font-medium text-gray-500 dark:text-gray-400"
+              style={{ fontSize: moderateScale(13), marginBottom: scale(6) }}
+            >
+              {t('settings.confirmPassword')}
+            </Text>
+            <TextInput
+              value={newPasswordConfirm}
+              onChangeText={setNewPasswordConfirm}
+              secureTextEntry
+              autoCapitalize="none"
+              placeholder="********"
+              placeholderTextColor="#9ca3af"
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+              style={{
+                paddingHorizontal: scale(12),
+                paddingVertical: scale(10),
+                fontSize: moderateScale(15),
+                marginBottom: newPasswordMatchError ? scale(4) : scale(12),
+              }}
+            />
+            {newPasswordMatchError ? (
+              <Text
+                className="text-red-500"
+                style={{ fontSize: moderateScale(12), marginBottom: scale(10) }}
+              >
+                {newPasswordMatchError}
+              </Text>
+            ) : null}
+            <View className="flex-row" style={{ gap: scale(8) }}>
+              <Pressable
+                onPress={handleClosePasswordModal}
+                disabled={passwordSubmitting}
+                className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center"
+                style={{ height: scale(44), opacity: passwordSubmitting ? 0.7 : 1 }}
+              >
+                <Text
+                  className="font-semibold text-gray-800 dark:text-gray-100"
+                  style={{ fontSize: moderateScale(14) }}
+                >
+                  {t('settings.logoutCancel')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleChangePassword}
+                disabled={passwordSubmitting || Boolean(newPasswordRuleError || newPasswordMatchError)}
+                className="flex-1 rounded-lg bg-primary-500 items-center justify-center"
+                style={{
+                  height: scale(44),
+                  opacity:
+                    passwordSubmitting || Boolean(newPasswordRuleError || newPasswordMatchError)
+                      ? 0.6
+                      : 1,
+                }}
+              >
+                <Text className="font-semibold text-white" style={{ fontSize: moderateScale(14) }}>
+                  {t('settings.changePasswordSave')}
                 </Text>
               </Pressable>
             </View>
