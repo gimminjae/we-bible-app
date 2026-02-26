@@ -472,11 +472,11 @@ export default function SettingsScreen() {
                     ? lastAutoSyncAt.replace('-', '.').replace('-', '.')
                     : t('settings.accountNoSync')}
                 </Text>
-                <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                <View className="flex-row items-center justify-end" style={{ gap: scale(8) }}>
                   <Pressable
                     onPress={handleSignOut}
-                    className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
-                    style={{ height: scale(40) }}
+                    className="rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                    style={{ height: scale(40), paddingHorizontal: scale(12) }}
                   >
                     <Text
                       className="font-semibold text-gray-800 dark:text-gray-100"
@@ -487,8 +487,8 @@ export default function SettingsScreen() {
                   </Pressable>
                   <Pressable
                     onPress={handleOpenDisplayNameModal}
-                    className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
-                    style={{ height: scale(40) }}
+                    className="rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                    style={{ height: scale(40), paddingHorizontal: scale(12) }}
                   >
                     <Text
                       className="font-semibold text-gray-800 dark:text-gray-100"
@@ -500,8 +500,8 @@ export default function SettingsScreen() {
                   {canChangePassword ? (
                     <Pressable
                       onPress={handleOpenPasswordModal}
-                      className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
-                      style={{ height: scale(40) }}
+                      className="rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                      style={{ height: scale(40), paddingHorizontal: scale(12) }}
                     >
                       <Text
                         className="font-semibold text-gray-800 dark:text-gray-100"
@@ -521,9 +521,15 @@ export default function SettingsScreen() {
                 >
                   {t('settings.accountGuest')}
                 </Text>
+                <Text
+                  className="text-gray-500 dark:text-gray-400"
+                  style={{ fontSize: moderateScale(13) }}
+                >
+                  {t('settings.accountGuestSyncHint')}
+                </Text>
                 <Pressable
                   onPress={handleOpenAuthModal}
-                  className="self-start rounded-lg bg-primary-500 active:opacity-90"
+                  className="self-end rounded-lg bg-primary-500 active:opacity-90"
                   style={{ paddingHorizontal: scale(14), paddingVertical: scale(9) }}
                 >
                   <Text
