@@ -37,6 +37,7 @@ export default function SettingsScreen() {
     signIn,
     signUp,
     signInWithGoogle,
+    signInWithKakao,
     signOut,
     updateDisplayName,
     updatePassword,
@@ -136,6 +137,17 @@ export default function SettingsScreen() {
     }
     setAuthModalOpen(false);
   }, [signInWithGoogle, t]);
+
+  const handleKakaoSignIn = useCallback(async () => {
+    setAuthSubmitting(true);
+    const { error } = await signInWithKakao();
+    setAuthSubmitting(false);
+    if (error) {
+      Alert.alert(t('settings.kakaoLoginFailed'), error.message);
+      return;
+    }
+    setAuthModalOpen(false);
+  }, [signInWithKakao, t]);
 
   const signUpEmailError = !email.trim()
     ? t('settings.requiredEmail')
@@ -786,32 +798,47 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
             {authMode === 'signIn' ? (
-              <Pressable
-                onPress={handleGoogleSignIn}
-                disabled={authSubmitting}
-                className="mt-3 rounded-lg bg-white border border-gray-300 items-center justify-center active:opacity-90"
-                style={{ height: scale(44), opacity: authSubmitting ? 0.6 : 1 }}
-              >
-                <View className="flex-row items-center" style={{ gap: scale(8) }}>
-                  <View
-                    className="items-center justify-center rounded-full bg-blue-500"
-                    style={{ width: scale(20), height: scale(20) }}
-                  >
-                    <Text
-                      className="font-bold text-white"
-                      style={{ fontSize: moderateScale(12), lineHeight: moderateScale(12) }}
+              <>
+                <Pressable
+                  onPress={handleGoogleSignIn}
+                  disabled={authSubmitting}
+                  className="mt-3 rounded-lg bg-white border border-gray-300 items-center justify-center active:opacity-90"
+                  style={{ height: scale(44), opacity: authSubmitting ? 0.6 : 1 }}
+                >
+                  <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                    <View
+                      className="items-center justify-center rounded-full bg-blue-500"
+                      style={{ width: scale(20), height: scale(20) }}
                     >
-                      G
+                      <Text
+                        className="font-bold text-white"
+                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(12) }}
+                      >
+                        G
+                      </Text>
+                    </View>
+                    <Text
+                      className="font-semibold text-gray-900"
+                      style={{ fontSize: moderateScale(14) }}
+                    >
+                      {t('settings.googleLogin')}
                     </Text>
                   </View>
+                </Pressable>
+                <Pressable
+                  onPress={handleKakaoSignIn}
+                  disabled={authSubmitting}
+                  className="mt-2 rounded-lg items-center justify-center active:opacity-90"
+                  style={{ height: scale(44), opacity: authSubmitting ? 0.6 : 1, backgroundColor: '#FEE500' }}
+                >
                   <Text
-                    className="font-semibold text-gray-900"
-                    style={{ fontSize: moderateScale(14) }}
+                    className="font-semibold"
+                    style={{ fontSize: moderateScale(14), color: '#191919' }}
                   >
-                    {t('settings.googleLogin')}
+                    {t('settings.kakaoLogin')}
                   </Text>
-                </View>
-              </Pressable>
+                </Pressable>
+              </>
             ) : null}
           </Pressable>
         </Pressable>

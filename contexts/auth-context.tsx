@@ -82,6 +82,7 @@ type AuthContextValue = {
   signIn: (credentials: SignInWithPasswordCredentials) => Promise<AuthResult>;
   signUp: (credentials: SignUpWithPasswordCredentials) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
+  signInWithKakao: () => Promise<AuthResult>;
   signOut: () => Promise<AuthResult>;
   updateDisplayName: (displayName: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
@@ -248,6 +249,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const signInWithKakao = useCallback(async (): Promise<AuthResult> => {
+    if (!supabase) {
+      return { error: null };
+    }
+
+    const redirectTo = makeRedirectUri({
+      scheme: 'webibleapp',
+      preferLocalhost: true,
+      // path: 'auth/callback',
+    });
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data?.url) {
+      return { error: error ?? toAuthError('Failed to create Kakao OAuth URL.') };
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    if (result.type !== 'success' || !result.url) {
+      return { error: toAuthError(`Kakao login was not completed (${result.type}).`) };
+    }
+
+    const callbackParams = parseUrlParams(result.url);
+    const oauthError = callbackParams.error_description ?? callbackParams.error;
+    if (oauthError) {
+      return { error: toAuthError(oauthError) };
+    }
+
+    const code = callbackParams.code;
+    if (code) {
+      const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+        code
+      );
+      if (!exchangeError && exchangeData.session) {
+        setSession(exchangeData.session);
+        setStoredLoginAt(Date.now());
+      }
+      return { error: exchangeError };
+    }
+
+    const accessToken = callbackParams.access_token;
+    const refreshToken = callbackParams.refresh_token;
+    if (accessToken && refreshToken) {
+      const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (!setSessionError && sessionData.session) {
+        setSession(sessionData.session);
+        setStoredLoginAt(Date.now());
+      }
+      return { error: setSessionError };
+    }
+
+    return {
+      error: toAuthError(
+        'No authorization code or token found in Kakao callback URL.'
+      ),
+    };
+  }, []);
+
   const signOut = useCallback(async (): Promise<AuthResult> => {
     if (!supabase) {
       return { error: null };
@@ -291,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithKakao,
       signOut,
       updateDisplayName,
       updatePassword,
@@ -301,6 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithKakao,
       signOut,
       updateDisplayName,
       updatePassword,
