@@ -1,4 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { GoogleIcon } from '@/components/ui/icons/GoogleIcon';
+import { KakaoIcon } from '@/components/ui/icons/KakaoIcon';
 import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -806,17 +808,7 @@ export default function SettingsScreen() {
                   style={{ height: scale(44), opacity: authSubmitting ? 0.6 : 1 }}
                 >
                   <View className="flex-row items-center" style={{ gap: scale(8) }}>
-                    <View
-                      className="items-center justify-center rounded-full bg-blue-500"
-                      style={{ width: scale(20), height: scale(20) }}
-                    >
-                      <Text
-                        className="font-bold text-white"
-                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(12) }}
-                      >
-                        G
-                      </Text>
-                    </View>
+                    <GoogleIcon />
                     <Text
                       className="font-semibold text-gray-900"
                       style={{ fontSize: moderateScale(14) }}
@@ -831,12 +823,15 @@ export default function SettingsScreen() {
                   className="mt-2 rounded-lg items-center justify-center active:opacity-90"
                   style={{ height: scale(44), opacity: authSubmitting ? 0.6 : 1, backgroundColor: '#FEE500' }}
                 >
-                  <Text
-                    className="font-semibold"
-                    style={{ fontSize: moderateScale(14), color: '#191919' }}
-                  >
-                    {t('settings.kakaoLogin')}
-                  </Text>
+                  <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                    <KakaoIcon />
+                    <Text
+                      className="font-semibold"
+                      style={{ fontSize: moderateScale(14), color: '#191919' }}
+                    >
+                      {t('settings.kakaoLogin')}
+                    </Text>
+                  </View>
                 </Pressable>
               </>
             ) : null}
