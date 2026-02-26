@@ -88,6 +88,13 @@ export default function SettingsScreen() {
     () => (session?.user?.user_metadata?.display_name ?? '').toString(),
     [session]
   );
+  const canChangePassword = useMemo(() => {
+    const appProviders = (session?.user?.app_metadata?.providers as string[] | undefined) ?? [];
+    const identityProviders = ((session?.user?.identities ?? [])
+      .map((identity) => identity.provider)
+      .filter(Boolean) as string[]);
+    return appProviders.includes('email') || identityProviders.includes('email');
+  }, [session]);
 
   const handleOpenAuthModal = useCallback(() => {
     setAuthMode('signIn');
@@ -233,10 +240,14 @@ export default function SettingsScreen() {
   }, [displayNameError, displayNameInput, t, updateDisplayName]);
 
   const handleOpenPasswordModal = useCallback(() => {
+    if (!canChangePassword) {
+      Alert.alert(t('settings.passwordChangeEmailOnly'));
+      return;
+    }
     setNewPassword('');
     setNewPasswordConfirm('');
     setPasswordModalOpen(true);
-  }, []);
+  }, [canChangePassword, t]);
 
   const handleClosePasswordModal = useCallback(() => {
     if (passwordSubmitting) return;
@@ -256,6 +267,10 @@ export default function SettingsScreen() {
   }, [newPassword, newPasswordConfirm, t]);
 
   const handleChangePassword = useCallback(async () => {
+    if (!canChangePassword) {
+      Alert.alert(t('settings.passwordChangeEmailOnly'));
+      return;
+    }
     if (newPasswordRuleError || newPasswordMatchError) {
       return;
     }
@@ -283,7 +298,7 @@ export default function SettingsScreen() {
       ],
       { cancelable: false }
     );
-  }, [newPassword, newPasswordMatchError, newPasswordRuleError, signOut, t, updatePassword]);
+  }, [canChangePassword, newPassword, newPasswordMatchError, newPasswordRuleError, signOut, t, updatePassword]);
 
   const loadLastAutoSyncAt = useCallback(() => {
     let active = true;
@@ -443,42 +458,46 @@ export default function SettingsScreen() {
                     ? lastAutoSyncAt.replace('-', '.').replace('-', '.')
                     : t('settings.accountNoSync')}
                 </Text>
-                <Pressable
-                  onPress={handleSignOut}
-                  className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
-                  style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
-                >
-                  <Text
-                    className="font-semibold text-gray-800 dark:text-gray-100"
-                    style={{ fontSize: moderateScale(14) }}
+                <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                  <Pressable
+                    onPress={handleSignOut}
+                    className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                    style={{ height: scale(40) }}
                   >
-                    {t('settings.logout')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleOpenDisplayNameModal}
-                  className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
-                  style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
-                >
-                  <Text
-                    className="font-semibold text-gray-800 dark:text-gray-100"
-                    style={{ fontSize: moderateScale(14) }}
+                    <Text
+                      className="font-semibold text-gray-800 dark:text-gray-100"
+                      style={{ fontSize: moderateScale(13) }}
+                    >
+                      {t('settings.logout')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleOpenDisplayNameModal}
+                    className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                    style={{ height: scale(40) }}
                   >
-                    {t('settings.changeDisplayName')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleOpenPasswordModal}
-                  className="self-start rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80"
-                  style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
-                >
-                  <Text
-                    className="font-semibold text-gray-800 dark:text-gray-100"
-                    style={{ fontSize: moderateScale(14) }}
-                  >
-                    {t('settings.changePassword')}
-                  </Text>
-                </Pressable>
+                    <Text
+                      className="font-semibold text-gray-800 dark:text-gray-100"
+                      style={{ fontSize: moderateScale(13) }}
+                    >
+                      {t('settings.changeDisplayName')}
+                    </Text>
+                  </Pressable>
+                  {canChangePassword ? (
+                    <Pressable
+                      onPress={handleOpenPasswordModal}
+                      className="flex-1 rounded-lg bg-gray-200 dark:bg-gray-700 active:opacity-80 items-center justify-center"
+                      style={{ height: scale(40) }}
+                    >
+                      <Text
+                        className="font-semibold text-gray-800 dark:text-gray-100"
+                        style={{ fontSize: moderateScale(13) }}
+                      >
+                        {t('settings.changePassword')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </>
             ) : (
               <>
