@@ -18,7 +18,8 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~성경 잔디~~
 - 소셜 로그인
 - ~~sqlite 파일 데이터 동기화~~
-- 닉네임 변경
+- ~~닉네임 변경~~
+- ~~비밀번호 변경~~
 - 비밀번호 재설정
 - 푯대말씀 기능
 - 공동체(교회) 기능
