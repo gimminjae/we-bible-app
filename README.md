@@ -16,7 +16,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~성경읽기표~~
 - ~~성경 목표세워 읽기~~
 - ~~성경 잔디~~
-- 소셜 로그인
+- ~~소셜 로그인(kakao, google)~~
 - ~~sqlite 파일 데이터 동기화~~
 - ~~닉네임 변경~~
 - ~~비밀번호 변경~~
