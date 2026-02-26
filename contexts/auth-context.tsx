@@ -7,7 +7,6 @@ import type {
 } from '@supabase/supabase-js';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { AppState } from 'react-native';
 import {
   createContext,
   useCallback,
@@ -17,6 +16,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 const LOGIN_AT_KEY = 'auth_login_at';
@@ -47,6 +47,30 @@ function clearStoredLoginAt(): void {
   } catch {
     // ignore storage remove errors
   }
+}
+
+function toAuthError(message: string): AuthError {
+  return {
+    name: 'AuthError',
+    message,
+    status: 400,
+  } as AuthError;
+}
+
+function parseUrlParams(url: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  const [baseAndQuery, fragment = ''] = url.split('#');
+  const query = baseAndQuery.split('?')[1] ?? '';
+  const combined = [query, fragment].filter(Boolean).join('&');
+  combined.split('&').forEach((pair) => {
+    if (!pair) return;
+    const [rawKey, rawValue = ''] = pair.split('=');
+    if (!rawKey) return;
+    const key = decodeURIComponent(rawKey);
+    const value = decodeURIComponent(rawValue);
+    params[key] = value;
+  });
+  return params;
 }
 
 type AuthResult = { error: AuthError | null };
@@ -163,7 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const redirectTo = makeRedirectUri({
       scheme: 'webibleapp',
-      path: 'auth/callback',
+      preferLocalhost: true,
+      // path: 'auth/callback',
     });
 
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -176,22 +201,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error || !data?.url) {
-      return { error };
+      return { error: error ?? toAuthError('Failed to create Google OAuth URL.') };
     }
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== 'success' || !result.url) {
-      return { error: null };
+      return { error: toAuthError(`Google login was not completed (${result.type}).`) };
     }
 
-    const codeMatch = result.url.match(/[?&]code=([^&#]+)/);
-    const code = codeMatch?.[1];
-    if (!code) {
-      return { error: null };
+    const callbackParams = parseUrlParams(result.url);
+    const oauthError = callbackParams.error_description ?? callbackParams.error;
+    if (oauthError) {
+      return { error: toAuthError(oauthError) };
     }
 
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    return { error: exchangeError };
+    const code = callbackParams.code;
+    if (code) {
+      const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+        code
+      );
+      if (!exchangeError && exchangeData.session) {
+        setSession(exchangeData.session);
+        setStoredLoginAt(Date.now());
+      }
+      return { error: exchangeError };
+    }
+
+    const accessToken = callbackParams.access_token;
+    const refreshToken = callbackParams.refresh_token;
+    if (accessToken && refreshToken) {
+      const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (!setSessionError && sessionData.session) {
+        setSession(sessionData.session);
+        setStoredLoginAt(Date.now());
+      }
+      return { error: setSessionError };
+    }
+
+    return {
+      error: toAuthError(
+        'No authorization code or token found in Google callback URL.'
+      ),
+    };
   }, []);
 
   const signOut = useCallback(async (): Promise<AuthResult> => {
