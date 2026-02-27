@@ -20,13 +20,19 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 - ~~sqlite 파일 데이터 동기화~~
 - ~~닉네임 변경~~
 - ~~비밀번호 변경~~
+- 성경 인물 탐구 기능
 - 비밀번호 재설정
-- 푯대말씀 기능
+- 푯대말씀 기능 (알림)
+- 개발자에게 한마디, 1:1문의 (firebase)
+- 광고 넣기
+- 성경 잔디 테마 바꾸기
+- 성경 이력 채우기
+
+## Challenge TODO
 - 공동체(교회) 기능
 - 공동체 초대
 - 공동체 인원 확장 및 결제
 - 성경 읽기표 공동 목표 기능 - 성경 함께 읽기
-- 성경 인물 탐구 기능
 
 
 ## Get started
