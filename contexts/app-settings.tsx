@@ -30,7 +30,7 @@ type AppSettingsValue = {
   setAppLanguage: (lang: AppLanguage) => void;
 };
 
-const AppSettingsContext = createContext<AppSettingsValue | null>(null);
+export const AppSettingsContext = createContext<AppSettingsValue | null>(null);
 
 export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
@@ -90,4 +90,8 @@ export function useAppSettings(): AppSettingsValue {
   const ctx = useContext(AppSettingsContext);
   if (!ctx) throw new Error('useAppSettings must be used within AppSettingsProvider');
   return ctx;
+}
+
+export function useOptionalAppSettings(): AppSettingsValue | null {
+  return useContext(AppSettingsContext);
 }

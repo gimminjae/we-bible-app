@@ -1,4 +1,4 @@
-import { useAppSettings } from '@/contexts/app-settings';
+import { useOptionalAppSettings } from '@/contexts/app-settings';
 import type { AppLanguage } from '@/utils/app-settings-storage';
 
 const messages = {
@@ -553,7 +553,8 @@ export function t(lang: AppLanguage, key: string): string {
 }
 
 export function useI18n() {
-  const { appLanguage } = useAppSettings();
+  const appSettings = useOptionalAppSettings();
+  const appLanguage = appSettings?.appLanguage ?? 'ko';
   return {
     t: (key: string) => t(appLanguage, key),
   };

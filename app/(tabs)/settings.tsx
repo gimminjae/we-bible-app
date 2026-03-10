@@ -1,3 +1,4 @@
+import { AdBanner } from '@/components/ads/ad-banner';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GoogleIcon } from '@/components/ui/icons/GoogleIcon';
 import { KakaoIcon } from '@/components/ui/icons/KakaoIcon';
@@ -543,6 +544,8 @@ export default function SettingsScreen() {
             )}
           </View>
         </View>
+
+        <AdBanner />
 
       </ScrollView>
 

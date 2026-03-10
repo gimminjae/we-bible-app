@@ -21,6 +21,8 @@ import { initGrassTable } from '@/utils/grass-db';
 import { initPlansTable } from '@/utils/plan-db';
 import { initPrayersTable } from '@/utils/prayer-db';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { useEffect } from 'react';
+import { NativeModules } from 'react-native';
 
 async function initDb(db: SQLiteDatabase) {
   await initFavoriteVersesTable(db);
@@ -39,6 +41,16 @@ export const unstable_settings = {
 
 function RootLayoutContent() {
   const { theme } = useAppSettings();
+  useEffect(() => {
+    if (!NativeModules.RNGoogleMobileAdsModule) return;
+    import('react-native-google-mobile-ads')
+      .then((mod) => {
+        mod.default().initialize();
+      })
+      .catch(() => {
+        // Ignore initialization in environments without native module (e.g. Expo Go).
+      });
+  }, []);
 
   return (
     <GluestackUIProvider mode={theme}>

@@ -1,10 +1,11 @@
+import { AdBanner } from "@/components/ads/ad-banner"
 import { BibleGrass } from "@/components/bible-grass"
-import { useAuth } from "@/contexts/auth-context"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { useAuth } from "@/contexts/auth-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { useI18n } from "@/utils/i18n"
-import { useMemo } from "react"
 import { useRouter } from "expo-router"
+import { useMemo } from "react"
 import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -49,6 +50,10 @@ export default function MyPageScreen() {
         ) : null}
 
         <BibleGrass />
+
+        <View className="mb-4">
+          <AdBanner />
+        </View>
 
         <Pressable
           onPress={() => router.push("/(tabs)/mypage/favorites")}
