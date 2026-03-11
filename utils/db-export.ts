@@ -118,6 +118,13 @@ type ImportPayload = {
   tables: Record<string, unknown[]>;
 };
 
+type ImportOptions = {
+  /** true: replace table rows (legacy backup import), false: merge/upsert rows */
+  replaceExistingRows?: boolean;
+  /** tables that should always be merged even when replaceExistingRows is true */
+  mergeTables?: string[];
+};
+
 function parseImportPayload(raw: string): ImportPayload {
   const parsed: unknown = JSON.parse(raw);
   if (typeof parsed !== 'object' || parsed === null || !('tables' in parsed)) {
@@ -162,8 +169,11 @@ export async function importSQLiteData(db: SQLiteDatabase): Promise<string | nul
 
 export async function importSQLiteDataFromJson(
   db: SQLiteDatabase,
-  rawText: string
+  rawText: string,
+  options: ImportOptions = {}
 ): Promise<void> {
+  const replaceExistingRows = options.replaceExistingRows ?? true;
+  const mergeTableSet = new Set(options.mergeTables ?? []);
   const payload = parseImportPayload(rawText);
   const existingTables = await getExistingTables(db);
   const entries = Object.entries(payload.tables).filter(([tableName, rows]) => {
@@ -173,7 +183,10 @@ export async function importSQLiteDataFromJson(
   await db.execAsync('PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE;');
   try {
     for (const [tableName, rows] of entries) {
-      await db.runAsync(`DELETE FROM ${escapeTableName(tableName)}`);
+      const shouldMerge = !replaceExistingRows || mergeTableSet.has(tableName);
+      if (!shouldMerge) {
+        await db.runAsync(`DELETE FROM ${escapeTableName(tableName)}`);
+      }
       if (rows.length === 0) continue;
 
       const tableColumns = await getTableColumns(db, tableName);
@@ -185,7 +198,8 @@ export async function importSQLiteDataFromJson(
         const columns = Object.keys(rowRecord).filter((k) => tableColumnSet.has(k));
         if (!columns.length) continue;
         const placeholders = columns.map(() => '?').join(', ');
-        const sql = `INSERT INTO ${escapeTableName(tableName)} (${columns
+        const insertVerb = shouldMerge ? 'INSERT OR REPLACE' : 'INSERT';
+        const sql = `${insertVerb} INTO ${escapeTableName(tableName)} (${columns
           .map(escapeColumnName)
           .join(', ')}) VALUES (${placeholders})`;
         const values = columns.map((k) => toSQLiteBindValue(rowRecord[k]));
@@ -200,4 +214,14 @@ export async function importSQLiteDataFromJson(
   } finally {
     await db.execAsync('PRAGMA foreign_keys = ON;');
   }
+}
+
+export async function importSQLiteDataFromJsonForAutoSync(
+  db: SQLiteDatabase,
+  rawText: string
+): Promise<void> {
+  await importSQLiteDataFromJson(db, rawText, {
+    replaceExistingRows: false,
+    mergeTables: ['bible_state', 'bible_grass'],
+  });
 }

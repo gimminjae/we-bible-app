@@ -6,8 +6,12 @@ const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
 const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
+const POINT_TOTAL_KEY = 'pointTotal';
+const POINT_CLAIMED_STEP_UNITS_KEY = 'pointClaimedStepUnitsByDate';
+const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
 const BIBLE_STATE_TABLE = 'bible_state';
 const MAX_AGE = 60 * 60 * 24 * 365; // 1년
+const GRASS_THEME_CHANGE_COST = 100;
 
 function getCookie(key: string): string | null {
   if (typeof document === 'undefined' || typeof document.cookie === 'undefined') return null;
@@ -167,4 +171,160 @@ export async function setLastAutoSyncAtToDb(
     LAST_AUTO_SYNC_AT_KEY,
     syncedAt
   );
+}
+
+type ClaimedStepUnitsByDate = Record<string, number>;
+export type GrassColorTheme =
+  | 'green'
+  | 'yellow'
+  | 'orange'
+  | 'red'
+  | 'blue'
+  | 'purple'
+  | 'sky';
+
+function parseClaimedStepUnits(raw: string | null | undefined): ClaimedStepUnitsByDate {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<ClaimedStepUnitsByDate>((acc, [key, value]) => {
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+        acc[key] = Math.floor(value);
+      }
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+async function getClaimedStepUnitsByDate(
+  db: SQLiteDatabase
+): Promise<ClaimedStepUnitsByDate> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    POINT_CLAIMED_STEP_UNITS_KEY
+  );
+  return parseClaimedStepUnits(row?.value);
+}
+
+export async function getPointTotalFromDb(db: SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    POINT_TOTAL_KEY
+  );
+  const parsed = Number(row?.value ?? 0);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
+export async function spendPoints(
+  db: SQLiteDatabase,
+  amount: number
+): Promise<{ success: boolean; pointTotal: number }> {
+  const cost = Math.max(0, Math.floor(amount));
+  const currentPoint = await getPointTotalFromDb(db);
+  if (currentPoint < cost) {
+    return { success: false, pointTotal: currentPoint };
+  }
+  const nextPoint = currentPoint - cost;
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    POINT_TOTAL_KEY,
+    String(nextPoint)
+  );
+  return { success: true, pointTotal: nextPoint };
+}
+
+export async function getClaimedStepUnitsForDateFromDb(
+  db: SQLiteDatabase,
+  dateKey: string
+): Promise<number> {
+  const map = await getClaimedStepUnitsByDate(db);
+  return map[dateKey] ?? 0;
+}
+
+export async function claimOnePointFromSteps(
+  db: SQLiteDatabase,
+  dateKey: string
+): Promise<number> {
+  const currentPoint = await getPointTotalFromDb(db);
+  const claimedMap = await getClaimedStepUnitsByDate(db);
+  const nextPoint = currentPoint + 1;
+  const nextClaimedMap: ClaimedStepUnitsByDate = {
+    ...claimedMap,
+    [dateKey]: (claimedMap[dateKey] ?? 0) + 1,
+  };
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    POINT_TOTAL_KEY,
+    String(nextPoint)
+  );
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    POINT_CLAIMED_STEP_UNITS_KEY,
+    JSON.stringify(nextClaimedMap)
+  );
+
+  return nextPoint;
+}
+
+export async function getGrassColorThemeFromDb(
+  db: SQLiteDatabase
+): Promise<GrassColorTheme> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    GRASS_COLOR_THEME_KEY
+  );
+  const value = row?.value;
+  if (
+    value === 'green' ||
+    value === 'yellow' ||
+    value === 'orange' ||
+    value === 'red' ||
+    value === 'blue' ||
+    value === 'purple' ||
+    value === 'sky'
+  ) {
+    return value;
+  }
+  return 'green';
+}
+
+export async function spendPointsForGrassColorTheme(
+  db: SQLiteDatabase,
+  nextTheme: GrassColorTheme
+): Promise<{ success: boolean; pointTotal: number; changed: boolean }> {
+  const currentTheme = await getGrassColorThemeFromDb(db);
+  const currentPoint = await getPointTotalFromDb(db);
+
+  if (currentTheme === nextTheme) {
+    return { success: true, pointTotal: currentPoint, changed: false };
+  }
+  const spendResult = await spendPoints(db, GRASS_THEME_CHANGE_COST);
+  if (!spendResult.success) {
+    return { success: false, pointTotal: currentPoint, changed: false };
+  }
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    GRASS_COLOR_THEME_KEY,
+    nextTheme
+  );
+
+  return { success: true, pointTotal: spendResult.pointTotal, changed: true };
+}
+
+export async function setGrassColorThemeWithoutPoint(
+  db: SQLiteDatabase,
+  nextTheme: GrassColorTheme
+): Promise<boolean> {
+  const currentTheme = await getGrassColorThemeFromDb(db);
+  if (currentTheme === nextTheme) return false;
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    GRASS_COLOR_THEME_KEY,
+    nextTheme
+  );
+  return true;
 }

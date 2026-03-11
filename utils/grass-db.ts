@@ -7,8 +7,14 @@ export type GrassDayEntry = {
   readChapter: number[];
 };
 
-/** date string (YYYY-MM-DD) -> array of { bookCode, readChapter } */
-export type GrassDataMap = Record<string, GrassDayEntry[]>;
+export type GrassDayValue = {
+  date: string;
+  data: GrassDayEntry[];
+  fillYn: boolean;
+};
+
+/** date string (YYYY-MM-DD) -> { date, data, fillYn } */
+export type GrassDataMap = Record<string, GrassDayValue>;
 
 function todayString(): string {
   const d = new Date();
@@ -40,7 +46,19 @@ export async function getGrassData(db: SQLiteDatabase): Promise<GrassDataMap> {
   const map: GrassDataMap = {};
   for (const r of rows) {
     if (r.date) {
-      map[r.date] = parseJson<GrassDayEntry[]>(r.data ?? '[]', []);
+      const parsed = parseJson<unknown>(r.data ?? '[]', []);
+      if (Array.isArray(parsed)) {
+        map[r.date] = { date: r.date, data: parsed as GrassDayEntry[], fillYn: false };
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        const obj = parsed as { date?: unknown; data?: unknown; fillYn?: unknown };
+        map[r.date] = {
+          date: typeof obj.date === 'string' ? obj.date : r.date,
+          data: Array.isArray(obj.data) ? (obj.data as GrassDayEntry[]) : [],
+          fillYn: obj.fillYn === true,
+        };
+      } else {
+        map[r.date] = { date: r.date, data: [], fillYn: false };
+      }
     }
   }
   return map;
@@ -53,7 +71,7 @@ export function getChapterCountForDate(
 ): number {
   const day = data[date];
   if (!day) return 0;
-  return day.reduce((sum, e) => sum + e.readChapter.length, 0);
+  return day.data.reduce((sum, e) => sum + e.readChapter.length, 0);
 }
 
 function toDateString(d: Date): string {
@@ -106,9 +124,22 @@ export async function syncGrassForBook(
     date
   );
 
-  let dayData: GrassDayEntry[] = rows[0]
-    ? parseJson<GrassDayEntry[]>(rows[0].data ?? '[]', [])
-    : [];
+  const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
+  const current =
+    Array.isArray(parsed)
+      ? { date, data: parsed as GrassDayEntry[], fillYn: false }
+      : typeof parsed === 'object' && parsed !== null
+        ? {
+          date: typeof (parsed as { date?: unknown }).date === 'string'
+            ? ((parsed as { date?: string }).date as string)
+            : date,
+          data: Array.isArray((parsed as { data?: unknown }).data)
+            ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
+            : [],
+          fillYn: (parsed as { fillYn?: unknown }).fillYn === true,
+        }
+        : { date, data: [], fillYn: false };
+  let dayData: GrassDayEntry[] = current.data;
 
   dayData = dayData.filter((e) => e.bookCode !== bookCode);
   if (readChapters.length > 0) {
@@ -118,7 +149,11 @@ export async function syncGrassForBook(
   await db.runAsync(
     `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
     date,
-    JSON.stringify(dayData)
+    JSON.stringify({
+      date,
+      data: dayData,
+      fillYn: dayData.length > 0 ? false : current.fillYn,
+    })
   );
 }
 
@@ -150,9 +185,22 @@ export async function syncGrassFromPlanSave(
     todayString()
   );
 
-  let dayData: GrassDayEntry[] = rows[0]
-    ? parseJson<GrassDayEntry[]>(rows[0].data ?? '[]', [])
-    : [];
+  const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
+  const current =
+    Array.isArray(parsed)
+      ? { date: todayString(), data: parsed as GrassDayEntry[], fillYn: false }
+      : typeof parsed === 'object' && parsed !== null
+        ? {
+          date: typeof (parsed as { date?: unknown }).date === 'string'
+            ? ((parsed as { date?: string }).date as string)
+            : todayString(),
+          data: Array.isArray((parsed as { data?: unknown }).data)
+            ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
+            : [],
+          fillYn: (parsed as { fillYn?: unknown }).fillYn === true,
+        }
+        : { date: todayString(), data: [], fillYn: false };
+  let dayData: GrassDayEntry[] = current.data;
 
   const existingEntry = dayData.find((e) => e.bookCode === bookCode);
   const currentChapters = existingEntry?.readChapter ?? [];
@@ -174,6 +222,38 @@ export async function syncGrassFromPlanSave(
   await db.runAsync(
     `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
     todayString(),
-    JSON.stringify(nextDayData)
+    JSON.stringify({
+      date: todayString(),
+      data: nextDayData,
+      fillYn: nextDayData.length > 0 ? false : current.fillYn,
+    })
   );
+}
+
+export async function fillGrassByPoint(
+  db: SQLiteDatabase,
+  date: string
+): Promise<boolean> {
+  const rows = await db.getAllAsync<{ data: string }>(
+    `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
+    date
+  );
+  const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
+  const currentData = Array.isArray(parsed)
+    ? (parsed as GrassDayEntry[])
+    : typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { data?: unknown }).data)
+      ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
+      : [];
+  if (currentData.length > 0) return false;
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
+    date,
+    JSON.stringify({
+      date,
+      data: [],
+      fillYn: true,
+    })
+  );
+  return true;
 }

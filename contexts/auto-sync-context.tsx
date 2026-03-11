@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { setLastAutoSyncAtToDb } from '@/utils/bible-storage';
 import {
   exportSQLiteJson,
-  importSQLiteDataFromJson,
+  importSQLiteDataFromJsonForAutoSync,
 } from '@/utils/db-export';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
@@ -25,7 +25,7 @@ function nowString(): string {
 
 export function AutoSyncProvider({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
-  const { session } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const prevUserIdRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
   const syncingRef = useRef(false);
@@ -70,13 +70,17 @@ export function AutoSyncProvider({ children }: { children: ReactNode }) {
       }
       const raw = await response.text();
       if (!raw.trim()) return;
-      await importSQLiteDataFromJson(db, raw);
+      await importSQLiteDataFromJsonForAutoSync(db, raw);
+      // Pull 이후 즉시 push 하여 신규 키/기능 데이터도 원격에 반영한다.
+      await uploadToS3Api(userId);
     } catch (error) {
       console.warn('[auto-sync] download/import failed', error);
     }
-  }, [db]);
+  }, [db, uploadToS3Api]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const currentUserId = getUserId(session?.user?.id);
     const prevUserId = prevUserIdRef.current;
 
@@ -91,8 +95,12 @@ export function AutoSyncProvider({ children }: { children: ReactNode }) {
     if (!prevUserId && currentUserId) {
       void pullFromS3OnLogin(currentUserId);
     }
+    // 로그인 -> 비로그인 전환(로그아웃) 시점에도 마지막 데이터 업로드.
+    if (prevUserId && !currentUserId) {
+      void syncOnAppLeave(prevUserId);
+    }
     prevUserIdRef.current = currentUserId;
-  }, [session?.user?.id, pullFromS3OnLogin]);
+  }, [authLoading, pullFromS3OnLogin, session?.user?.id, syncOnAppLeave]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {

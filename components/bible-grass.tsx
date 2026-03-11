@@ -3,14 +3,24 @@
 import { useFocusEffect } from "@react-navigation/native"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
 
 import { useAppSettings } from "@/contexts/app-settings"
+import { useAuth } from "@/contexts/auth-context"
+import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { getBookName } from "@/services/bible"
+import {
+  getGrassColorThemeFromDb,
+  setGrassColorThemeWithoutPoint,
+  spendPoints,
+  spendPointsForGrassColorTheme,
+  type GrassColorTheme,
+} from "@/utils/bible-storage"
 import { useI18n } from "@/utils/i18n"
 
 import {
+  fillGrassByPoint,
   getChapterCountForDate,
   getGrassData,
   getStreakUpToYesterday,
@@ -37,14 +47,27 @@ const MONTH_KEYS = [
   "dec",
 ]
 
-/** GitHub-style colors: 0=none, 1-4=green intensity */
-const GRASS_COLORS = {
-  0: "bg-gray-200 dark:bg-gray-700",
-  1: "bg-emerald-600",
-  2: "bg-emerald-500",
-  3: "bg-emerald-400",
-  4: "bg-emerald-300",
+/** 0=none, 1-4=dark->light */
+const GRASS_THEME_COLORS: Record<GrassColorTheme, Record<0 | 1 | 2 | 3 | 4, string>> = {
+  green: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-emerald-700", 2: "bg-emerald-600", 3: "bg-emerald-500", 4: "bg-emerald-400" },
+  yellow: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-amber-700", 2: "bg-amber-600", 3: "bg-amber-500", 4: "bg-amber-400" },
+  orange: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-orange-700", 2: "bg-orange-600", 3: "bg-orange-500", 4: "bg-orange-400" },
+  red: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-rose-700", 2: "bg-rose-600", 3: "bg-rose-500", 4: "bg-rose-400" },
+  blue: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-blue-700", 2: "bg-blue-600", 3: "bg-blue-500", 4: "bg-blue-400" },
+  purple: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-violet-700", 2: "bg-violet-600", 3: "bg-violet-500", 4: "bg-violet-400" },
+  sky: { 0: "bg-gray-200 dark:bg-gray-700", 1: "bg-sky-700", 2: "bg-sky-600", 3: "bg-sky-500", 4: "bg-sky-400" },
 }
+
+const GRASS_THEME_OPTIONS: GrassColorTheme[] = [
+  "green",
+  "yellow",
+  "orange",
+  "red",
+  "blue",
+  "purple",
+  "sky",
+]
+const DEV_COLOR_BYPASS_EMAIL = "min356812@daum.net"
 
 function toDateString(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0")
@@ -207,7 +230,7 @@ function getRecentDatesWithData(
   limit: number,
 ): string[] {
   return Object.keys(grassData)
-    .filter((date) => grassData[date]?.length > 0)
+    .filter((date) => (grassData[date]?.data.length ?? 0) > 0 || grassData[date]?.fillYn)
     .sort((a, b) => b.localeCompare(a))
     .slice(0, limit)
 }
@@ -218,9 +241,15 @@ function getTodayString(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export function BibleGrass() {
+type BibleGrassProps = {
+  onPointTotalChanged?: (nextTotal: number) => void
+}
+
+export function BibleGrass({ onPointTotalChanged }: BibleGrassProps) {
   const db = useSQLiteContext()
   const { t } = useI18n()
+  const { showToast } = useToast()
+  const { session } = useAuth()
   const { theme, appLanguage } = useAppSettings()
   const { scale, moderateScale } = useResponsive()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
@@ -230,9 +259,11 @@ export function BibleGrass() {
   const [yearSelectOpen, setYearSelectOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [grassTheme, setGrassTheme] = useState<GrassColorTheme>("green")
 
   const load = useCallback(() => {
     getGrassData(db).then(setGrassData)
+    getGrassColorThemeFromDb(db).then(setGrassTheme)
   }, [db])
 
   useFocusEffect(load)
@@ -281,12 +312,108 @@ export function BibleGrass() {
     () => getRecentDatesWithData(grassData, 3),
     [grassData],
   )
+  const canFillSelectedDate = useMemo(() => {
+    if (!selectedDate) return false
+    if (selectedDate >= getTodayString()) return false
+    const selected = grassData[selectedDate]
+    return (selected?.data.length ?? 0) === 0 && !selected?.fillYn
+  }, [grassData, selectedDate])
 
   const cellSize = scale(14)
   const cellGap = scale(3)
   const monthGap = scale(5)
   const dayLabelWidth = scale(24)
   const gridWidth = dayLabelWidth + cellGap + 53 * cellSize + 52 * cellGap
+  const activeColors = GRASS_THEME_COLORS[grassTheme]
+
+  const pickRandomNextTheme = useCallback((current: GrassColorTheme): GrassColorTheme => {
+    const candidates = GRASS_THEME_OPTIONS.filter((option) => option !== current)
+    if (!candidates.length) return current
+    const randomIdx = Math.floor(Math.random() * candidates.length)
+    return candidates[randomIdx]
+  }, [])
+
+  const handleChangeColorTheme = useCallback(
+    async () => {
+      const userEmail = session?.user?.email?.trim().toLowerCase()
+      const isDevBypassUser = userEmail === DEV_COLOR_BYPASS_EMAIL
+      const nextTheme = pickRandomNextTheme(grassTheme)
+      if (isDevBypassUser) {
+        const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
+        if (changed) {
+          setGrassTheme(nextTheme)
+          showToast(
+            t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
+            "🎨",
+          )
+        }
+        return
+      }
+
+      const result = await spendPointsForGrassColorTheme(db, nextTheme)
+      if (!result.success) {
+        showToast(t("grass.colorChangeNeedPoint"), "💸")
+        return
+      }
+      if (!result.changed) {
+        return
+      }
+      setGrassTheme(nextTheme)
+      onPointTotalChanged?.(result.pointTotal)
+      showToast(
+        t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
+        "🎨",
+      )
+    },
+    [db, grassTheme, onPointTotalChanged, pickRandomNextTheme, session?.user?.email, showToast, t],
+  )
+
+  const handlePressChangeColor = useCallback(() => {
+    Alert.alert(
+      t("grass.changeColorTitle"),
+      t("grass.changeColorConfirm"),
+      [
+        { text: t("grass.changeColorCancel"), style: "cancel" },
+        {
+          text: t("grass.changeColorProceed"),
+          onPress: () => {
+            void handleChangeColorTheme()
+          },
+        },
+      ],
+    )
+  }, [handleChangeColorTheme, t])
+
+  const handleFillPastGrass = useCallback(async () => {
+    if (!selectedDate || !canFillSelectedDate) return
+    const spendResult = await spendPoints(db, 100)
+    if (!spendResult.success) {
+      showToast(t("grass.fillNeedPoint"), "💸")
+      return
+    }
+    const filled = await fillGrassByPoint(db, selectedDate)
+    if (!filled) return
+    onPointTotalChanged?.(spendResult.pointTotal)
+    load()
+    showToast(t("grass.fillSuccess"), "🌱")
+  }, [canFillSelectedDate, db, load, onPointTotalChanged, selectedDate, showToast, t])
+
+  const handlePressFillPastGrass = useCallback(() => {
+    if (!selectedDate || !canFillSelectedDate) return
+    Alert.alert(
+      t("grass.fillTitle"),
+      t("grass.fillConfirm"),
+      [
+        { text: t("grass.fillCancel"), style: "cancel" },
+        {
+          text: t("grass.fillProceed"),
+          onPress: () => {
+            void handleFillPastGrass()
+          },
+        },
+      ],
+    )
+  }, [canFillSelectedDate, handleFillPastGrass, selectedDate, t])
 
   return (
     <View
@@ -432,9 +559,12 @@ export function BibleGrass() {
                           grassData,
                           cell!.dateStr,
                         )
+                        const filledByPoint = grassData[cell!.dateStr]?.fillYn === true
                         const level =
                           count <= 0
-                            ? 0
+                            ? filledByPoint
+                              ? 1
+                              : 0
                             : count >= 10
                               ? 4
                               : count >= 5
@@ -453,7 +583,7 @@ export function BibleGrass() {
                               alignItems: "center",
                               justifyContent: "center",
                             }}
-                            className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
+                            className={`rounded-sm ${activeColors[level as keyof typeof activeColors]}`}
                           >
                             <Text
                               style={{ fontSize: moderateScale(8) }}
@@ -595,7 +725,7 @@ export function BibleGrass() {
                       <View key={level} className="flex-row items-center" style={{ gap: scale(8) }}>
                         <View
                           style={{ width: cellSize, height: cellSize }}
-                          className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
+                          className={`rounded-sm ${activeColors[level as keyof typeof activeColors]}`}
                         />
                         <Text
                           className="text-gray-700 dark:text-gray-300"
@@ -624,28 +754,38 @@ export function BibleGrass() {
       </Modal>
 
       {/* Legend */}
-      <View className="flex-row items-center mt-3" style={{ gap: scale(8) }}>
-        <Text
-          style={{ fontSize: moderateScale(11) }}
-          className="text-gray-500 dark:text-gray-400"
-        >
-          {t("grass.less")}
-        </Text>
-        <View className="flex-row gap-0.5">
-          {[0, 1, 2, 3, 4].map((level) => (
-            <View
-              key={level}
-              style={{ width: cellSize, height: cellSize }}
-              className={`rounded-sm ${GRASS_COLORS[level as keyof typeof GRASS_COLORS]}`}
-            />
-          ))}
+      <View className="mt-3 flex-row items-center justify-between">
+        <View className="flex-row items-center" style={{ gap: scale(8) }}>
+          <Text
+            style={{ fontSize: moderateScale(11) }}
+            className="text-gray-500 dark:text-gray-400"
+          >
+            {t("grass.less")}
+          </Text>
+          <View className="flex-row gap-0.5">
+            {[0, 1, 2, 3, 4].map((level) => (
+              <View
+                key={level}
+                style={{ width: cellSize, height: cellSize }}
+                className={`rounded-sm ${activeColors[level as keyof typeof activeColors]}`}
+              />
+            ))}
+          </View>
+          <Text
+            style={{ fontSize: moderateScale(11) }}
+            className="text-gray-500 dark:text-gray-400"
+          >
+            {t("grass.more")}
+          </Text>
         </View>
-        <Text
-          style={{ fontSize: moderateScale(11) }}
-          className="text-gray-500 dark:text-gray-400"
+        <Pressable
+          onPress={handlePressChangeColor}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1 dark:border-gray-700 dark:bg-gray-800"
         >
-          {t("grass.more")}
-        </Text>
+          <Text className="text-gray-700 dark:text-gray-200" style={{ fontSize: moderateScale(12) }}>
+            {t("grass.changeColorButton")}
+          </Text>
+        </Pressable>
       </View>
 
       {/* 날짜별 읽은 성경 */}
@@ -654,32 +794,46 @@ export function BibleGrass() {
         style={{ marginTop: scale(12), paddingTop: scale(12) }}
       >
         {selectedDate ? (
-          <Text
-            className="text-gray-700 dark:text-gray-300"
-            style={{ fontSize: moderateScale(12) }}
-          >
-            {grassData[selectedDate] && grassData[selectedDate].length > 0
-              ? selectedDate === getTodayString()
-                ? t("grass.todayReadFormat").replace(
-                  "{books}",
-                  formatReadingSummary(
-                    grassData[selectedDate],
-                    getBookName,
-                    appLanguage,
-                  ),
-                )
-                : t("grass.dateReadFormat")
-                  .replace("{date}", formatDateForDisplay(selectedDate, t))
-                  .replace(
+          <View>
+            <Text
+              className="text-gray-700 dark:text-gray-300"
+              style={{ fontSize: moderateScale(12) }}
+            >
+              {(grassData[selectedDate]?.data.length ?? 0) > 0
+                ? selectedDate === getTodayString()
+                  ? t("grass.todayReadFormat").replace(
                     "{books}",
                     formatReadingSummary(
-                      grassData[selectedDate],
+                      grassData[selectedDate].data,
                       getBookName,
                       appLanguage,
                     ),
                   )
-              : t("grass.noReadingOnDate")}
-          </Text>
+                  : t("grass.dateReadFormat")
+                    .replace("{date}", formatDateForDisplay(selectedDate, t))
+                    .replace(
+                      "{books}",
+                      formatReadingSummary(
+                        grassData[selectedDate].data,
+                        getBookName,
+                        appLanguage,
+                      ),
+                    )
+                : grassData[selectedDate]?.fillYn
+                  ? t("grass.filledByPointHistory")
+                  : t("grass.noReadingOnDate")}
+            </Text>
+            {canFillSelectedDate ? (
+              <Pressable
+                onPress={handlePressFillPastGrass}
+                className="mt-3 self-start rounded-lg bg-emerald-600 px-3 py-2 active:opacity-90"
+              >
+                <Text className="font-semibold text-white" style={{ fontSize: moderateScale(12) }}>
+                  {t("grass.fillButton")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : recentDates.length > 0 ? (
           <View style={{ gap: scale(10) }}>
             {recentDates.map((dateStr) => (
@@ -688,25 +842,29 @@ export function BibleGrass() {
                 className="text-gray-700 dark:text-gray-300"
                 style={{ fontSize: moderateScale(12) }}
               >
-                {dateStr === getTodayString()
-                  ? t("grass.todayReadFormat").replace(
-                    "{books}",
-                    formatReadingSummary(
-                      grassData[dateStr],
-                      getBookName,
-                      appLanguage,
-                    ),
-                  )
-                  : t("grass.dateReadFormat")
-                    .replace("{date}", formatDateForDisplay(dateStr, t))
-                    .replace(
+                {(grassData[dateStr]?.data.length ?? 0) > 0
+                  ? dateStr === getTodayString()
+                    ? t("grass.todayReadFormat").replace(
                       "{books}",
                       formatReadingSummary(
-                        grassData[dateStr],
+                        grassData[dateStr].data,
                         getBookName,
                         appLanguage,
                       ),
-                    )}
+                    )
+                    : t("grass.dateReadFormat")
+                      .replace("{date}", formatDateForDisplay(dateStr, t))
+                      .replace(
+                        "{books}",
+                        formatReadingSummary(
+                          grassData[dateStr].data,
+                          getBookName,
+                          appLanguage,
+                        ),
+                      )
+                  : grassData[dateStr]?.fillYn
+                    ? `${formatDateForDisplay(dateStr, t)} ${t("grass.filledByPointHistory")}`
+                    : t("grass.noReadingOnDate")}
               </Text>
             ))}
           </View>
