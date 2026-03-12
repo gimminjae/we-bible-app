@@ -2,8 +2,10 @@ import type { FavoriteVerseRecord } from "@/components/bible/types"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useToast } from "@/contexts/toast-context"
+import { useResponsive } from "@/hooks/use-responsive"
 import { getBookName } from "@/services/bible"
 import { setPendingBibleNavigation } from "@/utils/bible-storage"
+import { copyToClipboard } from "@/utils/clipboard"
 import { getAllFavorites, removeFavorites } from "@/utils/favorite-verses-db"
 import { useI18n } from "@/utils/i18n"
 import { useFocusEffect } from "@react-navigation/native"
@@ -11,7 +13,6 @@ import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"
 import { Alert, Pressable, ScrollView, Text, View } from "react-native"
-import { useResponsive } from "@/hooks/use-responsive"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 function formatDate(raw: string): string {
@@ -79,6 +80,16 @@ export default function FavoriteListScreen() {
       ])
     },
     [db, load, showToast, t],
+  )
+
+  const handleCopyVerse = useCallback(
+    async (item: FavoriteVerseRecord) => {
+      const citation = `${getBookName(item.bookCode, appLanguage)} ${item.chapter}:${item.verse}`
+      const text = `${item.verseText}\n${citation}`
+      await copyToClipboard(text)
+      showToast(t("toast.copySuccess"), "😊")
+    },
+    [appLanguage, showToast, t],
   )
 
   return (
@@ -167,14 +178,24 @@ export default function FavoriteListScreen() {
                   {formatDate(item.createdAt)}
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => handleDeletePress(item)}
-                hitSlop={scale(8)}
-                className="active:bg-gray-100 dark:active:bg-gray-800"
-                style={{ padding: scale(12) }}
-              >
-                <IconSymbol name="trash.fill" size={moderateScale(20)} color="#6b7280" />
-              </Pressable>
+              <View className="flex-row items-center" style={{ gap: scale(4) }}>
+                <Pressable
+                  onPress={() => void handleCopyVerse(item)}
+                  hitSlop={scale(8)}
+                  className="active:bg-gray-100 dark:active:bg-gray-800"
+                  style={{ padding: scale(12) }}
+                >
+                  <IconSymbol name="doc.on.doc" size={moderateScale(18)} color="#6b7280" />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeletePress(item)}
+                  hitSlop={scale(8)}
+                  className="active:bg-gray-100 dark:active:bg-gray-800"
+                  style={{ padding: scale(12) }}
+                >
+                  <IconSymbol name="trash.fill" size={moderateScale(20)} color="#6b7280" />
+                </Pressable>
+              </View>
             </View>
           ))
         )}

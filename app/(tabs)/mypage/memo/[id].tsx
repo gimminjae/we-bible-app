@@ -1,6 +1,7 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
+import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
 import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -37,6 +38,27 @@ export default function MemoDetailScreen() {
     },
     [db, showToast, t]
   );
+
+  const buildMemoCopyText = useCallback(
+    (m: MemoRecord) => {
+      const title = m.title?.trim() || t('mypage.untitled');
+      const verse = m.verseText?.trim() || '';
+      const content = m.content?.trim() || '';
+      const lines = [
+        `${title}`,
+        verse ? `${verse}` : null,
+        `${content}`,
+      ].filter(Boolean);
+      return lines.join('\n\n');
+    },
+    [t]
+  );
+
+  const handleCopyPress = useCallback(async () => {
+    if (!memo) return;
+    await copyToClipboard(buildMemoCopyText(memo));
+    showToast(t('toast.copySuccess'), '😊');
+  }, [memo, buildMemoCopyText, showToast, t]);
 
   const handleDeletePress = useCallback(() => {
     if (!memo) return;
@@ -87,7 +109,10 @@ export default function MemoDetailScreen() {
           <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.memoDetailTitle')}</Text>
         </View>
         {memo ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row items-center gap-2">
+            <Pressable onPress={handleCopyPress} hitSlop={8} className="p-2 active:opacity-70">
+              <IconSymbol name="doc.on.doc" size={20} color="#6b7280" />
+            </Pressable>
             <Pressable
               onPress={() => setShowEditDrawer(true)}
               className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"

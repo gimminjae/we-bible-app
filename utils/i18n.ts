@@ -11,6 +11,7 @@ const messages = {
     common: {
       back: '뒤로',
       copy: '복사',
+      confirm: '확인',
     },
     settings: {
       title: '설정',
@@ -50,11 +51,14 @@ const messages = {
       logoutCancel: '취소',
       logoutConfirm: '로그아웃',
       dataSync: '데이터 동기화',
-      exportDb: 'Export',
+      exportDb: '내보내기',
       exporting: '내보내는 중...',
-      importDb: 'Import',
+      importDb: '불러오기',
       importing: '불러오는 중...',
       exportDesc: '현재 앱의 SQLite 데이터를 파일로 저장합니다.',
+      exportImportGuideTitle: '데이터 동기화 안내',
+      exportImportGuideBody:
+        'Export로 현재 앱의 모든 데이터(관심 구절, 메모, 기도, 읽기표, 성경 잔디 등)를 JSON 파일로 저장할 수 있습니다.\n\n다른 기기에서 Import를 선택한 뒤, Export한 JSON 파일을 선택하면 해당 기기의 데이터가 파일 내용으로 교체됩니다. 기기 간 데이터를 동기화·유지하려면 Export로 백업한 파일을 보관해 두고, 필요할 때마다 Import로 불러오세요.',
       exportSuccess: '데이터 파일 저장 완료',
       exportFailed: '데이터 내보내기 실패',
       importSuccess: '데이터 불러오기 완료',
@@ -115,6 +119,9 @@ const messages = {
       verseText: '성경 구절',
       content: '내용',
       noContent: '(내용 없음)',
+      memoCopyTitle: '제목',
+      memoCopyVerse: '말씀',
+      memoCopyContent: '내용',
       deleteFavorite: '삭제',
       deleteFavoriteConfirm: '이 관심 구절을 삭제하시겠습니까?',
       goToVerse: '해당 성경으로 이동하시겠습니까?',
@@ -318,6 +325,7 @@ const messages = {
     common: {
       back: 'Back',
       copy: 'Copy',
+      confirm: 'OK',
     },
     settings: {
       title: 'Settings',
@@ -363,6 +371,9 @@ const messages = {
       importDb: 'Import',
       importing: 'Importing...',
       exportDesc: 'Save current app SQLite data as a file.',
+      exportImportGuideTitle: 'Data Sync Guide',
+      exportImportGuideBody:
+        'Export saves all app data (favorites, memos, prayers, reading plans, Bible grass, etc.) to a JSON file.\n\nOn another device, select Import and choose the exported JSON file to replace that device\'s data with the file contents. To sync and keep data across devices, save a backup with Export and use Import whenever you need to restore it.',
       exportSuccess: 'Data export completed',
       exportFailed: 'Data export failed',
       importSuccess: 'Data import completed',
@@ -424,6 +435,9 @@ const messages = {
       verseText: 'Bible verses',
       content: 'Content',
       noContent: '(No content)',
+      memoCopyTitle: 'Title',
+      memoCopyVerse: 'Scripture',
+      memoCopyContent: 'Content',
       deleteFavorite: 'Delete',
       deleteFavoriteConfirm: 'Are you sure you want to remove this verse from favorites?',
       goToVerse: 'Would you like to go to this Bible verse?',

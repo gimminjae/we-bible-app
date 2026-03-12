@@ -21,6 +21,7 @@ export default function SettingsScreen() {
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
   const [languageSelectOpen, setLanguageSelectOpen] = useState(false);
+  const [exportImportGuideOpen, setExportImportGuideOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -150,12 +151,21 @@ export default function SettingsScreen() {
         </View>
 
         <View style={{ marginBottom: scale(24) }}>
-          <Text
-            className="font-medium text-gray-500 dark:text-gray-400"
-            style={{ fontSize: moderateScale(14), marginBottom: scale(8) }}
-          >
-            {t('settings.account')}
-          </Text>
+          <View className="flex-row items-center" style={{ marginBottom: scale(8), gap: scale(6) }}>
+            <Text
+              className="font-medium text-gray-500 dark:text-gray-400"
+              style={{ fontSize: moderateScale(14) }}
+            >
+              {t('settings.account')}
+            </Text>
+            <Pressable
+              onPress={() => setExportImportGuideOpen(true)}
+              hitSlop={scale(8)}
+              className="active:opacity-70"
+            >
+              <IconSymbol name="exclamationmark.circle.fill" size={moderateScale(18)} color="#9ca3af" />
+            </Pressable>
+          </View>
           <View
             className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
             style={{
@@ -200,6 +210,47 @@ export default function SettingsScreen() {
 
         <AdBanner />
       </ScrollView>
+
+      <Modal
+        visible={exportImportGuideOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExportImportGuideOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-center items-center"
+          onPress={() => setExportImportGuideOpen(false)}
+          style={{ paddingHorizontal: scale(24) }}
+        >
+          <Pressable
+            className="rounded-2xl bg-white dark:bg-gray-900 w-full"
+            style={{ paddingHorizontal: scale(20), paddingVertical: scale(20), maxWidth: 360 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18), marginBottom: scale(12) }}
+            >
+              {t('settings.exportImportGuideTitle')}
+            </Text>
+            <Text
+              className="text-gray-700 dark:text-gray-300"
+              style={{ fontSize: moderateScale(14), lineHeight: moderateScale(22) }}
+            >
+              {t('settings.exportImportGuideBody')}
+            </Text>
+            <Pressable
+              onPress={() => setExportImportGuideOpen(false)}
+              className="mt-4 rounded-lg bg-primary-500 items-center justify-center active:opacity-90"
+              style={{ paddingVertical: scale(12) }}
+            >
+              <Text className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
+                {t('common.confirm')}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={languageSelectOpen}

@@ -1,13 +1,16 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
+import { useToast } from '@/contexts/toast-context';
+import { useResponsive } from '@/hooks/use-responsive';
+import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
+import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useResponsive } from '@/hooks/use-responsive';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatDate(raw: string): string {
@@ -18,10 +21,23 @@ function formatDate(raw: string): string {
   return `${y}.${m}.${d} ${hm}`.trim();
 }
 
+function buildMemoCopyText(memo: MemoRecord, t: (k: string) => string): string {
+  const title = memo.title?.trim() || t('mypage.untitled');
+  const verse = memo.verseText?.trim() || '';
+  const content = memo.content?.trim() || '';
+  const lines = [
+    `${title}`,
+    verse ? `${verse}` : null,
+    `${content}`,
+  ].filter(Boolean);
+  return lines.join('\n\n');
+}
+
 export default function MemoListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { showToast } = useToast();
   const { scale, moderateScale } = useResponsive();
   const [items, setItems] = useState<MemoRecord[]>([]);
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
@@ -56,6 +72,15 @@ export default function MemoListScreen() {
     [db]
   );
 
+  const handleCopyMemo = useCallback(
+    async (memo: MemoRecord, e?: { stopPropagation?: () => void }) => {
+      e?.stopPropagation?.();
+      await copyToClipboard(buildMemoCopyText(memo, t));
+      showToast(t('toast.copySuccess'), '😊');
+    },
+    [showToast, t]
+  );
+
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
@@ -76,12 +101,9 @@ export default function MemoListScreen() {
         </Text>
         <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>{t('mypage.memosTitle')}</Text>
         <View className="flex-1 items-end">
-          <Pressable
-            onPress={handleOpenCreateDrawer}
-            className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
-          >
-            <Text className="text-sm font-semibold text-white">{t('mypage.writeMemo')}</Text>
-          </Pressable>
+          <Button onPress={handleOpenCreateDrawer} action="primary" size="sm">
+            <ButtonText>{t('mypage.writeMemo')}</ButtonText>
+          </Button>
         </View>
       </View>
 
@@ -114,7 +136,16 @@ export default function MemoListScreen() {
                   <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(14) }}>
                     {formatDate(item.createdAt)}
                   </Text>
-                  <IconSymbol name="chevron.right" size={moderateScale(16)} color="#9ca3af" />
+                  <View className="flex-row items-center" style={{ gap: scale(8) }}>
+                    <Pressable
+                      onPress={(e) => void handleCopyMemo(item, e)}
+                      hitSlop={scale(8)}
+                      className="active:opacity-70"
+                    >
+                      <IconSymbol name="doc.on.doc" size={moderateScale(18)} color="#6b7280" />
+                    </Pressable>
+                    <IconSymbol name="chevron.right" size={moderateScale(16)} color="#9ca3af" />
+                  </View>
                 </View>
               </Pressable>
             );

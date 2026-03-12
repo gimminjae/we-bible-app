@@ -28,6 +28,8 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'note.text': 'note',
   'exclamationmark.circle': 'error-outline',
+  'exclamationmark.circle.fill': 'info',
+  'doc.on.doc': 'content-copy',
   'trash.fill': 'delete',
   'hands.sparkles': 'volunteer-activism',
   'calendar': 'event',

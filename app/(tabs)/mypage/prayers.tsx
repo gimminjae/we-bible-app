@@ -1,4 +1,6 @@
+import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { useResponsive } from "@/hooks/use-responsive"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
 import { useFocusEffect } from "@react-navigation/native"
@@ -6,7 +8,6 @@ import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"
 import { Pressable, ScrollView, Text, View } from "react-native"
-import { useResponsive } from "@/hooks/use-responsive"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 function formatDate(raw: string): string {
@@ -110,15 +111,9 @@ export default function PrayerListScreen() {
             {t("mypage.prayersTitle")}
           </Text>
         </View>
-        <Pressable
-          onPress={handleAddPress}
-          className="rounded-lg bg-primary-500 active:opacity-90"
-          style={{ paddingHorizontal: scale(12), paddingVertical: scale(8) }}
-        >
-          <Text className="font-semibold text-white" style={{ fontSize: moderateScale(14) }}>
-            {t("mypage.addPrayer")}
-          </Text>
-        </Pressable>
+        <Button onPress={handleAddPress} action="primary" size="sm">
+          <ButtonText>{t('mypage.addPrayer')}</ButtonText>
+        </Button>
       </View>
 
       <ScrollView
