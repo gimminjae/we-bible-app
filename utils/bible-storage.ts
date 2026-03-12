@@ -9,6 +9,7 @@ const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
 const POINT_CLAIMED_STEP_UNITS_KEY = 'pointClaimedStepUnitsByDate';
 const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
+const STEP_REWARD_USED_DATE_KEY = 'stepRewardUsedDate';
 const BIBLE_STATE_TABLE = 'bible_state';
 const MAX_AGE = 60 * 60 * 24 * 365; // 1년
 const GRASS_THEME_CHANGE_COST = 100;
@@ -313,6 +314,29 @@ export async function spendPointsForGrassColorTheme(
   );
 
   return { success: true, pointTotal: spendResult.pointTotal, changed: true };
+}
+
+/** 오늘 날짜(YYYY-MM-DD)에 걸음 기반 무료 보상 사용 여부 */
+export async function getStepRewardUsedDateFromDb(
+  db: SQLiteDatabase
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    STEP_REWARD_USED_DATE_KEY
+  );
+  return row?.value ?? null;
+}
+
+/** 걸음 기반 무료 보상 사용 처리 (오늘 날짜 저장) */
+export async function setStepRewardUsedDateToDb(
+  db: SQLiteDatabase,
+  dateKey: string
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    STEP_REWARD_USED_DATE_KEY,
+    dateKey
+  );
 }
 
 export async function setGrassColorThemeWithoutPoint(

@@ -3,15 +3,19 @@
 import { useFocusEffect } from "@react-navigation/native"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native"
 
 import { useAppSettings } from "@/contexts/app-settings"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
+import { useRewardedAd } from "@/hooks/use-rewarded-ad"
+import { useStepCount } from "@/hooks/use-step-count"
 import { getBookName } from "@/services/bible"
 import {
   getGrassColorThemeFromDb,
+  getStepRewardUsedDateFromDb,
   setGrassColorThemeWithoutPoint,
+  setStepRewardUsedDateToDb,
   type GrassColorTheme,
 } from "@/utils/bible-storage"
 import { useI18n } from "@/utils/i18n"
@@ -243,6 +247,8 @@ export function BibleGrass() {
   const { showToast } = useToast()
   const { theme, appLanguage } = useAppSettings()
   const { scale, moderateScale } = useResponsive()
+  const { steps, meetsGoal, available: pedometerAvailable } = useStepCount()
+  const { show: showRewardedAd, loaded: adLoaded } = useRewardedAd()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear(),
@@ -251,10 +257,14 @@ export function BibleGrass() {
   const [guideOpen, setGuideOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [grassTheme, setGrassTheme] = useState<GrassColorTheme>("green")
+  const [stepRewardUsedToday, setStepRewardUsedToday] = useState(false)
 
   const load = useCallback(() => {
     getGrassData(db).then(setGrassData)
     getGrassColorThemeFromDb(db).then(setGrassTheme)
+    getStepRewardUsedDateFromDb(db).then((date) => {
+      setStepRewardUsedToday(date === getTodayString())
+    })
   }, [db])
 
   useFocusEffect(load)
@@ -324,64 +334,122 @@ export function BibleGrass() {
     return candidates[randomIdx]
   }, [])
 
+  const canUseFreeStepReward = meetsGoal && !stepRewardUsedToday
+  const needsAdForStepFeature = (meetsGoal && stepRewardUsedToday) || !pedometerAvailable
+  const stepGoalNotMet = !meetsGoal && pedometerAvailable
+
+  const markStepRewardUsed = useCallback(async () => {
+    await setStepRewardUsedDateToDb(db, getTodayString())
+    setStepRewardUsedToday(true)
+  }, [db])
+
+  const performColorChange = useCallback(async () => {
+    const nextTheme = pickRandomNextTheme(grassTheme)
+    const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
+    if (!changed) return
+    setGrassTheme(nextTheme)
+    showToast(
+      t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
+      "🎨",
+    )
+  }, [db, grassTheme, pickRandomNextTheme, showToast, t])
+
   const handleChangeColorTheme = useCallback(
-    async () => {
-      console.log("ad")
-      const nextTheme = pickRandomNextTheme(grassTheme)
-      const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
-      if (!changed) {
-        return
+    async (useAd: boolean) => {
+      if (useAd && Platform.OS !== "web") {
+        if (!adLoaded) {
+          showToast(t("grass.stepNeedAd"), "📺")
+          return
+        }
+        try {
+          await showRewardedAd()
+          await performColorChange()
+        } catch {
+          showToast(t("grass.stepNeedAd"), "📺")
+        }
+      } else {
+        await performColorChange()
+        await markStepRewardUsed()
       }
-      setGrassTheme(nextTheme)
-      showToast(
-        t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
-        "🎨",
-      )
     },
-    [db, grassTheme, pickRandomNextTheme, showToast, t],
+    [adLoaded, markStepRewardUsed, performColorChange, showRewardedAd, showToast, t],
   )
 
   const handlePressChangeColor = useCallback(() => {
-    Alert.alert(
-      t("grass.changeColorTitle"),
-      t("grass.changeColorConfirm"),
-      [
-        { text: t("grass.changeColorCancel"), style: "cancel" },
-        {
-          text: t("grass.changeColorProceed"),
-          onPress: () => {
-            void handleChangeColorTheme()
-          },
+    if (stepGoalNotMet) {
+      showToast(t("grass.stepGoalNotMet"), "🚶")
+      return
+    }
+    const useAd = needsAdForStepFeature
+    const confirmMsg = useAd ? t("grass.changeColorConfirm") : t("grass.changeColorConfirmFree")
+    Alert.alert(t("grass.changeColorTitle"), confirmMsg, [
+      { text: t("grass.changeColorCancel"), style: "cancel" },
+      {
+        text: t("grass.changeColorProceed"),
+        onPress: () => {
+          void handleChangeColorTheme(useAd)
         },
-      ],
-    )
-  }, [handleChangeColorTheme, t])
+      },
+    ])
+  }, [handleChangeColorTheme, needsAdForStepFeature, stepGoalNotMet, showToast, t])
 
-  const handleFillPastGrass = useCallback(async () => {
+  const performFillGrass = useCallback(async () => {
     if (!selectedDate || !canFillSelectedDate) return
-    console.log("ad")
     const filled = await fillGrassByPoint(db, selectedDate)
     if (!filled) return
     load()
     showToast(t("grass.fillSuccess"), "🌱")
   }, [canFillSelectedDate, db, load, selectedDate, showToast, t])
 
+  const handleFillPastGrass = useCallback(
+    async (useAd: boolean) => {
+      if (!selectedDate || !canFillSelectedDate) return
+      if (useAd && Platform.OS !== "web") {
+        if (!adLoaded) {
+          showToast(t("grass.stepNeedAd"), "📺")
+          return
+        }
+        try {
+          await showRewardedAd()
+          await performFillGrass()
+        } catch {
+          showToast(t("grass.stepNeedAd"), "📺")
+        }
+      } else {
+        await performFillGrass()
+        await markStepRewardUsed()
+      }
+    },
+    [
+      adLoaded,
+      canFillSelectedDate,
+      markStepRewardUsed,
+      performFillGrass,
+      selectedDate,
+      showRewardedAd,
+      showToast,
+      t,
+    ],
+  )
+
   const handlePressFillPastGrass = useCallback(() => {
     if (!selectedDate || !canFillSelectedDate) return
-    Alert.alert(
-      t("grass.fillTitle"),
-      t("grass.fillConfirm"),
-      [
-        { text: t("grass.fillCancel"), style: "cancel" },
-        {
-          text: t("grass.fillProceed"),
-          onPress: () => {
-            void handleFillPastGrass()
-          },
+    if (stepGoalNotMet) {
+      showToast(t("grass.stepGoalNotMet"), "🚶")
+      return
+    }
+    const useAd = needsAdForStepFeature
+    const confirmMsg = useAd ? t("grass.fillConfirm") : t("grass.fillConfirmFree")
+    Alert.alert(t("grass.fillTitle"), confirmMsg, [
+      { text: t("grass.fillCancel"), style: "cancel" },
+      {
+        text: t("grass.fillProceed"),
+        onPress: () => {
+          void handleFillPastGrass(useAd)
         },
-      ],
-    )
-  }, [canFillSelectedDate, handleFillPastGrass, selectedDate, t])
+      },
+    ])
+  }, [canFillSelectedDate, handleFillPastGrass, needsAdForStepFeature, selectedDate, stepGoalNotMet, showToast, t])
 
   return (
     <View
@@ -748,10 +816,17 @@ export function BibleGrass() {
         </View>
         <Pressable
           onPress={handlePressChangeColor}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1 dark:border-gray-700 dark:bg-gray-800"
+          className={`rounded-lg border px-3 py-1 ${stepGoalNotMet ? "border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"}`}
         >
-          <Text className="text-gray-700 dark:text-gray-200" style={{ fontSize: moderateScale(12) }}>
-            {t("grass.changeColorButton")}
+          <Text
+            className={stepGoalNotMet ? "text-gray-500 dark:text-gray-500" : "text-gray-700 dark:text-gray-200"}
+            style={{ fontSize: moderateScale(12) }}
+          >
+            {canUseFreeStepReward
+              ? t("grass.changeColorButtonFree")
+              : needsAdForStepFeature
+                ? t("grass.changeColorButton")
+                : t("grass.changeColorButton")}
           </Text>
         </Pressable>
       </View>
@@ -794,10 +869,14 @@ export function BibleGrass() {
             {canFillSelectedDate ? (
               <Pressable
                 onPress={handlePressFillPastGrass}
-                className="mt-3 self-start rounded-lg bg-emerald-600 px-3 py-2 active:opacity-90"
+                className={`mt-3 self-start rounded-lg px-3 py-2 active:opacity-90 ${stepGoalNotMet ? "bg-gray-400 dark:bg-gray-600" : "bg-emerald-600"}`}
               >
                 <Text className="font-semibold text-white" style={{ fontSize: moderateScale(12) }}>
-                  {t("grass.fillButton")}
+                  {canUseFreeStepReward
+                    ? t("grass.fillButtonFree")
+                    : needsAdForStepFeature
+                      ? t("grass.fillButton")
+                      : t("grass.fillButton")}
                 </Text>
               </Pressable>
             ) : null}
