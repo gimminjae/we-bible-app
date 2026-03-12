@@ -6,15 +6,12 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
 
 import { useAppSettings } from "@/contexts/app-settings"
-import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { getBookName } from "@/services/bible"
 import {
   getGrassColorThemeFromDb,
   setGrassColorThemeWithoutPoint,
-  spendPoints,
-  spendPointsForGrassColorTheme,
   type GrassColorTheme,
 } from "@/utils/bible-storage"
 import { useI18n } from "@/utils/i18n"
@@ -67,7 +64,6 @@ const GRASS_THEME_OPTIONS: GrassColorTheme[] = [
   "purple",
   "sky",
 ]
-const DEV_COLOR_BYPASS_EMAIL = "min356812@daum.net"
 
 function toDateString(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0")
@@ -241,15 +237,10 @@ function getTodayString(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-type BibleGrassProps = {
-  onPointTotalChanged?: (nextTotal: number) => void
-}
-
-export function BibleGrass({ onPointTotalChanged }: BibleGrassProps) {
+export function BibleGrass() {
   const db = useSQLiteContext()
   const { t } = useI18n()
   const { showToast } = useToast()
-  const { session } = useAuth()
   const { theme, appLanguage } = useAppSettings()
   const { scale, moderateScale } = useResponsive()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
@@ -335,37 +326,19 @@ export function BibleGrass({ onPointTotalChanged }: BibleGrassProps) {
 
   const handleChangeColorTheme = useCallback(
     async () => {
-      const userEmail = session?.user?.email?.trim().toLowerCase()
-      const isDevBypassUser = userEmail === DEV_COLOR_BYPASS_EMAIL
+      console.log("ad")
       const nextTheme = pickRandomNextTheme(grassTheme)
-      if (isDevBypassUser) {
-        const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
-        if (changed) {
-          setGrassTheme(nextTheme)
-          showToast(
-            t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
-            "🎨",
-          )
-        }
-        return
-      }
-
-      const result = await spendPointsForGrassColorTheme(db, nextTheme)
-      if (!result.success) {
-        showToast(t("grass.colorChangeNeedPoint"), "💸")
-        return
-      }
-      if (!result.changed) {
+      const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
+      if (!changed) {
         return
       }
       setGrassTheme(nextTheme)
-      onPointTotalChanged?.(result.pointTotal)
       showToast(
         t("grass.colorChangedTo").replace("{color}", t(`grass.color.${nextTheme}`)),
         "🎨",
       )
     },
-    [db, grassTheme, onPointTotalChanged, pickRandomNextTheme, session?.user?.email, showToast, t],
+    [db, grassTheme, pickRandomNextTheme, showToast, t],
   )
 
   const handlePressChangeColor = useCallback(() => {
@@ -386,17 +359,12 @@ export function BibleGrass({ onPointTotalChanged }: BibleGrassProps) {
 
   const handleFillPastGrass = useCallback(async () => {
     if (!selectedDate || !canFillSelectedDate) return
-    const spendResult = await spendPoints(db, 100)
-    if (!spendResult.success) {
-      showToast(t("grass.fillNeedPoint"), "💸")
-      return
-    }
+    console.log("ad")
     const filled = await fillGrassByPoint(db, selectedDate)
     if (!filled) return
-    onPointTotalChanged?.(spendResult.pointTotal)
     load()
     showToast(t("grass.fillSuccess"), "🌱")
-  }, [canFillSelectedDate, db, load, onPointTotalChanged, selectedDate, showToast, t])
+  }, [canFillSelectedDate, db, load, selectedDate, showToast, t])
 
   const handlePressFillPastGrass = useCallback(() => {
     if (!selectedDate || !canFillSelectedDate) return
