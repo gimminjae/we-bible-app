@@ -16,19 +16,15 @@ import type {
 } from 'react-native-webview/lib/WebViewTypes';
 
 import {
-  WE_BIBLE_WEB_HOST,
   WE_BIBLE_WEB_URL,
 } from '@/components/hybrid/we-bible-web.constants';
-
-function isInternalUrl(url: string) {
-  if (url === 'about:blank') return true;
-
-  try {
-    return new URL(url).host === WE_BIBLE_WEB_HOST;
-  } catch {
-    return false;
-  }
-}
+import {
+  buildWebAuthCallbackUrl,
+  consumePendingAuthCallbackUrl,
+  isWeBibleAppAuthCallbackUrl,
+  isWeBibleWebUrl,
+  rewriteOAuthRedirectUrl,
+} from '@/utils/hybrid-auth';
 
 function LoadingOverlay({ label }: { label: string }) {
   return (
@@ -42,10 +38,26 @@ function LoadingOverlay({ label }: { label: string }) {
 export function WeBibleWebShell() {
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(WE_BIBLE_WEB_URL);
   const [hasError, setHasError] = useState(false);
+
+  const handleAuthCallbackUrl = useCallback((url: string) => {
+    const webCallbackUrl = buildWebAuthCallbackUrl(url);
+    if (!webCallbackUrl) return false;
+
+    setHasError(false);
+    setCurrentUrl(webCallbackUrl);
+    return true;
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
+      const pendingCallbackUrl = consumePendingAuthCallbackUrl();
+      if (pendingCallbackUrl) {
+        setHasError(false);
+        setCurrentUrl(pendingCallbackUrl);
+      }
+
       if (Platform.OS !== 'android') return undefined;
 
       const subscription = BackHandler.addEventListener(
@@ -63,12 +75,20 @@ export function WeBibleWebShell() {
 
   const handleShouldStartLoadWithRequest = useCallback(
     (request: ShouldStartLoadRequest) => {
-      if (isInternalUrl(request.url)) return true;
+      if (request.url === 'about:blank') return true;
+      if (isWeBibleWebUrl(request.url)) return true;
 
-      Linking.openURL(request.url).catch(() => undefined);
+      if (isWeBibleAppAuthCallbackUrl(request.url)) {
+        return !handleAuthCallbackUrl(request.url);
+      }
+
+      const rewrittenOAuthUrl = rewriteOAuthRedirectUrl(request.url);
+      const nextUrl = rewrittenOAuthUrl ?? request.url;
+
+      Linking.openURL(nextUrl).catch(() => undefined);
       return false;
     },
-    []
+    [handleAuthCallbackUrl]
   );
 
   const handleReload = useCallback(() => {
@@ -99,7 +119,7 @@ export function WeBibleWebShell() {
     <View className="flex-1 bg-white">
       <WebView
         ref={webViewRef}
-        source={{ uri: WE_BIBLE_WEB_URL }}
+        source={{ uri: currentUrl }}
         originWhitelist={['http://*', 'https://*']}
         allowsBackForwardNavigationGestures
         domStorageEnabled

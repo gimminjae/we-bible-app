@@ -54,6 +54,7 @@ function RootLayoutContent() {
         <ToastProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
             <Stack.Screen name="native-reader" options={{ title: '앱 리더' }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
