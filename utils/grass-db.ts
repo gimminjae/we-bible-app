@@ -162,10 +162,10 @@ export async function syncGrassForBook(
 
 /**
  * Sync grass when user saves in ChapterEditDrawer.
- * 기존 잔디 데이터와 비교하여 변경분만 반영:
- * - prev에 있던 장을 new에서 해제 → 잔디에서 제거
- * - new에서 체크한 장 → 잔디에 추가
- * - 다른 읽기표 등에서 온 장은 유지
+ * 읽기표 goalStatus는 누적 진행 상태이므로, 오늘 잔디에는 "이번 저장에서 바뀐 장"만 반영한다:
+ * - prev에 있다가 new에서 해제된 장 → 오늘 잔디에 있던 경우에만 제거
+ * - prev에 없었다가 new에서 체크된 장 → 오늘 잔디에 추가
+ * - 과거 날짜에 읽어서 이미 누적 상태에만 남아 있던 장은 오늘 잔디에 다시 기록하지 않음
  */
 export async function syncGrassFromPlanSave(
   db: SQLiteDatabase,
@@ -219,11 +219,15 @@ async function applyGoalStatusDiffForBook(
   const existingEntry = dayData.find((e) => e.bookCode === bookCode);
   const currentChapters = existingEntry?.readChapter ?? [];
 
-  // (기존 잔디 - 이전 읽기표) ∪ 새 읽기표
   const prevSet = new Set(prevChapters);
+  const newSet = new Set(newChapters);
+  const removedChapters = prevChapters.filter((ch) => !newSet.has(ch));
+  const addedChapters = newChapters.filter((ch) => !prevSet.has(ch));
+
+  // 오늘 잔디는 누적 goalStatus 전체가 아니라 이번 저장에서 바뀐 장만 반영한다.
   const resultChapters = [
-    ...currentChapters.filter((ch) => !prevSet.has(ch)),
-    ...newChapters,
+    ...currentChapters.filter((ch) => !removedChapters.includes(ch)),
+    ...addedChapters,
   ]
     .filter((ch, i, arr) => arr.indexOf(ch) === i)
     .sort((a, b) => a - b);
