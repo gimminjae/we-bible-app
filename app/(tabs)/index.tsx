@@ -1,5 +1,5 @@
-import { WeBibleHomeScreen } from '@/components/hybrid/we-bible-home-screen';
+import { BibleReaderHome } from '@/components/bible/bible-reader-home';
 
 export default function HomeScreen() {
-  return <WeBibleHomeScreen />;
+  return <BibleReaderHome />;
 }

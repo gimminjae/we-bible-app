@@ -1,0 +1,1066 @@
+import { useMemo, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+
+import {
+  ChurchPrayerSheet,
+  type ChurchPrayerAudienceOption,
+} from '@/components/churches/church-prayer-sheet';
+import { ChurchRoleBadge } from '@/components/churches/role-badge';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/contexts/toast-context';
+import { useChurchActions, useChurchDetail } from '@/hooks/use-churches';
+import { formatShortDateTime } from '@/lib/date';
+import { buildPrayerLabel } from '@/lib/prayer';
+import type { ChurchPrayer } from '@/lib/church';
+import { useI18n } from '@/utils/i18n';
+
+type DetailTab = 'members' | 'plans' | 'prayers' | 'teams';
+type PickerState =
+  | {
+      kind: 'request' | 'member' | 'leader';
+      key: string;
+      title: string;
+      options: SelectionOption[];
+      value: string;
+    }
+  | null;
+
+export default function ChurchDetailScreen() {
+  const params = useLocalSearchParams<{ id?: string }>();
+  const churchId = params.id ?? '';
+  const router = useRouter();
+  const { t } = useI18n();
+  const { showToast } = useToast();
+  const { dataUserId } = useAuth();
+  const { churchDetail, isLoading, error } = useChurchDetail(churchId);
+  const {
+    approveJoinRequest,
+    rejectJoinRequest,
+    updateMemberRole,
+    updateMemberTeam,
+    updateTeamLeader,
+    removeMember,
+    leaveChurch,
+    createTeam,
+    createChurchPrayer,
+    updateChurchPrayer,
+    deleteChurchPrayer,
+    addChurchPrayerContent,
+    deleteChurchPrayerContent,
+  } = useChurchActions();
+  const [activeTab, setActiveTab] = useState<DetailTab>('members');
+  const [creatingTeamName, setCreatingTeamName] = useState('');
+  const [processingKey, setProcessingKey] = useState<string | null>(null);
+  const [selectedRequestTeamIds, setSelectedRequestTeamIds] = useState<Record<string, string>>({});
+  const [selectedMemberTeamIds, setSelectedMemberTeamIds] = useState<Record<string, string>>({});
+  const [selectedTeamLeaderIds, setSelectedTeamLeaderIds] = useState<Record<string, string>>({});
+  const [expandedPrayerId, setExpandedPrayerId] = useState<string | null>(null);
+  const [selectedPrayer, setSelectedPrayer] = useState<ChurchPrayer | null>(null);
+  const [pickerState, setPickerState] = useState<PickerState>(null);
+  const [createPrayerVisible, setCreatePrayerVisible] = useState(false);
+  const [editPrayerVisible, setEditPrayerVisible] = useState(false);
+  const [appendPrayerVisible, setAppendPrayerVisible] = useState(false);
+
+  const churchWidePrayers = useMemo(
+    () => churchDetail?.prayers.filter((prayer) => prayer.teamId == null) ?? [],
+    [churchDetail],
+  );
+
+  const teamPrayerGroups = useMemo(() => {
+    if (!churchDetail) return [];
+    const groups = new Map<string, { teamId: string; teamName: string; prayers: ChurchPrayer[] }>();
+
+    for (const prayer of churchDetail.prayers) {
+      if (!prayer.teamId || !prayer.teamName) continue;
+      const existing = groups.get(prayer.teamId);
+      if (existing) existing.prayers.push(prayer);
+      else {
+        groups.set(prayer.teamId, {
+          teamId: prayer.teamId,
+          teamName: prayer.teamName,
+          prayers: [prayer],
+        });
+      }
+    }
+
+    return [...groups.values()].sort((left, right) => left.teamName.localeCompare(right.teamName, 'ko'));
+  }, [churchDetail]);
+
+  const prayerAudienceOptions = useMemo<ChurchPrayerAudienceOption[]>(() => {
+    if (!churchDetail?.church.myRole) return [];
+
+    const options: ChurchPrayerAudienceOption[] = [
+      { value: '', label: t('church.churchPrayerAudienceOption') },
+    ];
+
+    if (churchDetail.church.isSuperAdmin || churchDetail.church.isDeputyAdmin) {
+      return [
+        ...options,
+        ...churchDetail.teams.map((team) => ({
+          value: team.id,
+          label: t('church.teamPrayerAudienceOption').replace('{team}', team.name),
+        })),
+      ];
+    }
+
+    if (churchDetail.church.myTeamId && churchDetail.church.myTeamName) {
+      return [
+        ...options,
+        {
+          value: churchDetail.church.myTeamId,
+          label: t('church.teamPrayerAudienceOption').replace('{team}', churchDetail.church.myTeamName),
+        },
+      ];
+    }
+
+    return options;
+  }, [churchDetail, t]);
+
+  if (error) {
+    return <LoadingScreen message={error.message} />;
+  }
+
+  if (isLoading || !churchDetail) {
+    return <LoadingScreen message="Loading church..." />;
+  }
+
+  const confirmDestructive = (message: string, action: () => void | Promise<void>) => {
+    Alert.alert('', message, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.confirm'),
+        style: 'destructive',
+        onPress: () => {
+          void action();
+        },
+      },
+    ]);
+  };
+
+  const handlePickerSelect = (value: string) => {
+    if (!pickerState) return;
+    if (pickerState.kind === 'request') {
+      setSelectedRequestTeamIds((previous) => ({ ...previous, [pickerState.key]: value }));
+      return;
+    }
+    if (pickerState.kind === 'member') {
+      setSelectedMemberTeamIds((previous) => ({ ...previous, [pickerState.key]: value }));
+      return;
+    }
+    setSelectedTeamLeaderIds((previous) => ({ ...previous, [pickerState.key]: value }));
+  };
+
+  const openRequestTeamPicker = (requestId: string) => {
+    setPickerState({
+      kind: 'request',
+      key: requestId,
+      title: t('church.noTeam'),
+      value: selectedRequestTeamIds[requestId] ?? '',
+      options: [
+        { value: '', label: t('church.noTeam') },
+        ...churchDetail.teams.map((team) => ({ value: team.id, label: team.name })),
+      ],
+    });
+  };
+
+  const openMemberTeamPicker = (userId: string, currentValue: string) => {
+    setPickerState({
+      kind: 'member',
+      key: userId,
+      title: t('church.saveTeamAssignment'),
+      value: currentValue,
+      options: [
+        { value: '', label: t('church.noTeam') },
+        ...churchDetail.teams.map((team) => ({ value: team.id, label: team.name })),
+      ],
+    });
+  };
+
+  const openLeaderPicker = (teamId: string, currentValue: string) => {
+    const teamMembers = churchDetail.members.filter((member) => member.teamId === teamId);
+    setPickerState({
+      kind: 'leader',
+      key: teamId,
+      title: t('church.saveLeader'),
+      value: currentValue,
+      options: [
+        { value: '', label: t('church.noLeader') },
+        ...teamMembers.map((member) => ({
+          value: member.userId,
+          label: member.profile.displayName,
+        })),
+      ],
+    });
+  };
+
+  const renderPrayerCard = (prayer: ChurchPrayer) => {
+    const expanded = expandedPrayerId === prayer.id;
+    return (
+      <View
+        key={prayer.id}
+        className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
+      >
+        <Pressable onPress={() => setExpandedPrayerId(expanded ? null : prayer.id)}>
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {buildPrayerLabel(prayer.requester, prayer.target, t)}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {prayer.teamName
+                  ? t('church.teamPrayerScopeShort').replace('{team}', prayer.teamName)
+                  : t('church.churchPrayerScopeShort')}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {t('church.prayerCreatedBy').replace('{name}', prayer.createdByName)}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {formatShortDateTime(prayer.updatedAt)}
+              </Text>
+            </View>
+            <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+              <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                {t('church.prayerContentCount').replace('{count}', String(prayer.contentCount))}
+              </Text>
+            </View>
+          </View>
+
+          {prayer.latestContent ? (
+            <Text className="mt-3 text-sm text-gray-600 dark:text-gray-300" numberOfLines={expanded ? undefined : 3}>
+              {prayer.latestContent}
+            </Text>
+          ) : (
+            <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+              {t('church.noPrayerContents')}
+            </Text>
+          )}
+        </Pressable>
+
+        <View className="mt-4 flex-row flex-wrap gap-2">
+          <Pressable
+            onPress={() => {
+              setSelectedPrayer(prayer);
+              setAppendPrayerVisible(true);
+            }}
+            className="rounded-2xl bg-primary-500 px-4 py-3"
+          >
+            <Text className="font-semibold text-white">{t('church.addPrayerContent')}</Text>
+          </Pressable>
+          {prayer.canManagePrayer ? (
+            <>
+              <Pressable
+                onPress={() => {
+                  setSelectedPrayer(prayer);
+                  setEditPrayerVisible(true);
+                }}
+                className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+              >
+                <Text className="font-semibold text-gray-900 dark:text-white">
+                  {t('church.editPrayer')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  confirmDestructive(t('church.deletePrayerConfirm'), async () => {
+                    setProcessingKey(`delete-prayer-${prayer.id}`);
+                    try {
+                      await deleteChurchPrayer({
+                        churchId: churchDetail.church.id,
+                        prayerId: prayer.id,
+                      });
+                      showToast(t('toast.churchPrayerDeleted'));
+                    } catch (prayerError) {
+                      showToast(
+                        prayerError instanceof Error
+                          ? prayerError.message
+                          : t('church.prayerDeleteFailed'),
+                      );
+                    } finally {
+                      setProcessingKey(null);
+                    }
+                  })
+                }
+                disabled={processingKey === `delete-prayer-${prayer.id}`}
+                className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
+              >
+                <Text className="font-semibold text-red-500">{t('church.deletePrayer')}</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+
+        {expanded ? (
+          <View className="mt-4">
+            <Text className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+              {t('church.prayerContents')}
+            </Text>
+            {prayer.contents.length === 0 ? (
+              <View className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 dark:border-gray-800">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.noPrayerContents')}
+                </Text>
+              </View>
+            ) : (
+              prayer.contents.map((content) => (
+                <View
+                  key={content.id}
+                  className="mb-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800"
+                >
+                  <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <Text className="text-sm text-gray-700 dark:text-gray-200">{content.content}</Text>
+                      <Text className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        {content.createdByName} · {formatShortDateTime(content.registeredAt)}
+                      </Text>
+                    </View>
+                    {content.canManage ? (
+                      <Pressable
+                        onPress={() =>
+                          confirmDestructive(t('church.deletePrayerContentConfirm'), async () => {
+                            setProcessingKey(`delete-prayer-content-${content.id}`);
+                            try {
+                              await deleteChurchPrayerContent({
+                                churchId: churchDetail.church.id,
+                                contentId: content.id,
+                              });
+                              showToast(t('toast.churchPrayerContentDeleted'));
+                            } catch (contentError) {
+                              showToast(
+                                contentError instanceof Error
+                                  ? contentError.message
+                                  : t('church.prayerContentDeleteFailed'),
+                              );
+                            } finally {
+                              setProcessingKey(null);
+                            }
+                          })
+                        }
+                        disabled={processingKey === `delete-prayer-content-${content.id}`}
+                        className="rounded-2xl border border-red-200 px-3 py-2 dark:border-red-900"
+                      >
+                        <Text className="text-sm font-semibold text-red-500">
+                          {t('mypage.deleteConfirm')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
+  const tabLabel = (tab: DetailTab) => t(`church.tabs.${tab}`);
+
+  return (
+    <SafeAreaView
+      className="flex-1 bg-gray-50 dark:bg-gray-950"
+      edges={['top', 'bottom', 'left', 'right']}
+    >
+      <ScreenHeader title={churchDetail.church.name} onBack={() => router.back()} />
+
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {churchDetail.church.name}
+              </Text>
+              <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {t('church.memberCount').replace('{count}', String(churchDetail.church.memberCount))}
+              </Text>
+              {churchDetail.church.myTeamName ? (
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.teamLabel')} {churchDetail.church.myTeamName}
+                </Text>
+              ) : null}
+            </View>
+
+            <View className="items-end gap-2">
+              {churchDetail.church.myRole ? <ChurchRoleBadge role={churchDetail.church.myRole} /> : null}
+              {dataUserId &&
+              churchDetail.church.myRole &&
+              churchDetail.church.myRole !== 'super_admin' ? (
+                <Pressable
+                  onPress={() =>
+                    confirmDestructive(t('church.leaveConfirm'), async () => {
+                      setProcessingKey('leave-church');
+                      try {
+                        await leaveChurch(churchDetail.church.id);
+                        showToast(t('toast.churchLeft'));
+                        router.replace('/churches' as never);
+                      } catch (leaveError) {
+                        showToast(
+                          leaveError instanceof Error ? leaveError.message : t('church.leaveFailed'),
+                        );
+                      } finally {
+                        setProcessingKey(null);
+                      }
+                    })
+                  }
+                  disabled={processingKey === 'leave-church'}
+                  className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                >
+                  <Text className="font-semibold text-gray-900 dark:text-white">
+                    {t('church.leave')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
+          {(['members', 'plans', 'prayers', 'teams'] as const).map((tab) => {
+            const active = activeTab === tab;
+            return (
+              <Pressable
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                className={`flex-1 rounded-2xl px-3 py-3 ${active ? 'bg-white dark:bg-gray-900' : ''}`}
+              >
+                <Text
+                  className={`text-center text-sm font-semibold ${
+                    active ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  {tabLabel(tab)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeTab === 'members' ? (
+          <>
+            {churchDetail.church.canManageMembers && churchDetail.pendingJoinRequests.length > 0 ? (
+              <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                  {t('church.pendingRequests')}
+                </Text>
+                {churchDetail.pendingJoinRequests.map((request) => (
+                  <View
+                    key={request.id}
+                    className="mb-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800"
+                  >
+                    <Text className="font-semibold text-gray-900 dark:text-white">
+                      {request.requester.displayName}
+                    </Text>
+                    <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {request.requester.email ?? request.requester.userId}
+                    </Text>
+
+                    <View className="mt-4 flex-row flex-wrap gap-2">
+                      <Pressable
+                        onPress={() => openRequestTeamPicker(request.id)}
+                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                      >
+                        <Text className="font-semibold text-gray-900 dark:text-white">
+                          {selectedRequestTeamIds[request.id]
+                            ? churchDetail.teams.find((team) => team.id === selectedRequestTeamIds[request.id])?.name ?? t('church.noTeam')
+                            : t('church.noTeam')}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={async () => {
+                          setProcessingKey(`approve-${request.id}`);
+                          try {
+                            await approveJoinRequest({
+                              requestId: request.id,
+                              churchId: churchDetail.church.id,
+                              requesterUserId: request.requesterUserId,
+                              teamId: selectedRequestTeamIds[request.id] || null,
+                            });
+                            showToast(t('toast.joinRequestApproved'));
+                          } catch (approveError) {
+                            showToast(
+                              approveError instanceof Error
+                                ? approveError.message
+                                : t('church.approveFailed'),
+                            );
+                          } finally {
+                            setProcessingKey(null);
+                          }
+                        }}
+                        disabled={processingKey === `approve-${request.id}`}
+                        className="rounded-2xl bg-primary-500 px-4 py-3"
+                      >
+                        <Text className="font-semibold text-white">{t('church.approve')}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={async () => {
+                          setProcessingKey(`reject-${request.id}`);
+                          try {
+                            await rejectJoinRequest({
+                              requestId: request.id,
+                              churchId: churchDetail.church.id,
+                            });
+                            showToast(t('toast.joinRequestRejected'));
+                          } catch (rejectError) {
+                            showToast(
+                              rejectError instanceof Error
+                                ? rejectError.message
+                                : t('church.rejectFailed'),
+                            );
+                          } finally {
+                            setProcessingKey(null);
+                          }
+                        }}
+                        disabled={processingKey === `reject-${request.id}`}
+                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                      >
+                        <Text className="font-semibold text-gray-900 dark:text-white">
+                          {t('church.reject')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {churchDetail.members.map((member) => {
+              const teamSelectValue = selectedMemberTeamIds[member.userId] ?? member.teamId ?? '';
+              const canToggleDeputy =
+                churchDetail.church.isSuperAdmin &&
+                member.userId !== churchDetail.church.superAdminUserId &&
+                member.userId !== churchDetail.church.createdByUserId;
+              const canManageMemberTeam =
+                churchDetail.church.isSuperAdmin ||
+                (churchDetail.church.isDeputyAdmin && member.role === 'member');
+              const canRemoveMember =
+                member.userId !== dataUserId &&
+                (churchDetail.church.isSuperAdmin ||
+                  (churchDetail.church.isDeputyAdmin && member.role === 'member'));
+
+              return (
+                <View
+                  key={member.userId}
+                  className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <Text className="font-semibold text-gray-900 dark:text-white">
+                          {member.profile.displayName}
+                        </Text>
+                        <ChurchRoleBadge role={member.role} />
+                      </View>
+                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        {member.profile.email ?? member.userId}
+                      </Text>
+                      <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {member.teamName
+                          ? `${t('church.teamLabel')} ${member.teamName}`
+                          : t('church.noTeamAssigned')}
+                      </Text>
+                    </View>
+
+                    <View className="items-end gap-2">
+                      {canToggleDeputy ? (
+                        <Pressable
+                          onPress={async () => {
+                            setProcessingKey(`role-${member.userId}`);
+                            try {
+                              await updateMemberRole({
+                                churchId: churchDetail.church.id,
+                                userId: member.userId,
+                                role: member.role === 'deputy_admin' ? 'member' : 'deputy_admin',
+                              });
+                              showToast(
+                                member.role === 'deputy_admin'
+                                  ? t('toast.deputyRevoked')
+                                  : t('toast.deputyGranted'),
+                              );
+                            } catch (roleError) {
+                              showToast(
+                                roleError instanceof Error
+                                  ? roleError.message
+                                  : t('church.roleUpdateFailed'),
+                              );
+                            } finally {
+                              setProcessingKey(null);
+                            }
+                          }}
+                          disabled={processingKey === `role-${member.userId}`}
+                          className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                        >
+                          <Text className="font-semibold text-gray-900 dark:text-white">
+                            {member.role === 'deputy_admin'
+                              ? t('church.revokeDeputy')
+                              : t('church.grantDeputy')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+
+                      {canRemoveMember ? (
+                        <Pressable
+                          onPress={() =>
+                            confirmDestructive(
+                              t('church.removeMemberConfirm').replace(
+                                '{name}',
+                                member.profile.displayName,
+                              ),
+                              async () => {
+                                setProcessingKey(`remove-${member.userId}`);
+                                try {
+                                  await removeMember({
+                                    churchId: churchDetail.church.id,
+                                    userId: member.userId,
+                                  });
+                                  showToast(t('toast.memberRemoved'));
+                                } catch (removeError) {
+                                  showToast(
+                                    removeError instanceof Error
+                                      ? removeError.message
+                                      : t('church.memberRemoveFailed'),
+                                  );
+                                } finally {
+                                  setProcessingKey(null);
+                                }
+                              },
+                            )
+                          }
+                          disabled={processingKey === `remove-${member.userId}`}
+                          className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
+                        >
+                          <Text className="font-semibold text-red-500">{t('church.removeMember')}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {canManageMemberTeam ? (
+                    <View className="mt-4 flex-row flex-wrap gap-2">
+                      <Pressable
+                        onPress={() => openMemberTeamPicker(member.userId, teamSelectValue)}
+                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                      >
+                        <Text className="font-semibold text-gray-900 dark:text-white">
+                          {teamSelectValue
+                            ? churchDetail.teams.find((team) => team.id === teamSelectValue)?.name ?? t('church.noTeam')
+                            : t('church.noTeam')}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={async () => {
+                          setProcessingKey(`member-team-${member.userId}`);
+                          try {
+                            await updateMemberTeam({
+                              churchId: churchDetail.church.id,
+                              userId: member.userId,
+                              teamId: teamSelectValue || null,
+                            });
+                            showToast(t('toast.memberTeamUpdated'));
+                          } catch (teamError) {
+                            showToast(
+                              teamError instanceof Error
+                                ? teamError.message
+                                : t('church.memberTeamUpdateFailed'),
+                            );
+                          } finally {
+                            setProcessingKey(null);
+                          }
+                        }}
+                        disabled={processingKey === `member-team-${member.userId}`}
+                        className="rounded-2xl bg-primary-500 px-4 py-3"
+                      >
+                        <Text className="font-semibold text-white">{t('church.saveTeamAssignment')}</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </>
+        ) : null}
+        {activeTab === 'plans' ? (
+          <>
+            {churchDetail.church.isSuperAdmin ? (
+              <Pressable
+                onPress={() =>
+                  router.push(`/churches/${churchDetail.church.id}/plans/add` as never)
+                }
+                className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
+              >
+                <Text className="text-center font-semibold text-white">
+                  {t('church.createChurchPlan')}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {churchDetail.plans.length === 0 ? (
+              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.emptyChurchPlans')}
+                </Text>
+              </View>
+            ) : (
+              churchDetail.plans.map((plan) => (
+                <Pressable
+                  key={plan.id}
+                  onPress={() =>
+                    router.push(`/churches/${churchDetail.church.id}/plans/${plan.id}` as never)
+                  }
+                  className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {plan.planName}
+                      </Text>
+                      <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                      </Text>
+                    </View>
+                    <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+                      <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                        {plan.averageGoalPercent.toFixed(1)}%
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </>
+        ) : null}
+        {activeTab === 'prayers' ? (
+          <>
+            {churchDetail.church.myRole ? (
+              <Pressable
+                onPress={() => setCreatePrayerVisible(true)}
+                className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
+              >
+                <Text className="text-center font-semibold text-white">{t('church.createPrayer')}</Text>
+              </Pressable>
+            ) : null}
+
+            <View className="mb-5">
+              <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                {t('church.churchPrayerSection')}
+              </Text>
+              {churchWidePrayers.length === 0 ? (
+                <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                  <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                    {t('church.emptySharedPrayers')}
+                  </Text>
+                </View>
+              ) : (
+                churchWidePrayers.map(renderPrayerCard)
+              )}
+            </View>
+
+            {teamPrayerGroups.map((group) => (
+              <View key={group.teamId} className="mb-5">
+                <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                  {t('church.teamPrayerSectionTitle').replace('{team}', group.teamName)}
+                </Text>
+                {group.prayers.map(renderPrayerCard)}
+              </View>
+            ))}
+          </>
+        ) : null}
+        {activeTab === 'teams' ? (
+          <>
+            {churchDetail.church.canManageTeams ? (
+              <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {t('church.createTeamTitle')}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.createTeamDescription')}
+                </Text>
+                <View className="mt-4 flex-row gap-3">
+                  <TextInput
+                    value={creatingTeamName}
+                    onChangeText={setCreatingTeamName}
+                    placeholder={t('church.teamNamePlaceholder')}
+                    placeholderTextColor="#9ca3af"
+                    className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+                  />
+                  <Pressable
+                    onPress={async () => {
+                      setProcessingKey('create-team');
+                      try {
+                        await createTeam({
+                          churchId: churchDetail.church.id,
+                          name: creatingTeamName,
+                        });
+                        setCreatingTeamName('');
+                        showToast(t('toast.teamCreated'));
+                      } catch (teamError) {
+                        showToast(
+                          teamError instanceof Error ? teamError.message : t('church.teamCreateFailed'),
+                        );
+                      } finally {
+                        setProcessingKey(null);
+                      }
+                    }}
+                    disabled={processingKey === 'create-team' || !creatingTeamName.trim()}
+                    className={`items-center justify-center rounded-2xl px-5 ${
+                      processingKey === 'create-team' || !creatingTeamName.trim()
+                        ? 'bg-gray-300 dark:bg-gray-700'
+                        : 'bg-primary-500'
+                    }`}
+                  >
+                    <Text className="font-semibold text-white">{t('church.createTeam')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {churchDetail.teams.length === 0 ? (
+              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.emptyTeams')}
+                </Text>
+              </View>
+            ) : (
+              churchDetail.teams.map((team) => {
+                const leaderValue = selectedTeamLeaderIds[team.id] ?? team.leaderUserId ?? '';
+                return (
+                  <View
+                    key={team.id}
+                    className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                  >
+                    <View className="flex-row items-start justify-between gap-3">
+                      <View className="flex-1">
+                        <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {team.name}
+                        </Text>
+                        <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.memberCount').replace('{count}', String(team.memberCount))}
+                        </Text>
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.teamLeader').replace('{name}', team.leaderName ?? '-')}
+                        </Text>
+                      </View>
+                      {churchDetail.church.canManagePlans ? (
+                        <Pressable
+                          onPress={() =>
+                            router.push(
+                              `/churches/${churchDetail.church.id}/plans/add?teamId=${team.id}` as never,
+                            )
+                          }
+                          className="rounded-2xl bg-primary-500 px-4 py-3"
+                        >
+                          <Text className="font-semibold text-white">{t('church.createTeamPlan')}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+
+                    {churchDetail.church.canManageTeams ? (
+                      <View className="mt-4 flex-row flex-wrap gap-2">
+                        <Pressable
+                          onPress={() => openLeaderPicker(team.id, leaderValue)}
+                          className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                        >
+                          <Text className="font-semibold text-gray-900 dark:text-white">
+                            {leaderValue
+                              ? churchDetail.members.find((member) => member.userId === leaderValue)?.profile
+                                  .displayName ?? t('church.noLeader')
+                              : t('church.noLeader')}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={async () => {
+                            setProcessingKey(`leader-${team.id}`);
+                            try {
+                              await updateTeamLeader({
+                                churchId: churchDetail.church.id,
+                                teamId: team.id,
+                                leaderUserId: leaderValue || null,
+                              });
+                              showToast(t('toast.teamLeaderUpdated'));
+                            } catch (leaderError) {
+                              showToast(
+                                leaderError instanceof Error
+                                  ? leaderError.message
+                                  : t('church.teamLeaderUpdateFailed'),
+                              );
+                            } finally {
+                              setProcessingKey(null);
+                            }
+                          }}
+                          disabled={processingKey === `leader-${team.id}`}
+                          className="rounded-2xl bg-primary-500 px-4 py-3"
+                        >
+                          <Text className="font-semibold text-white">{t('church.saveLeader')}</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+
+                    {team.plans.length === 0 ? (
+                      <View className="mt-4 rounded-2xl border border-dashed border-gray-200 px-4 py-6 dark:border-gray-800">
+                        <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.emptyTeamPlans')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="mt-4">
+                        {team.plans.map((plan) => (
+                          <Pressable
+                            key={plan.id}
+                            onPress={() =>
+                              router.push(`/churches/${churchDetail.church.id}/plans/${plan.id}` as never)
+                            }
+                            className="mb-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800"
+                          >
+                            <View className="flex-row items-start justify-between gap-3">
+                              <View className="flex-1">
+                                <Text className="font-semibold text-gray-900 dark:text-white">
+                                  {plan.planName}
+                                </Text>
+                                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                  {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                                </Text>
+                              </View>
+                              <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+                                <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                                  {plan.averageGoalPercent.toFixed(1)}%
+                                </Text>
+                              </View>
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </>
+        ) : null}
+      </ScrollView>
+
+      <SelectionSheet
+        visible={Boolean(pickerState)}
+        title={pickerState?.title ?? ''}
+        value={pickerState?.value ?? ''}
+        options={pickerState?.options ?? []}
+        onClose={() => setPickerState(null)}
+        onSelect={handlePickerSelect}
+      />
+
+      <ChurchPrayerSheet
+        visible={createPrayerVisible}
+        mode="create"
+        onClose={() => setCreatePrayerVisible(false)}
+        audienceOptions={prayerAudienceOptions}
+        initialAudienceValue={prayerAudienceOptions[0]?.value ?? ''}
+        isSubmitting={processingKey === 'create-prayer'}
+        onSubmit={async (input) => {
+          setProcessingKey('create-prayer');
+          try {
+            await createChurchPrayer({
+              churchId: churchDetail.church.id,
+              teamId: input.teamId,
+              requester: input.requester,
+              target: input.target,
+              content: input.content,
+            });
+            setCreatePrayerVisible(false);
+            showToast(t('toast.churchPrayerCreated'));
+          } catch (prayerError) {
+            showToast(
+              prayerError instanceof Error ? prayerError.message : t('church.prayerCreateFailed'),
+            );
+          } finally {
+            setProcessingKey(null);
+          }
+        }}
+      />
+
+      <ChurchPrayerSheet
+        visible={editPrayerVisible}
+        mode="edit"
+        onClose={() => {
+          setEditPrayerVisible(false);
+          setSelectedPrayer(null);
+        }}
+        prayer={selectedPrayer}
+        isSubmitting={processingKey === 'edit-prayer'}
+        onSubmit={async (input) => {
+          if (!selectedPrayer) return;
+          setProcessingKey('edit-prayer');
+          try {
+            await updateChurchPrayer({
+              churchId: churchDetail.church.id,
+              prayerId: selectedPrayer.id,
+              requester: input.requester,
+              target: input.target,
+            });
+            if (input.content.trim()) {
+              await addChurchPrayerContent({
+                churchId: churchDetail.church.id,
+                prayerId: selectedPrayer.id,
+                content: input.content,
+              });
+            }
+            setEditPrayerVisible(false);
+            setSelectedPrayer(null);
+            showToast(t('toast.churchPrayerUpdated'));
+          } catch (prayerError) {
+            showToast(
+              prayerError instanceof Error ? prayerError.message : t('church.prayerUpdateFailed'),
+            );
+          } finally {
+            setProcessingKey(null);
+          }
+        }}
+      />
+
+      <ChurchPrayerSheet
+        visible={appendPrayerVisible}
+        mode="append"
+        onClose={() => {
+          setAppendPrayerVisible(false);
+          setSelectedPrayer(null);
+        }}
+        prayer={selectedPrayer}
+        isSubmitting={processingKey === 'append-prayer'}
+        onSubmit={async (input) => {
+          if (!selectedPrayer) return;
+          setProcessingKey('append-prayer');
+          try {
+            await addChurchPrayerContent({
+              churchId: churchDetail.church.id,
+              prayerId: selectedPrayer.id,
+              content: input.content,
+            });
+            setAppendPrayerVisible(false);
+            setSelectedPrayer(null);
+            showToast(t('toast.churchPrayerContentAdded'));
+          } catch (prayerError) {
+            showToast(
+              prayerError instanceof Error
+                ? prayerError.message
+                : t('church.prayerContentAddFailed'),
+            );
+          } finally {
+            setProcessingKey(null);
+          }
+        }}
+      />
+    </SafeAreaView>
+  );
+}

@@ -11,7 +11,9 @@ import {
 import { useSQLiteContext } from 'expo-sqlite';
 import { Platform, useColorScheme as useRNColorScheme } from 'react-native';
 import {
+  getAppLanguageFromDb,
   getAppThemeFromDb,
+  setAppLanguageToDb,
   setAppThemeToDb,
   type AppTheme,
 } from '@/utils/bible-storage';
@@ -28,6 +30,7 @@ type AppSettingsValue = {
   setTheme: (theme: AppTheme) => void;
   appLanguage: AppLanguage;
   setAppLanguage: (lang: AppLanguage) => void;
+  refreshSettings: () => Promise<void>;
 };
 
 export const AppSettingsContext = createContext<AppSettingsValue | null>(null);
@@ -47,22 +50,34 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     return stored ?? 'ko';
   });
 
+  const refreshSettings = useCallback(async () => {
+    const [storedTheme, storedAppLanguage] = await Promise.all([
+      getAppThemeFromDb(db),
+      getAppLanguageFromDb(db),
+    ]);
+    if (storedTheme) {
+      setThemeState(storedTheme);
+    }
+    if (storedAppLanguage) {
+      setAppLanguageState(storedAppLanguage);
+    }
+  }, [db]);
+
   useEffect(() => {
     let cancelled = false;
-    getAppThemeFromDb(db).then((stored) => {
+    refreshSettings().catch(() => {
       if (cancelled) return;
-      if (stored) setThemeState(stored);
     });
     return () => {
       cancelled = true;
     };
-  }, [db]);
+  }, [refreshSettings]);
 
   const setTheme = useCallback(
     (next: AppTheme) => {
       setThemeState(next);
       setStoredTheme(next);
-      setAppThemeToDb(db, next);
+      void setAppThemeToDb(db, next);
     },
     [db]
   );
@@ -70,13 +85,15 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const setAppLanguage = useCallback((next: AppLanguage) => {
     setAppLanguageState(next);
     setStoredAppLanguage(next);
-  }, []);
+    void setAppLanguageToDb(db, next);
+  }, [db]);
 
   const value: AppSettingsValue = {
     theme,
     setTheme,
     appLanguage,
     setAppLanguage,
+    refreshSettings,
   };
 
   return (

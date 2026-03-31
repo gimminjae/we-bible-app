@@ -1,3 +1,5 @@
+import { createId } from '@/lib/date';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const MEMOS_TABLE = 'memos';
@@ -22,6 +24,7 @@ export async function initMemosTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${MEMOS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
       title TEXT DEFAULT '',
       content TEXT DEFAULT '',
       verse_text TEXT DEFAULT '',
@@ -37,6 +40,9 @@ export async function initMemosTable(db: SQLiteDatabase): Promise<void> {
     );
   `);
   const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${MEMOS_TABLE})`);
+  if (!info.some((r) => r.name === 'client_id')) {
+    await db.runAsync(`ALTER TABLE ${MEMOS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
+  }
   if (!info.some((r) => r.name === 'verse_text')) {
     await db.runAsync(`ALTER TABLE ${MEMOS_TABLE} ADD COLUMN verse_text TEXT DEFAULT ''`);
   }
@@ -52,8 +58,10 @@ export async function addMemo(
   verseNumbers: number[]
 ): Promise<void> {
   const createdAt = nowString();
+  const clientId = createId();
   const result = await db.runAsync(
-    `INSERT INTO ${MEMOS_TABLE} (title, content, verse_text, created_at) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+    clientId,
     title.trim() || '',
     content.trim() || '',
     verseText.trim() || '',
@@ -70,6 +78,7 @@ export async function addMemo(
       verse
     );
   }
+  await queuePersistedSlicesSave(db, ['memos']);
 }
 
 /** 성경 구절 참조 없이 메모 저장 */
@@ -80,12 +89,14 @@ export async function addMemoWithoutVerse(
 ): Promise<void> {
   const createdAt = nowString();
   await db.runAsync(
-    `INSERT INTO ${MEMOS_TABLE} (title, content, verse_text, created_at) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+    createId(),
     title.trim() || '',
     content.trim() || '',
     '',
     createdAt
   );
+  await queuePersistedSlicesSave(db, ['memos']);
 }
 
 /** 현재 장에서 메모가 있는 절 번호 목록 */
@@ -135,11 +146,13 @@ export async function updateMemo(
     content.trim() || '',
     id
   );
+  await queuePersistedSlicesSave(db, ['memos']);
 }
 
 /** 메모 삭제 */
 export async function deleteMemo(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync(`DELETE FROM ${MEMOS_TABLE} WHERE id = ?`, id);
+  await queuePersistedSlicesSave(db, ['memos']);
 }
 
 /** 메모 상세 조회 */

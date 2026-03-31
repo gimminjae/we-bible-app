@@ -1,3 +1,5 @@
+import { createId } from '@/lib/date';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const PRAYERS_TABLE = 'prayers';
@@ -36,18 +38,28 @@ export async function initPrayersTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${PRAYERS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
       requester TEXT DEFAULT '',
       target TEXT DEFAULT '',
       created_at TEXT DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS ${PRAYER_CONTENTS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
       prayer_id INTEGER NOT NULL,
       content TEXT DEFAULT '',
       registered_at TEXT DEFAULT '',
       FOREIGN KEY (prayer_id) REFERENCES ${PRAYERS_TABLE}(id) ON DELETE CASCADE
     );
   `);
+  const prayerInfo = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${PRAYERS_TABLE})`);
+  if (!prayerInfo.some((r) => r.name === 'client_id')) {
+    await db.runAsync(`ALTER TABLE ${PRAYERS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
+  }
+  const contentInfo = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${PRAYER_CONTENTS_TABLE})`);
+  if (!contentInfo.some((r) => r.name === 'client_id')) {
+    await db.runAsync(`ALTER TABLE ${PRAYER_CONTENTS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
+  }
 }
 
 export async function addPrayer(
@@ -57,8 +69,10 @@ export async function addPrayer(
   initialContent: string
 ): Promise<number> {
   const createdAt = nowString();
+  const prayerClientId = createId();
   const result = await db.runAsync(
-    `INSERT INTO ${PRAYERS_TABLE} (requester, target, created_at) VALUES (?, ?, ?)`,
+    `INSERT INTO ${PRAYERS_TABLE} (client_id, requester, target, created_at) VALUES (?, ?, ?, ?)`,
+    prayerClientId,
     requester.trim(),
     target.trim(),
     createdAt
@@ -66,12 +80,14 @@ export async function addPrayer(
   const prayerId = Number(result.lastInsertRowId);
   if (prayerId && initialContent.trim()) {
     await db.runAsync(
-      `INSERT INTO ${PRAYER_CONTENTS_TABLE} (prayer_id, content, registered_at) VALUES (?, ?, ?)`,
+      `INSERT INTO ${PRAYER_CONTENTS_TABLE} (client_id, prayer_id, content, registered_at) VALUES (?, ?, ?, ?)`,
+      createId(),
       prayerId,
       initialContent.trim(),
       createdAt
     );
   }
+  await queuePersistedSlicesSave(db, ['prayers']);
   return prayerId;
 }
 
@@ -142,10 +158,12 @@ export async function updatePrayer(
     target.trim(),
     id
   );
+  await queuePersistedSlicesSave(db, ['prayers']);
 }
 
 export async function deletePrayer(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync(`DELETE FROM ${PRAYERS_TABLE} WHERE id = ?`, id);
+  await queuePersistedSlicesSave(db, ['prayers']);
 }
 
 export async function addPrayerContent(
@@ -155,11 +173,13 @@ export async function addPrayerContent(
 ): Promise<void> {
   const registeredAt = nowString();
   await db.runAsync(
-    `INSERT INTO ${PRAYER_CONTENTS_TABLE} (prayer_id, content, registered_at) VALUES (?, ?, ?)`,
+    `INSERT INTO ${PRAYER_CONTENTS_TABLE} (client_id, prayer_id, content, registered_at) VALUES (?, ?, ?, ?)`,
+    createId(),
     prayerId,
     content.trim(),
     registeredAt
   );
+  await queuePersistedSlicesSave(db, ['prayers']);
 }
 
 export async function updatePrayerContent(
@@ -172,8 +192,10 @@ export async function updatePrayerContent(
     content.trim(),
     contentId
   );
+  await queuePersistedSlicesSave(db, ['prayers']);
 }
 
 export async function deletePrayerContent(db: SQLiteDatabase, contentId: number): Promise<void> {
   await db.runAsync(`DELETE FROM ${PRAYER_CONTENTS_TABLE} WHERE id = ?`, contentId);
+  await queuePersistedSlicesSave(db, ['prayers']);
 }

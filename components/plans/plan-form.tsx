@@ -1,0 +1,250 @@
+import { useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+
+import { Button, ButtonText } from '@/components/ui/button';
+import { useAppSettings } from '@/contexts/app-settings';
+import { BIBLE_BOOKS, calcTotalReadCount, createDefaultPlanDates } from '@/lib/plan';
+import { getBookName } from '@/services/bible';
+import {
+  BIBLE_CATEGORY_KEYS,
+  CATEGORY_BOOK_CODES,
+  type BibleCategoryKey,
+} from '@/utils/bible-categories';
+import { useI18n } from '@/utils/i18n';
+
+type PlanFormValues = {
+  planName: string;
+  startDate: string;
+  endDate: string;
+  selectedBookCodes: string[];
+};
+
+type PlanFormProps = {
+  initialValues?: PlanFormValues;
+  submitLabel: string;
+  isSubmitting?: boolean;
+  onSubmit: (values: PlanFormValues) => void | Promise<void>;
+};
+
+export function PlanForm({
+  initialValues,
+  submitLabel,
+  isSubmitting = false,
+  onSubmit,
+}: PlanFormProps) {
+  const { appLanguage } = useAppSettings();
+  const { t } = useI18n();
+  const defaultDates = useMemo(() => createDefaultPlanDates(), []);
+  const [planName, setPlanName] = useState(initialValues?.planName ?? '');
+  const [startDate, setStartDate] = useState(initialValues?.startDate ?? defaultDates.startDate);
+  const [endDate, setEndDate] = useState(initialValues?.endDate ?? defaultDates.endDate);
+  const [selectedBookCodes, setSelectedBookCodes] = useState<Set<string>>(
+    new Set(initialValues?.selectedBookCodes ?? []),
+  );
+  const [category, setCategory] = useState<BibleCategoryKey>('ot');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [dateField, setDateField] = useState<'start' | 'end'>('start');
+
+  const booksToShow = useMemo(() => {
+    const allowedCodes = new Set(CATEGORY_BOOK_CODES[category]);
+    return BIBLE_BOOKS.filter((book) => allowedCodes.has(book.bookCode));
+  }, [category]);
+
+  const selectedCodes = useMemo(() => [...selectedBookCodes], [selectedBookCodes]);
+  const totalChapters = useMemo(() => calcTotalReadCount(selectedCodes), [selectedCodes]);
+  const isDateRangeInvalid = endDate.trim().length > 0 && endDate <= startDate;
+  const canSubmit = selectedBookCodes.size > 0 && endDate.trim().length > 0 && !isDateRangeInvalid;
+
+  const toggleBook = (bookCode: string) => {
+    setSelectedBookCodes((previous) => {
+      const next = new Set(previous);
+      if (next.has(bookCode)) next.delete(bookCode);
+      else next.add(bookCode);
+      return next;
+    });
+  };
+
+  const toggleSelectAllByCategory = () => {
+    setSelectedBookCodes((previous) => {
+      const next = new Set(previous);
+      const allSelected = booksToShow.every((book) => next.has(book.bookCode));
+      if (allSelected) booksToShow.forEach((book) => next.delete(book.bookCode));
+      else booksToShow.forEach((book) => next.add(book.bookCode));
+      return next;
+    });
+  };
+
+  const selectedDay = dateField === 'start' ? startDate : endDate;
+
+  return (
+    <View className="flex-1">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {t('planDrawer.planNameLabel')}
+        </Text>
+        <TextInput
+          value={planName}
+          onChangeText={setPlanName}
+          placeholder={t('planDrawer.planNamePlaceholder')}
+          placeholderTextColor="#9ca3af"
+          className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+        />
+
+        <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {t('planDrawer.startDateLabel')}
+        </Text>
+        <Pressable
+          onPress={() => {
+            setDateField('start');
+            setCalendarOpen(true);
+          }}
+          className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+        >
+          <Text className="text-base text-gray-900 dark:text-white">{startDate}</Text>
+        </Pressable>
+
+        <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {t('planDrawer.endDateLabel')}
+        </Text>
+        <Pressable
+          onPress={() => {
+            setDateField('end');
+            setCalendarOpen(true);
+          }}
+          className="mb-2 rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+        >
+          <Text className={`${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'} text-base`}>
+            {endDate || 'YYYY-MM-DD'}
+          </Text>
+        </Pressable>
+
+        {isDateRangeInvalid ? (
+          <Text className="mb-3 text-xs text-red-500">{t('planDrawer.invalidDateRange')}</Text>
+        ) : (
+          <View className="mb-3" />
+        )}
+
+        <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {t('planDrawer.selectBooksLabel')} ({selectedBookCodes.size} / {totalChapters})
+        </Text>
+
+        <View className="mb-2 flex-row flex-wrap items-center gap-2">
+          {BIBLE_CATEGORY_KEYS.map((categoryKey) => {
+            const selected = category === categoryKey;
+            const label =
+              categoryKey === 'ot'
+                ? t('bibleDrawer.oldTestament')
+                : categoryKey === 'nt'
+                  ? t('bibleDrawer.newTestament')
+                  : t(`bibleDrawer.category.${categoryKey}`);
+            return (
+              <Pressable
+                key={categoryKey}
+                onPress={() => setCategory(categoryKey)}
+                className={`rounded-2xl px-3.5 py-2 ${selected ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
+              >
+                <Text
+                  className={`text-sm font-semibold ${
+                    selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View className="mb-4">
+          <Pressable
+            onPress={toggleSelectAllByCategory}
+            className="self-start rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
+          >
+            <Text className="text-sm font-medium text-gray-900 dark:text-white">
+              {t('planDrawer.selectAll')}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View className="flex-row flex-wrap gap-2">
+          {booksToShow.map((book) => {
+            const selected = selectedBookCodes.has(book.bookCode);
+            return (
+              <Button
+                key={book.bookCode}
+                onPress={() => toggleBook(book.bookCode)}
+                action={selected ? 'primary' : 'secondary'}
+                variant="outline"
+                size="sm"
+                className="rounded-2xl"
+              >
+                <ButtonText>
+                  {getBookName(book.bookCode, appLanguage)} ({book.maxChapter})
+                </ButtonText>
+              </Button>
+            );
+          })}
+        </View>
+
+        <Pressable
+          disabled={!canSubmit || isSubmitting}
+          onPress={() =>
+            void onSubmit({
+              planName: planName.trim() || t('mypage.planDetailTitle'),
+              startDate,
+              endDate,
+              selectedBookCodes: [...selectedBookCodes],
+            })
+          }
+          className={`mt-6 items-center justify-center rounded-2xl px-4 py-4 ${
+            !canSubmit || isSubmitting ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
+          }`}
+        >
+          <Text className="font-semibold text-white">{submitLabel}</Text>
+        </Pressable>
+      </ScrollView>
+
+      <Modal
+        visible={calendarOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarOpen(false)}
+      >
+        <Pressable className="flex-1 justify-center bg-black/40 px-5" onPress={() => setCalendarOpen(false)}>
+          <Pressable
+            className="overflow-hidden rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+            style={{ width: '100%', maxWidth: 380, alignSelf: 'center' }}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View className="px-4 pb-2 pt-4">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {dateField === 'start' ? t('planDrawer.startDateLabel') : t('planDrawer.endDateLabel')}
+              </Text>
+            </View>
+            <Calendar
+              current={selectedDay || startDate}
+              onDayPress={({ dateString }) => {
+                if (dateField === 'start') setStartDate(dateString);
+                else setEndDate(dateString);
+                setCalendarOpen(false);
+              }}
+              markedDates={{
+                ...(startDate ? { [startDate]: { selected: true } } : {}),
+                ...(endDate ? { [endDate]: { selected: true } } : {}),
+              }}
+              theme={{
+                selectedDayBackgroundColor: '#3b82f6',
+                todayTextColor: '#2563eb',
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}

@@ -1,4 +1,5 @@
 import type { FavoriteVerseRecord } from '@/components/bible/types';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const TABLE = 'favorite_verses';
@@ -68,6 +69,7 @@ export async function addFavorites(
       createdAt
     );
   }
+  await queuePersistedSlicesSave(db, ['favorites']);
 }
 
 /** 관심 해제. 식별은 (book_code, chapter, verse)로만 함 */
@@ -85,6 +87,7 @@ export async function removeFavorites(
     chapter,
     ...verseNumbers
   );
+  await queuePersistedSlicesSave(db, ['favorites']);
 }
 
 /** 리스트용 전체 조회. 각 행 식별은 (book_code, chapter, verse). verse_text·created_at은 표시용 */

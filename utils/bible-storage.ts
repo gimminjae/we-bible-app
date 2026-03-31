@@ -1,9 +1,11 @@
 import type { BibleSearchInfo } from '@/components/bible/types';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
+const APP_LANGUAGE_KEY = 'appLanguage';
 const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
@@ -72,6 +74,7 @@ async function setBibleSearchInfoToDb(db: SQLiteDatabase, info: BibleSearchInfo)
     BIBLE_SEARCH_INFO_KEY,
     JSON.stringify(info)
   );
+  await queuePersistedSlicesSave(db, ['appState']);
 }
 
 /** 웹: 쿠키, 네이티브: db(전달 시) 사용. db 없으면 웹만 쿠키, 네이티브는 null */
@@ -97,6 +100,7 @@ export async function setBibleSearchInfo(
 }
 
 export type AppTheme = 'light' | 'dark';
+export type AppLanguage = 'ko' | 'en';
 
 /** DB에 저장된 테마 조회. 없으면 null */
 export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | null> {
@@ -105,6 +109,15 @@ export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | 
     APP_THEME_KEY
   );
   if (row?.value === 'light' || row?.value === 'dark') return row.value;
+  return null;
+}
+
+export async function getAppLanguageFromDb(db: SQLiteDatabase): Promise<AppLanguage | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    APP_LANGUAGE_KEY
+  );
+  if (row?.value === 'ko' || row?.value === 'en') return row.value;
   return null;
 }
 
@@ -150,6 +163,19 @@ export async function setAppThemeToDb(db: SQLiteDatabase, theme: AppTheme): Prom
     APP_THEME_KEY,
     theme
   );
+  await queuePersistedSlicesSave(db, ['appState']);
+}
+
+export async function setAppLanguageToDb(
+  db: SQLiteDatabase,
+  appLanguage: AppLanguage
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    APP_LANGUAGE_KEY,
+    appLanguage
+  );
+  await queuePersistedSlicesSave(db, ['appState']);
 }
 
 /** 마지막 자동 동기화 시각 조회 (YYYY-MM-DD HH:mm:ss) */
@@ -312,6 +338,7 @@ export async function spendPointsForGrassColorTheme(
     GRASS_COLOR_THEME_KEY,
     nextTheme
   );
+  await queuePersistedSlicesSave(db, ['grassData']);
 
   return { success: true, pointTotal: spendResult.pointTotal, changed: true };
 }
@@ -337,6 +364,7 @@ export async function setStepRewardUsedDateToDb(
     STEP_REWARD_USED_DATE_KEY,
     dateKey
   );
+  await queuePersistedSlicesSave(db, ['grassData']);
 }
 
 export async function setGrassColorThemeWithoutPoint(
@@ -350,5 +378,6 @@ export async function setGrassColorThemeWithoutPoint(
     GRASS_COLOR_THEME_KEY,
     nextTheme
   );
+  await queuePersistedSlicesSave(db, ['grassData']);
   return true;
 }

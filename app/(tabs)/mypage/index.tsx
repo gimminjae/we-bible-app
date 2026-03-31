@@ -1,23 +1,53 @@
-import { AdBanner } from "@/components/ads/ad-banner"
-import { BibleGrass } from "@/components/bible-grass"
-import { IconSymbol } from "@/components/ui/icon-symbol"
-import { useResponsive } from "@/hooks/use-responsive"
-import { useStepCount } from "@/hooks/use-step-count"
-import { useI18n } from "@/utils/i18n"
-import { useRouter } from "expo-router"
-import { Pressable, ScrollView, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+
+import { AdBanner } from '@/components/ads/ad-banner';
+import { BibleGrass } from '@/components/bible-grass';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useResponsive } from '@/hooks/use-responsive';
+import { useStepCount } from '@/hooks/use-step-count';
+import { useI18n } from '@/utils/i18n';
 
 export default function MyPageScreen() {
-  const router = useRouter()
-  const { t } = useI18n()
-  const { scale, moderateScale } = useResponsive()
-  const { steps, available, meetsGoal } = useStepCount()
+  const router = useRouter();
+  const { t } = useI18n();
+  const { scale, moderateScale } = useResponsive();
+  const { steps, available, meetsGoal } = useStepCount();
+
+  const renderMenuCard = (
+    key: string,
+    label: string,
+    icon: React.ReactNode,
+    onPress: () => void,
+  ) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      className="mb-4 flex-row items-center justify-between rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      style={{
+        paddingHorizontal: scale(16),
+        paddingVertical: scale(32),
+      }}
+    >
+      <View className="flex-row items-center" style={{ gap: scale(12) }}>
+        {icon}
+        <Text
+          style={{ fontSize: moderateScale(16) }}
+          className="font-semibold text-gray-900 dark:text-white"
+        >
+          {label}
+        </Text>
+      </View>
+      <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
+    </Pressable>
+  );
 
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
-      edges={["top", "bottom", "left", "right"]}
+      edges={['top', 'bottom', 'left', 'right']}
     >
       <ScrollView
         className="flex-1"
@@ -33,16 +63,24 @@ export default function MyPageScreen() {
             className="font-bold text-gray-900 dark:text-white"
             style={{ fontSize: moderateScale(24) }}
           >
-            {t("mypage.title")}
+            {t('mypage.title')}
           </Text>
           {available !== false ? (
             <View
-              className={`rounded-lg px-3 py-2 ${meetsGoal ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-gray-100 dark:bg-gray-800"}`}
+              className={`rounded-lg px-3 py-2 ${
+                meetsGoal
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}
             >
               <Text
-                className={`text-sm font-medium ${meetsGoal ? "text-emerald-700 dark:text-emerald-300" : "text-gray-600 dark:text-gray-400"}`}
+                className={`text-sm font-medium ${
+                  meetsGoal
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
               >
-                {t("mypage.pointStepsToday").replace("{steps}", String(steps))}
+                {t('mypage.pointStepsToday').replace('{steps}', String(steps))}
               </Text>
             </View>
           ) : null}
@@ -54,86 +92,41 @@ export default function MyPageScreen() {
           <AdBanner />
         </View>
 
-        <Pressable
-          onPress={() => router.push("/(tabs)/mypage/favorites")}
-          className="mb-4 flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-          style={{
-            paddingHorizontal: scale(16),
-            paddingVertical: scale(32),
-          }}
-        >
-          <View className="flex-row items-center" style={{ gap: scale(12) }}>
-            <IconSymbol name="heart.fill" size={moderateScale(20)} color="#ec4899" />
-            <Text
-              style={{ fontSize: moderateScale(16) }}
-              className="font-semibold text-gray-900 dark:text-white"
-            >
-              {t("mypage.favoritesMenu")}
-            </Text>
-          </View>
-          <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
-        </Pressable>
+        {renderMenuCard(
+          'favorites',
+          t('mypage.favoritesMenu'),
+          <IconSymbol name="heart.fill" size={moderateScale(20)} color="#ec4899" />,
+          () => router.push('/(tabs)/mypage/favorites'),
+        )}
 
-        <Pressable
-          onPress={() => router.push("/(tabs)/mypage/memos")}
-          className="mb-4 flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-          style={{
-            paddingHorizontal: scale(16),
-            paddingVertical: scale(32),
-          }}
-        >
-          <View className="flex-row items-center" style={{ gap: scale(12) }}>
-            <IconSymbol name="note.text" size={moderateScale(20)} color="#b45309" />
-            <Text
-              style={{ fontSize: moderateScale(16) }}
-              className="font-semibold text-gray-900 dark:text-white"
-            >
-              {t("mypage.memosMenu")}
-            </Text>
-          </View>
-          <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
-        </Pressable>
+        {renderMenuCard(
+          'memos',
+          t('mypage.memosMenu'),
+          <IconSymbol name="note.text" size={moderateScale(20)} color="#b45309" />,
+          () => router.push('/(tabs)/mypage/memos'),
+        )}
 
-        <Pressable
-          onPress={() => router.push("/(tabs)/mypage/prayers")}
-          className="mb-4 flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-          style={{
-            paddingHorizontal: scale(16),
-            paddingVertical: scale(32),
-          }}
-        >
-          <View className="flex-row items-center" style={{ gap: scale(12) }}>
-            <IconSymbol name="hands.sparkles" size={moderateScale(20)} color="#6366f1" />
-            <Text
-              style={{ fontSize: moderateScale(16) }}
-              className="font-semibold text-gray-900 dark:text-white"
-            >
-              {t("mypage.prayersMenu")}
-            </Text>
-          </View>
-          <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
-        </Pressable>
+        {renderMenuCard(
+          'prayers',
+          t('mypage.prayersMenu'),
+          <IconSymbol name="hands.sparkles" size={moderateScale(20)} color="#6366f1" />,
+          () => router.push('/(tabs)/mypage/prayers'),
+        )}
 
-        <Pressable
-          onPress={() => router.push("/(tabs)/mypage/plans")}
-          className="flex-row items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-          style={{
-            paddingHorizontal: scale(16),
-            paddingVertical: scale(32),
-          }}
-        >
-          <View className="flex-row items-center" style={{ gap: scale(12) }}>
-            <IconSymbol name="book.fill" size={moderateScale(20)} color="#059669" />
-            <Text
-              style={{ fontSize: moderateScale(16) }}
-              className="font-semibold text-gray-900 dark:text-white"
-            >
-              {t("mypage.plansMenu")}
-            </Text>
-          </View>
-          <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
-        </Pressable>
+        {renderMenuCard(
+          'plans',
+          t('mypage.plansMenu'),
+          <IconSymbol name="book.fill" size={moderateScale(20)} color="#059669" />,
+          () => router.push('/(tabs)/mypage/plans'),
+        )}
+
+        {renderMenuCard(
+          'churches',
+          t('church.title'),
+          <MaterialIcons name="groups" size={moderateScale(20)} color="#2563eb" />,
+          () => router.push('/churches' as never),
+        )}
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }

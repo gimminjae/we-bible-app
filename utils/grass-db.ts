@@ -1,3 +1,5 @@
+import { BIBLE_BOOKS as PLAN_BOOKS, type GoalStatus } from '@/lib/plan';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const GRASS_TABLE = 'bible_grass';
@@ -155,6 +157,7 @@ export async function syncGrassForBook(
       fillYn: dayData.length > 0 ? false : current.fillYn,
     })
   );
+  await queuePersistedSlicesSave(db, ['grassData']);
 }
 
 /**
@@ -166,6 +169,17 @@ export async function syncGrassForBook(
  */
 export async function syncGrassFromPlanSave(
   db: SQLiteDatabase,
+  bookCode: string,
+  prevStatus: number[],
+  newStatus: number[]
+): Promise<void> {
+  await applyGoalStatusDiffForBook(db, todayString(), bookCode, prevStatus, newStatus);
+  await queuePersistedSlicesSave(db, ['grassData']);
+}
+
+async function applyGoalStatusDiffForBook(
+  db: SQLiteDatabase,
+  date: string,
   bookCode: string,
   prevStatus: number[],
   newStatus: number[]
@@ -182,24 +196,24 @@ export async function syncGrassFromPlanSave(
 
   const rows = await db.getAllAsync<{ data: string }>(
     `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
-    todayString()
+    date
   );
 
   const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
   const current =
     Array.isArray(parsed)
-      ? { date: todayString(), data: parsed as GrassDayEntry[], fillYn: false }
+      ? { date, data: parsed as GrassDayEntry[], fillYn: false }
       : typeof parsed === 'object' && parsed !== null
         ? {
           date: typeof (parsed as { date?: unknown }).date === 'string'
             ? ((parsed as { date?: string }).date as string)
-            : todayString(),
+            : date,
           data: Array.isArray((parsed as { data?: unknown }).data)
             ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
             : [],
           fillYn: (parsed as { fillYn?: unknown }).fillYn === true,
         }
-        : { date: todayString(), data: [], fillYn: false };
+        : { date, data: [], fillYn: false };
   let dayData: GrassDayEntry[] = current.data;
 
   const existingEntry = dayData.find((e) => e.bookCode === bookCode);
@@ -221,13 +235,34 @@ export async function syncGrassFromPlanSave(
 
   await db.runAsync(
     `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
-    todayString(),
+    date,
     JSON.stringify({
-      date: todayString(),
+      date,
       data: nextDayData,
       fillYn: nextDayData.length > 0 ? false : current.fillYn,
     })
   );
+}
+
+export async function syncPlanGoalStatusToGrass(
+  db: SQLiteDatabase,
+  selectedBookCodes: string[],
+  previousGoalStatus: GoalStatus,
+  nextGoalStatus: GoalStatus,
+  date = todayString()
+): Promise<void> {
+  for (const bookCode of selectedBookCodes) {
+    const bookIndex = PLAN_BOOKS.findIndex((book) => book.bookCode === bookCode);
+    if (bookIndex < 0) continue;
+    await applyGoalStatusDiffForBook(
+      db,
+      date,
+      bookCode,
+      previousGoalStatus[bookIndex] ?? [],
+      nextGoalStatus[bookIndex] ?? []
+    );
+  }
+  await queuePersistedSlicesSave(db, ['grassData']);
 }
 
 export async function fillGrassByPoint(
@@ -255,5 +290,6 @@ export async function fillGrassByPoint(
       fillYn: true,
     })
   );
+  await queuePersistedSlicesSave(db, ['grassData']);
   return true;
 }

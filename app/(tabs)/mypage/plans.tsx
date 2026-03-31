@@ -1,158 +1,192 @@
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Button, ButtonText } from '@/components/ui/button';
-import { useI18n } from '@/utils/i18n';
-import { getAllPlans, type PlanListItem } from '@/utils/plan-db';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useResponsive } from '@/hooks/use-responsive';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-function formatDate(raw: string): string {
-  if (!raw) return '-';
-  const [date] = raw.split(' ');
-  const [y = '', m = '', d = ''] = date.split('-');
-  return `${y}.${m}.${d}`;
-}
-
-function getGoalSummary(selectedBookCodes: string[], t: (key: string) => string): string {
-  if (selectedBookCodes.length === 0) return '-';
-  const otCount = selectedBookCodes.filter((c) => {
-    const otBooks = [
-      'genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy',
-      'joshua', 'judges', 'ruth', '1samuel', '2samuel', '1kings', '2kings',
-      '1chronicles', '2chronicles', 'ezra', 'nehemiah', 'esther', 'job',
-      'psalms', 'proverbs', 'ecclesiastes', 'songofsolomon', 'isaiah',
-      'jeremiah', 'lamentations', 'ezekiel', 'daniel', 'hosea', 'joel',
-      'amos', 'obadiah', 'jonah', 'micah', 'nahum', 'habakkuk',
-      'zephaniah', 'haggai', 'zechariah', 'malachi',
-    ];
-    return otBooks.includes(c);
-  }).length;
-  const ntCount = selectedBookCodes.length - otCount;
-  const parts: string[] = [];
-  if (otCount > 0) parts.push(`${t('bibleDrawer.oldTestament')} ${otCount}권`);
-  if (ntCount > 0) parts.push(`${t('bibleDrawer.newTestament')} ${ntCount}권`);
-  return parts.join(' · ') || '-';
-}
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { useMySharedPlans } from '@/hooks/use-churches';
+import { formatShortDate } from '@/lib/date';
+import { getPlanGoalSummary } from '@/lib/plan';
+import { getAllPlans, type PlanListItem } from '@/utils/plan-db';
+import { useI18n } from '@/utils/i18n';
 
 export default function PlanListScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
-  const { scale, moderateScale } = useResponsive();
   const [items, setItems] = useState<PlanListItem[]>([]);
+  const [isLoadingLocal, setIsLoadingLocal] = useState(true);
+  const { sharedPlans, isLoading: isLoadingShared, error: sharedPlansError } = useMySharedPlans();
 
-  const load = useCallback(() => {
+  const loadLocalPlans = useCallback(() => {
     let active = true;
-    getAllPlans(db).then((rows) => {
-      if (!active) return;
-      setItems(rows);
-    });
+    setIsLoadingLocal(true);
+    getAllPlans(db)
+      .then((rows) => {
+        if (!active) return;
+        setItems(rows);
+      })
+      .finally(() => {
+        if (active) setIsLoadingLocal(false);
+      });
     return () => {
       active = false;
     };
   }, [db]);
 
-  useFocusEffect(load);
+  useFocusEffect(loadLocalPlans);
 
-  const handleAddPress = useCallback(() => {
-    router.push('/(tabs)/mypage/plan/add');
-  }, [router]);
+  if (sharedPlansError) {
+    return <LoadingScreen message={sharedPlansError.message} />;
+  }
+
+  if (isLoadingLocal || isLoadingShared) {
+    return <LoadingScreen message="Loading plans..." />;
+  }
 
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View
-        className="flex-row items-center justify-between"
-        style={{
-          paddingHorizontal: scale(16),
-          paddingTop: scale(16),
-          paddingBottom: scale(12),
-        }}
-      >
-        <View className="flex-row items-center" style={{ gap: scale(12) }}>
-          <IconSymbol
-            name="chevron.right"
-            size={moderateScale(18)}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: '180deg' }] }}
-          />
-          <Text onPress={() => router.back()} className="text-gray-700 dark:text-gray-300" style={{ fontSize: moderateScale(16) }}>
-            {t('common.back')}
-          </Text>
-          <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>
-            {t('mypage.plansTitle')}
-          </Text>
-        </View>
-        <Button onPress={handleAddPress} action="primary" size="sm">
-          <ButtonText>{t('mypage.addPlan')}</ButtonText>
-        </Button>
-      </View>
+      <ScreenHeader
+        title={t('mypage.plansTitle')}
+        onBack={() => router.back()}
+        right={
+          <Pressable
+            onPress={() => router.push('/(tabs)/mypage/plan/add')}
+            className="rounded-2xl bg-primary-500 px-4 py-3"
+          >
+            <Text className="font-semibold text-white">{t('mypage.addPlan')}</Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{
-          paddingHorizontal: scale(16),
-          paddingBottom: scale(24),
-          flexGrow: 1,
-        }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {items.length === 0 ? (
-          <View className="flex-1 justify-center" style={{ paddingVertical: scale(64) }}>
-            <Text className="text-gray-500 dark:text-gray-400 text-center" style={{ fontSize: moderateScale(16) }}>
-              {t('mypage.emptyPlans')}
+        <View className="mb-6">
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-base font-semibold text-gray-900 dark:text-white">
+              {t('mypage.personalPlansSection')}
             </Text>
+            <Text className="text-sm text-gray-500 dark:text-gray-400">{items.length}</Text>
           </View>
-        ) : (
-          items.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/mypage/plan/[id]',
-                  params: { id: String(item.id) },
-                })
-              }
-              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 active:opacity-90"
-              style={{ marginBottom: scale(12), paddingHorizontal: scale(16), paddingVertical: scale(20) }}
-            >
-              <View className="flex-row items-center justify-between" style={{ marginBottom: scale(8) }}>
-                <Text className="font-semibold text-gray-900 dark:text-white flex-1" style={{ fontSize: moderateScale(16) }}>
-                  {item.planName || t('mypage.planDetailTitle')}
-                </Text>
-                <View className="bg-primary-100 dark:bg-primary-900/40 rounded-lg" style={{ paddingHorizontal: scale(10), paddingVertical: scale(4) }}>
-                  <Text className="font-bold text-primary-600 dark:text-primary-400" style={{ fontSize: moderateScale(14) }}>
-                    {item.goalPercent.toFixed(1)}%
+
+          {items.length === 0 ? (
+            <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                {t('mypage.emptyPlans')}
+              </Text>
+            </View>
+          ) : (
+            items.map((item) => {
+              const summary = getPlanGoalSummary(item.selectedBookCodes);
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/mypage/plan/[id]',
+                      params: { id: String(item.id) },
+                    })
+                  }
+                  className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <View className="flex-row items-start justify-between gap-4">
+                    <View className="flex-1">
+                      <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {item.planName || t('mypage.planDetailTitle')}
+                      </Text>
+                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        {summary.oldTestament > 0 ? `${t('bibleDrawer.oldTestament')} ${summary.oldTestament}` : ''}
+                        {summary.oldTestament > 0 && summary.newTestament > 0 ? ' · ' : ''}
+                        {summary.newTestament > 0 ? `${t('bibleDrawer.newTestament')} ${summary.newTestament}` : ''}
+                      </Text>
+                    </View>
+                    <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+                      <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                        {item.goalPercent.toFixed(1)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    {t('mypage.planStartDate')} {formatShortDate(item.startDate)} · {t('mypage.planEndDate')}{' '}
+                    {formatShortDate(item.endDate)}
+                  </Text>
+                  <Text className="mt-2 text-sm font-medium text-primary-600 dark:text-primary-400">
+                    {item.restDay} {t('mypage.planDaysRemaining')}
+                  </Text>
+                </Pressable>
+              );
+            })
+          )}
+        </View>
+
+        <View>
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-base font-semibold text-gray-900 dark:text-white">
+              {t('mypage.sharedPlansSection')}
+            </Text>
+            <Text className="text-sm text-gray-500 dark:text-gray-400">{sharedPlans.length}</Text>
+          </View>
+
+          {sharedPlans.length === 0 ? (
+            <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                {t('mypage.emptySharedPlans')}
+              </Text>
+            </View>
+          ) : (
+            sharedPlans.map((plan) => (
+              <Pressable
+                key={plan.id}
+                onPress={() =>
+                  router.push(`/churches/${plan.churchId}/plans/${plan.id}` as never)
+                }
+                className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+              >
+                <View className="flex-row items-start justify-between gap-4">
+                  <View className="flex-1">
+                    <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {plan.planName || t('church.planDetailTitle')}
+                    </Text>
+                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{plan.churchName}</Text>
+                    <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {plan.teamName
+                        ? t('church.teamPlanScope').replace('{team}', plan.teamName)
+                        : t('church.churchPlanScope')}
+                    </Text>
+                    <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {plan.startDate} ~ {plan.endDate}
+                    </Text>
+                  </View>
+                  <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+                    <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                      {plan.myGoalPercent?.toFixed(1) ?? '0.0'}%
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="mt-4 flex-row items-center justify-between gap-3">
+                  <Text className="text-sm text-gray-500 dark:text-gray-400">
+                    {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                  </Text>
+                  <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">
+                    {plan.averageGoalPercent.toFixed(1)}%
                   </Text>
                 </View>
-              </View>
-              <Text className="text-gray-600 dark:text-gray-400" style={{ fontSize: moderateScale(14), marginBottom: scale(12) }}>
-                {getGoalSummary(item.selectedBookCodes, t)}
-              </Text>
-              <View className="flex-row items-center" style={{ gap: scale(8) }}>
-                <IconSymbol name="calendar" size={moderateScale(14)} color="#9ca3af" />
-                <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(14) }}>
-                  {t('mypage.planStartDate')} {formatDate(item.startDate)} ~ {t('mypage.planEndDate')}{' '}
-                  {formatDate(item.endDate)}
-                </Text>
-              </View>
-              <View className="flex-row items-center" style={{ gap: scale(4), marginTop: scale(8) }}>
-                <Text className="text-primary-600 dark:text-primary-400 font-medium" style={{ fontSize: moderateScale(12) }}>
-                  {item.restDay}
-                </Text>
-                <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(12) }}>
-                  {t('mypage.planDaysRemaining')}
-                </Text>
-              </View>
-            </Pressable>
-          ))
-        )}
+              </Pressable>
+            ))
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

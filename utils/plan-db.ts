@@ -1,3 +1,5 @@
+import { createId } from '@/lib/date';
+import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import { bibleInfos } from '@/services/bible';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -133,6 +135,7 @@ export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${PLANS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
       plan_name TEXT NOT NULL DEFAULT '',
       start_date TEXT NOT NULL DEFAULT '',
       end_date TEXT NOT NULL DEFAULT '',
@@ -147,6 +150,10 @@ export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
       updated_at TEXT NOT NULL DEFAULT ''
     );
   `);
+  const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${PLANS_TABLE})`);
+  if (!info.some((r) => r.name === 'client_id')) {
+    await db.runAsync(`ALTER TABLE ${PLANS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
+  }
 }
 
 export async function addPlan(
@@ -159,13 +166,15 @@ export async function addPlan(
   const now = nowString();
   const goalStatus = createEmptyGoalStatus();
   const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
+  const clientId = createId();
 
   const result = await db.runAsync(
     `INSERT INTO ${PLANS_TABLE} (
-      plan_name, start_date, end_date,
+      client_id, plan_name, start_date, end_date,
       total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day,
       goal_status, selected_book_codes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    clientId,
     planName.trim(),
     startDate,
     endDate,
@@ -179,6 +188,7 @@ export async function addPlan(
     now,
     now
   );
+  await queuePersistedSlicesSave(db, ['plans']);
   return Number(result.lastInsertRowId);
 }
 
@@ -298,6 +308,7 @@ export async function updatePlanInfo(
     now,
     id
   );
+  await queuePersistedSlicesSave(db, ['plans']);
 }
 
 export async function updateGoalStatus(
@@ -326,8 +337,10 @@ export async function updateGoalStatus(
     now,
     id
   );
+  await queuePersistedSlicesSave(db, ['plans']);
 }
 
 export async function deletePlan(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync(`DELETE FROM ${PLANS_TABLE} WHERE id = ?`, id);
+  await queuePersistedSlicesSave(db, ['plans']);
 }
