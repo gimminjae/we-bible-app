@@ -1047,6 +1047,19 @@ export async function updateChurchMemberRole(args: {
   if (error) throw error;
 }
 
+export async function transferChurchSuperAdmin(args: {
+  churchId: string;
+  targetUserId: string;
+}) {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.rpc("transfer_church_super_admin", {
+    p_church_id: Number(args.churchId),
+    p_target_user_id: args.targetUserId,
+  });
+
+  if (error) throw error;
+}
+
 export async function updateChurchMemberTeam(args: {
   churchId: string;
   userId: string;
@@ -1083,6 +1096,15 @@ export async function removeChurchMember(args: {
   const { error } = await supabase.rpc("remove_church_member", {
     p_church_id: Number(args.churchId),
     p_target_user_id: args.userId,
+  });
+
+  if (error) throw error;
+}
+
+export async function deleteChurchAsSuperAdmin(churchId: string) {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.rpc("delete_church_as_super_admin", {
+    p_church_id: Number(churchId),
   });
 
   if (error) throw error;
@@ -1399,6 +1421,13 @@ export async function updateSharedPlanProgress(args: {
     })
     .eq("plan_id", Number(args.planId))
     .eq("user_id", args.userId);
+
+  if (error) throw error;
+}
+
+export async function deleteMyAccount() {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.rpc("delete_my_account");
 
   if (error) throw error;
 }

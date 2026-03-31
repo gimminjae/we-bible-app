@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { SelectionSheet } from '@/components/ui/selection-sheet';
 import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
+import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
 import { fetchUserProfile, updateMyDisplayName } from '@/lib/church';
 import { getUserAccountLabel, getUserDisplayName, getUserProvider, type SocialProvider } from '@/lib/supabase';
@@ -34,6 +35,18 @@ function isValidPassword(password: string) {
   return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/.test(password);
 }
 
+function getDeleteAccountErrorMessage(error: unknown, translate: (key: string) => string) {
+  if (error instanceof Error) {
+    if (error.message === 'ACCOUNT_DELETE_HAS_SUPER_ADMIN_CHURCH') {
+      return translate('settings.deleteAccountBlockedBySuperAdminChurch');
+    }
+
+    return error.message;
+  }
+
+  return translate('settings.deleteAccountFailed');
+}
+
 export default function SettingsScreen() {
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
   const { t } = useI18n();
@@ -49,8 +62,10 @@ export default function SettingsScreen() {
     signOut,
     signUp,
     signInWithOAuth,
+    deleteAccount,
     clearLastError,
   } = useAuth();
+  const { churches: myChurches } = useMyChurches();
 
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const [displayNameSheetVisible, setDisplayNameSheetVisible] = useState(false);
@@ -248,6 +263,10 @@ export default function SettingsScreen() {
     () => LANGUAGE_OPTIONS.find((option) => option.value === appLanguage)?.label ?? '한국어',
     [appLanguage],
   );
+  const superAdminChurches = useMemo(
+    () => myChurches.filter((church) => church.myRole === 'super_admin'),
+    [myChurches],
+  );
 
   const userLabel =
     getUserAccountLabel(currentUser) ??
@@ -258,6 +277,36 @@ export default function SettingsScreen() {
         : currentUser
           ? t('settings.socialAccountConnected')
           : null);
+
+  const handleDeleteAccount = useCallback(() => {
+    if (!isConfigured || !currentUser) return;
+
+    if (superAdminChurches.length > 0) {
+      showToast(t('settings.deleteAccountBlockedBySuperAdminChurch'));
+      return;
+    }
+
+    Alert.alert(t('settings.deleteAccountConfirmTitle'), t('settings.deleteAccountConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.deleteAccountConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setIsSubmitting(true);
+            try {
+              await deleteAccount();
+              showToast(t('settings.deleteAccountSuccess'));
+            } catch (deleteError) {
+              showToast(getDeleteAccountErrorMessage(deleteError, t));
+            } finally {
+              setIsSubmitting(false);
+            }
+          })();
+        },
+      },
+    ]);
+  }, [currentUser, deleteAccount, isConfigured, showToast, superAdminChurches.length, t]);
 
   return (
     <SafeAreaView
@@ -446,6 +495,28 @@ export default function SettingsScreen() {
         </View>
 
         <AdBanner />
+
+        {currentUser ? (
+          <View className="mt-6 rounded-3xl border border-red-200 bg-white p-5 dark:border-red-900 dark:bg-gray-900">
+            <Text className="text-sm font-medium text-red-500 dark:text-red-400">
+              {t('settings.deleteAccount')}
+            </Text>
+            <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {superAdminChurches.length > 0
+                ? t('settings.deleteAccountBlockedBySuperAdminChurch')
+                : t('settings.deleteAccountDescription')}
+            </Text>
+            <Pressable
+              onPress={handleDeleteAccount}
+              disabled={isSubmitting}
+              className={`mt-4 items-center justify-center rounded-2xl px-4 py-4 ${
+                isSubmitting ? 'bg-red-300 dark:bg-red-950/50' : 'bg-red-500'
+              }`}
+            >
+              <Text className="font-semibold text-white">{t('settings.deleteAccount')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
 
       <SelectionSheet

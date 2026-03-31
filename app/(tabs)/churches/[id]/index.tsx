@@ -37,6 +37,22 @@ type PickerState =
     }
   | null;
 
+function getChurchActionErrorMessage(
+  error: unknown,
+  translate: (key: string) => string,
+  fallbackKey: string,
+) {
+  if (error instanceof Error) {
+    if (error.message === 'CHURCH_HAS_OTHER_MEMBERS') {
+      return translate('church.deleteRequiresNoOtherMembers');
+    }
+
+    return error.message;
+  }
+
+  return translate(fallbackKey);
+}
+
 export default function ChurchDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const churchId = params.id ?? '';
@@ -49,10 +65,12 @@ export default function ChurchDetailScreen() {
     approveJoinRequest,
     rejectJoinRequest,
     updateMemberRole,
+    transferSuperAdmin,
     updateMemberTeam,
     updateTeamLeader,
     removeMember,
     leaveChurch,
+    deleteChurch,
     createTeam,
     createChurchPrayer,
     updateChurchPrayer,
@@ -127,6 +145,11 @@ export default function ChurchDetailScreen() {
 
     return options;
   }, [churchDetail, t]);
+  const hasOtherMembers = useMemo(
+    () => churchDetail?.members.some((member) => member.userId !== dataUserId) ?? false,
+    [churchDetail, dataUserId],
+  );
+  const canDeleteChurch = churchDetail?.church.isSuperAdmin && !hasOtherMembers;
 
   if (error) {
     return <LoadingScreen message={error.message} />;
@@ -425,8 +448,41 @@ export default function ChurchDetailScreen() {
                   </Text>
                 </Pressable>
               ) : null}
+              {canDeleteChurch ? (
+                <Pressable
+                  onPress={() =>
+                    confirmDestructive(t('church.deleteChurchConfirm'), async () => {
+                      setProcessingKey('delete-church');
+                      try {
+                        await deleteChurch(churchDetail.church.id);
+                        showToast(t('toast.churchDeleted'));
+                        router.replace('/churches' as never);
+                      } catch (deleteError) {
+                        showToast(
+                          getChurchActionErrorMessage(
+                            deleteError,
+                            t,
+                            'church.deleteChurchFailed',
+                          ),
+                        );
+                      } finally {
+                        setProcessingKey(null);
+                      }
+                    })
+                  }
+                  disabled={processingKey === 'delete-church'}
+                  className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
+                >
+                  <Text className="font-semibold text-red-500">{t('church.deleteChurch')}</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
+          {churchDetail.church.isSuperAdmin && hasOtherMembers ? (
+            <Text className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              {t('church.deleteRequiresNoOtherMembers')}
+            </Text>
+          ) : null}
         </View>
 
         <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
@@ -540,6 +596,8 @@ export default function ChurchDetailScreen() {
 
             {churchDetail.members.map((member) => {
               const teamSelectValue = selectedMemberTeamIds[member.userId] ?? member.teamId ?? '';
+              const canTransferSuperAdmin =
+                churchDetail.church.isSuperAdmin && member.userId !== dataUserId;
               const canToggleDeputy =
                 churchDetail.church.isSuperAdmin &&
                 member.userId !== churchDetail.church.superAdminUserId &&
@@ -576,6 +634,44 @@ export default function ChurchDetailScreen() {
                     </View>
 
                     <View className="items-end gap-2">
+                      {canTransferSuperAdmin ? (
+                        <Pressable
+                          onPress={() =>
+                            confirmDestructive(
+                              t('church.transferSuperAdminConfirm').replace(
+                                '{name}',
+                                member.profile.displayName,
+                              ),
+                              async () => {
+                                setProcessingKey(`transfer-super-admin-${member.userId}`);
+                                try {
+                                  await transferSuperAdmin({
+                                    churchId: churchDetail.church.id,
+                                    targetUserId: member.userId,
+                                  });
+                                  showToast(t('toast.superAdminTransferred'));
+                                } catch (transferError) {
+                                  showToast(
+                                    getChurchActionErrorMessage(
+                                      transferError,
+                                      t,
+                                      'church.transferSuperAdminFailed',
+                                    ),
+                                  );
+                                } finally {
+                                  setProcessingKey(null);
+                                }
+                              },
+                            )
+                          }
+                          disabled={processingKey === `transfer-super-admin-${member.userId}`}
+                          className="rounded-2xl border border-primary-200 px-4 py-3 dark:border-primary-900"
+                        >
+                          <Text className="font-semibold text-primary-600 dark:text-primary-400">
+                            {t('church.transferSuperAdmin')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
                       {canToggleDeputy ? (
                         <Pressable
                           onPress={async () => {

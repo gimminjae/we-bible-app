@@ -9,6 +9,7 @@ import {
   createChurchPrayer as createChurchPrayerRequest,
   createSharedPlan as createSharedPlanRequest,
   createTeam as createTeamRequest,
+  deleteChurchAsSuperAdmin as deleteChurchAsSuperAdminRequest,
   deleteChurchPrayer as deleteChurchPrayerRequest,
   deleteChurchPrayerContent as deleteChurchPrayerContentRequest,
   deleteSharedPlan as deleteSharedPlanRequest,
@@ -20,6 +21,7 @@ import {
   removeChurchMember,
   requestChurchJoin,
   searchChurches,
+  transferChurchSuperAdmin as transferChurchSuperAdminRequest,
   updateChurchMemberRole,
   updateChurchMemberTeam,
   updateChurchPrayer as updateChurchPrayerRequest,
@@ -173,6 +175,10 @@ export function useChurchActions() {
         await updateChurchMemberRole(args);
         await invalidateChurchQueries(args.churchId);
       },
+      async transferSuperAdmin(args: { churchId: string; targetUserId: string }) {
+        await transferChurchSuperAdminRequest(args);
+        await invalidateChurchQueries(args.churchId);
+      },
       async updateMemberTeam(args: { churchId: string; userId: string; teamId?: string | null }) {
         await updateChurchMemberTeam(args);
         await invalidateChurchQueries(args.churchId);
@@ -194,6 +200,10 @@ export function useChurchActions() {
           churchId,
           userId,
         });
+        await invalidateChurchQueries(churchId);
+      },
+      async deleteChurch(churchId: string) {
+        await deleteChurchAsSuperAdminRequest(churchId);
         await invalidateChurchQueries(churchId);
       },
       async createTeam(args: { churchId: string; name: string; leaderUserId?: string | null }) {
