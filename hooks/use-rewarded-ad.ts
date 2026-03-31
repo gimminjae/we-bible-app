@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
+import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from "@/lib/google-mobile-ads";
+
 const REWARDED_TEST_ID = "ca-app-pub-3940256099942544/5224354917";
 
 type GoogleMobileAdsModule = typeof import("react-native-google-mobile-ads");
@@ -18,11 +20,21 @@ export function useRewardedAd() {
   const rejectRef = useRef<((reason?: unknown) => void) | null>(null);
 
   const load = useCallback(() => {
-    if (Platform.OS === "web") return;
+    if (Platform.OS === "web" || !canUseGoogleMobileAds()) {
+      setLoading(false);
+      setLoaded(false);
+      return;
+    }
+
     setLoading(true);
     setLoaded(false);
-    import("react-native-google-mobile-ads")
+    loadGoogleMobileAdsModule()
       .then((mod) => {
+        if (!mod) {
+          setLoading(false);
+          return;
+        }
+
         apiRef.current = { AdEventType: mod.AdEventType, RewardedAdEventType: mod.RewardedAdEventType };
         const unitId = __DEV__
           ? mod.TestIds.REWARDED
@@ -49,7 +61,10 @@ export function useRewardedAd() {
   }, [load]);
 
   const show = useCallback((): Promise<void> => {
-    if (Platform.OS === "web") return Promise.resolve();
+    if (Platform.OS === "web" || !canUseGoogleMobileAds()) {
+      return Promise.reject(new Error("Google Mobile Ads native module is unavailable"));
+    }
+
     const ad = adRef.current;
     const api = apiRef.current;
     if (!ad || !api || !loaded) return Promise.reject(new Error("Ad not loaded"));

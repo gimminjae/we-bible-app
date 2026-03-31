@@ -5,7 +5,6 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { type SQLiteDatabase } from 'expo-sqlite';
 import { useEffect, type ReactNode } from 'react';
-import { NativeModules } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
@@ -15,6 +14,7 @@ import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
+import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from '@/lib/google-mobile-ads';
 import { initBibleStateTable } from '@/utils/bible-storage';
 import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
 import { initGrassTable } from '@/utils/grass-db';
@@ -41,9 +41,11 @@ function RootLayoutContent() {
   const { theme } = useAppSettings();
 
   useEffect(() => {
-    if (!NativeModules.RNGoogleMobileAdsModule) return;
-    import('react-native-google-mobile-ads')
+    if (!canUseGoogleMobileAds()) return;
+
+    loadGoogleMobileAdsModule()
       .then((mod) => {
+        if (!mod) return;
         mod.default().initialize();
       })
       .catch(() => {

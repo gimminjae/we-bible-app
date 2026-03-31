@@ -1,6 +1,7 @@
 import { useResponsive } from "@/hooks/use-responsive";
+import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from "@/lib/google-mobile-ads";
 import { useEffect, useMemo, useState } from "react";
-import { Image, NativeModules, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 type AdBannerProps = {
   className?: string;
@@ -10,7 +11,7 @@ export function AdBanner({ className }: AdBannerProps) {
   const { scale } = useResponsive();
   const [nativeAd, setNativeAd] = useState<any>(null);
   const [adApi, setAdApi] = useState<any>(null);
-  const hasNativeAdsModule = Boolean(NativeModules.RNGoogleMobileAdsModule);
+  const hasNativeAdsModule = canUseGoogleMobileAds();
 
   const unitId = useMemo(() => {
     const testNativeUnitId = "ca-app-pub-3940256099942544/2247696110";
@@ -24,9 +25,9 @@ export function AdBanner({ className }: AdBannerProps) {
     let mounted = true;
     let loadedAd: any;
 
-    import("react-native-google-mobile-ads")
+    loadGoogleMobileAdsModule()
       .then((mod) => {
-        if (!mounted) return undefined;
+        if (!mounted || !mod) return undefined;
         setAdApi(mod);
         return mod.NativeAd.createForAdRequest(unitId, {
           aspectRatio: mod.NativeMediaAspectRatio.LANDSCAPE,
