@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { type SQLiteDatabase } from 'expo-sqlite';
@@ -72,8 +72,10 @@ function RootLayoutContent() {
 
 function AuthSyncGate({ children }: { children: ReactNode }) {
   const { isConfigured, isLoadingSession, isSyncingData } = useAuth();
+  const pathname = usePathname();
+  const isAuthCallbackRoute = pathname === '/auth/callback';
 
-  if (isConfigured && (isLoadingSession || isSyncingData)) {
+  if (!isAuthCallbackRoute && isConfigured && (isLoadingSession || isSyncingData)) {
     return <LoadingScreen message="Synchronizing account data..." />;
   }
 

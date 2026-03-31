@@ -55,6 +55,7 @@ function parseAuthResultUrl(url: string) {
   const hashParams = new URLSearchParams(parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash);
 
   return {
+    code: searchParams.get('code'),
     accessToken: hashParams.get('access_token') ?? searchParams.get('access_token'),
     refreshToken: hashParams.get('refresh_token') ?? searchParams.get('refresh_token'),
     errorDescription:
@@ -301,10 +302,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('OAUTH_CANCELLED');
     }
 
-    const { accessToken, refreshToken, errorDescription } = parseAuthResultUrl(result.url);
+    const { code, accessToken, refreshToken, errorDescription } = parseAuthResultUrl(result.url);
     if (errorDescription) {
       setIsLoadingSession(false);
       throw new Error(errorDescription);
+    }
+
+    if (code) {
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) {
+        setIsLoadingSession(false);
+        throw exchangeError;
+      }
+      return;
     }
 
     if (!accessToken || !refreshToken) {
