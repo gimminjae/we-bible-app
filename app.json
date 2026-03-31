@@ -49,6 +49,12 @@
       "expo-sqlite",
       "expo-sensors",
       [
+        "expo-web-browser",
+        {
+          "experimentalLauncherActivity": false
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-4493633870090510~6001487168",

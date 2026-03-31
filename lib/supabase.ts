@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? null;
 const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? null;
+const nativeAuthRedirectUrl = 'webibleapp://auth/callback';
 
 export type SocialProvider = 'google' | 'kakao';
 
@@ -18,6 +19,10 @@ export function requireSupabaseConfig() {
     supabaseUrl,
     supabasePublishableKey,
   };
+}
+
+export function getNativeAuthRedirectUrl() {
+  return nativeAuthRedirectUrl;
 }
 
 export function getUserProvider(user: User | null) {

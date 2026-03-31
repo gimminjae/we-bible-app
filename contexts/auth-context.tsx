@@ -1,5 +1,4 @@
 import type { User } from '@supabase/supabase-js';
-import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import {
   createContext,
@@ -24,7 +23,12 @@ import {
 } from '@/lib/sqlite-supabase-store';
 import { createSupabaseClient } from '@/lib/supabase-client';
 import { pauseSQLiteStateSync, resumeSQLiteStateSync } from '@/lib/sqlite-sync-control';
-import { getUserProvider, isSupabaseConfigured, type SocialProvider } from '@/lib/supabase';
+import {
+  getNativeAuthRedirectUrl,
+  getUserProvider,
+  isSupabaseConfigured,
+  type SocialProvider,
+} from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -282,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const redirectTo = Linking.createURL('/auth/callback');
+    const redirectTo = getNativeAuthRedirectUrl();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {

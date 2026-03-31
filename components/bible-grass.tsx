@@ -178,14 +178,9 @@ function shouldHideCell(cell: CellInfo): boolean {
   return !cell.dateStr
 }
 
-/** YYYY-MM-DD → "2월 16일" (ko) / "Feb 16" (en) */
-function formatDateForDisplay(
-  dateStr: string,
-  t: (key: string) => string,
-): string {
-  const [, m, d] = dateStr.split("-").map(Number)
-  const monthKey = MONTH_KEYS[m - 1]
-  return `${t(`grass.month.${monthKey}`)} ${d}${t("grass.daySuffix")}`
+function formatDateForDetail(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-")
+  return `${year}.${month}.${day}`
 }
 
 /** 연속된 장 번호를 범위로 포맷: [1,2,3,4,5,6] -> "1 ~ 6", [1,2,3,4,7,10] -> "1 ~ 4, 7, 10" */
@@ -224,6 +219,22 @@ function formatReadingSummary(
     .join(", ")
 }
 
+function getDetailBodyText(
+  dateStr: string,
+  grassData: GrassDataMap,
+  getBookName: (code: string, lang: string) => string,
+  appLanguage: string,
+  t: (key: string) => string,
+): string {
+  if ((grassData[dateStr]?.data.length ?? 0) > 0) {
+    return formatReadingSummary(grassData[dateStr].data, getBookName, appLanguage)
+  }
+
+  return grassData[dateStr]?.fillYn
+    ? t("grass.filledByPointHistory")
+    : t("grass.noReadingOnDate")
+}
+
 /** 읽은 기록이 있는 날짜 중 최근 n일 (최신순) */
 function getRecentDatesWithData(
   grassData: GrassDataMap,
@@ -247,7 +258,7 @@ export function BibleGrass() {
   const { showToast } = useToast()
   const { theme, appLanguage } = useAppSettings()
   const { scale, moderateScale } = useResponsive()
-  const { steps, meetsGoal, available: pedometerAvailable } = useStepCount()
+  const { meetsGoal, available: pedometerAvailable } = useStepCount()
   const { show: showRewardedAd, loaded: adLoaded } = useRewardedAd()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
@@ -609,6 +620,7 @@ export function BibleGrass() {
                                   ? 2
                                   : 1
                         const dayNum = cell!.dateStr.slice(-2).replace(/^0/, "")
+                        const isSelected = selectedDate === cell!.dateStr
                         return (
                           <Pressable
                             key={rowIdx}
@@ -618,6 +630,12 @@ export function BibleGrass() {
                               height: cellSize,
                               alignItems: "center",
                               justifyContent: "center",
+                              borderWidth: isSelected ? 2 : 0,
+                              borderColor: isSelected
+                                ? theme === "dark"
+                                  ? "#f9fafb"
+                                  : "#111827"
+                                : "transparent",
                             }}
                             className={`rounded-sm ${activeColors[level as keyof typeof activeColors]}`}
                           >
@@ -839,32 +857,22 @@ export function BibleGrass() {
         {selectedDate ? (
           <View>
             <Text
-              className="text-gray-700 dark:text-gray-300"
-              style={{ fontSize: moderateScale(12) }}
+              className="font-semibold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(13), marginBottom: scale(6) }}
             >
-              {(grassData[selectedDate]?.data.length ?? 0) > 0
-                ? selectedDate === getTodayString()
-                  ? t("grass.todayReadFormat").replace(
-                    "{books}",
-                    formatReadingSummary(
-                      grassData[selectedDate].data,
-                      getBookName,
-                      appLanguage,
-                    ),
-                  )
-                  : t("grass.dateReadFormat")
-                    .replace("{date}", formatDateForDisplay(selectedDate, t))
-                    .replace(
-                      "{books}",
-                      formatReadingSummary(
-                        grassData[selectedDate].data,
-                        getBookName,
-                        appLanguage,
-                      ),
-                    )
-                : grassData[selectedDate]?.fillYn
-                  ? t("grass.filledByPointHistory")
-                  : t("grass.noReadingOnDate")}
+              {formatDateForDetail(selectedDate)}
+            </Text>
+            <Text
+              className="text-gray-700 dark:text-gray-300"
+              style={{ fontSize: moderateScale(12), lineHeight: moderateScale(18) }}
+            >
+              {getDetailBodyText(
+                selectedDate,
+                grassData,
+                getBookName,
+                appLanguage,
+                t,
+              )}
             </Text>
             {canFillSelectedDate ? (
               <Pressable
@@ -884,35 +892,26 @@ export function BibleGrass() {
         ) : recentDates.length > 0 ? (
           <View style={{ gap: scale(10) }}>
             {recentDates.map((dateStr) => (
-              <Text
-                key={dateStr}
-                className="text-gray-700 dark:text-gray-300"
-                style={{ fontSize: moderateScale(12) }}
-              >
-                {(grassData[dateStr]?.data.length ?? 0) > 0
-                  ? dateStr === getTodayString()
-                    ? t("grass.todayReadFormat").replace(
-                      "{books}",
-                      formatReadingSummary(
-                        grassData[dateStr].data,
-                        getBookName,
-                        appLanguage,
-                      ),
-                    )
-                    : t("grass.dateReadFormat")
-                      .replace("{date}", formatDateForDisplay(dateStr, t))
-                      .replace(
-                        "{books}",
-                        formatReadingSummary(
-                          grassData[dateStr].data,
-                          getBookName,
-                          appLanguage,
-                        ),
-                      )
-                  : grassData[dateStr]?.fillYn
-                    ? `${formatDateForDisplay(dateStr, t)} ${t("grass.filledByPointHistory")}`
-                    : t("grass.noReadingOnDate")}
-              </Text>
+              <View key={dateStr}>
+                <Text
+                  className="font-semibold text-gray-900 dark:text-white"
+                  style={{ fontSize: moderateScale(13), marginBottom: scale(4) }}
+                >
+                  {formatDateForDetail(dateStr)}
+                </Text>
+                <Text
+                  className="text-gray-700 dark:text-gray-300"
+                  style={{ fontSize: moderateScale(12), lineHeight: moderateScale(18) }}
+                >
+                  {getDetailBodyText(
+                    dateStr,
+                    grassData,
+                    getBookName,
+                    appLanguage,
+                    t,
+                  )}
+                </Text>
+              </View>
             ))}
           </View>
         ) : (

@@ -60,12 +60,14 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
    If these values are not set, the app still works normally without login.
 
-4. (Optional) Enable Supabase Google OAuth
+4. (Optional) Enable Supabase social OAuth
 
-   - In Supabase Dashboard: `Authentication > Providers > Google` enable provider.
+   - In Supabase Dashboard: `Authentication > Providers > Google` and/or `Kakao` enable provider.
    - Add redirect URL using app scheme:
      - `webibleapp://auth/callback`
-   - In Google Cloud OAuth, register Supabase callback URL and client credentials.
+   - In Google Cloud OAuth, register the Supabase callback URL and client credentials.
+   - In Kakao Developers, register the Supabase callback URL as the Redirect URI.
+   - Because native social auth uses the app scheme callback, test it in a development build or a release build, not Expo Go.
 
 In the output, you'll find options to open the app in a
 
