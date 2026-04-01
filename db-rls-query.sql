@@ -15,6 +15,8 @@
 --     (create_church, update_church_info, set_team_leader, set_church_member_team, remove_church_member,
 --      transfer_church_super_admin, delete_church_as_super_admin, delete_my_account)
 --     should continue to use SECURITY DEFINER RPC functions.
+--   - Shared profile reads should use public.get_visible_user_profiles(uuid[]) instead of direct
+--     public.user_profiles selects so hidden emails stay masked at the DB boundary.
 --   - Team-scoped shared plans are readable by their target team members and church admins.
 
 begin;
@@ -40,8 +42,47 @@ as $$
          and actor_membership.user_id = p_actor_user_id
         where target_membership.user_id = p_target_user_id
       )
+      or exists (
+        select 1
+        from public.church_join_requests request
+        where request.requester_user_id = p_target_user_id
+          and public.is_church_admin(request.church_id, p_actor_user_id)
+      )
     );
 $$;
+
+create or replace function public.get_visible_user_profiles(
+  p_user_ids uuid[]
+)
+returns table (
+  user_id uuid,
+  display_name text,
+  email text,
+  show_email boolean,
+  avatar_url text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    profile.user_id,
+    profile.display_name,
+    case
+      when profile.user_id = auth.uid() or profile.show_email then profile.email
+      else null
+    end as email,
+    profile.show_email,
+    profile.avatar_url
+  from public.user_profiles profile
+  where profile.user_id = any(coalesce(p_user_ids, array[]::uuid[]))
+    and public.can_read_user_profile(profile.user_id, auth.uid());
+$$;
+
+revoke all on function public.can_read_user_profile(uuid, uuid) from public;
+grant execute on function public.can_read_user_profile(uuid, uuid) to authenticated;
+revoke all on function public.get_visible_user_profiles(uuid[]) from public;
+grant execute on function public.get_visible_user_profiles(uuid[]) to authenticated;
 
 alter table public.bible_state enable row level security;
 alter table public.favorite_verses enable row level security;
@@ -135,13 +176,14 @@ create policy "bible_grass_owner"
 -- User profiles used by settings + church/member rendering
 drop policy if exists "user_profiles_read_authenticated" on public.user_profiles;
 drop policy if exists "user_profiles_read_same_church_or_self" on public.user_profiles;
+drop policy if exists "user_profiles_read_self" on public.user_profiles;
 drop policy if exists "user_profiles_self_insert" on public.user_profiles;
 drop policy if exists "user_profiles_self_update" on public.user_profiles;
 drop policy if exists "user_profiles_self_delete" on public.user_profiles;
-create policy "user_profiles_read_same_church_or_self"
+create policy "user_profiles_read_self"
   on public.user_profiles
   for select
-  using (public.can_read_user_profile(user_id, auth.uid()));
+  using (auth.uid() = user_id);
 create policy "user_profiles_self_insert"
   on public.user_profiles
   for insert

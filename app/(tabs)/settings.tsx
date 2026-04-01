@@ -13,7 +13,7 @@ import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
-import { fetchUserProfile, updateMyDisplayName } from '@/lib/church';
+import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
 import { getUserAccountLabel, getUserDisplayName, getUserProvider, type SocialProvider } from '@/lib/supabase';
 import { useI18n } from '@/utils/i18n';
 import { useToast } from '@/contexts/toast-context';
@@ -76,8 +76,10 @@ export default function SettingsScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [displayNameInput, setDisplayNameInput] = useState('');
+  const [showEmailInProfile, setShowEmailInProfile] = useState(false);
   const [isLoadingDisplayName, setIsLoadingDisplayName] = useState(false);
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
+  const [isUpdatingEmailVisibility, setIsUpdatingEmailVisibility] = useState(false);
 
   useEffect(() => {
     if (!lastError) return;
@@ -94,6 +96,7 @@ export default function SettingsScreen() {
         if (!cancelled) {
           setDisplayName(fallbackDisplayName);
           setDisplayNameInput(fallbackDisplayName);
+          setShowEmailInProfile(false);
           setIsLoadingDisplayName(false);
         }
         return;
@@ -107,11 +110,13 @@ export default function SettingsScreen() {
         const nextDisplayName = profile?.displayName ?? getUserDisplayName(currentUser) ?? '';
         setDisplayName(nextDisplayName);
         setDisplayNameInput(nextDisplayName);
+        setShowEmailInProfile(profile?.showEmail ?? false);
       } catch {
         if (cancelled) return;
         const fallbackDisplayName = getUserDisplayName(currentUser) ?? '';
         setDisplayName(fallbackDisplayName);
         setDisplayNameInput(fallbackDisplayName);
+        setShowEmailInProfile(false);
       } finally {
         if (!cancelled) {
           setIsLoadingDisplayName(false);
@@ -259,6 +264,22 @@ export default function SettingsScreen() {
     }
   }, [currentUser, displayNameInput, showToast, t]);
 
+  const handleEmailVisibilityToggle = useCallback(async () => {
+    if (!currentUser?.email) return;
+
+    const nextShowEmail = !showEmailInProfile;
+    setIsUpdatingEmailVisibility(true);
+    try {
+      await updateMyEmailVisibility(currentUser, nextShowEmail);
+      setShowEmailInProfile(nextShowEmail);
+      showToast(t('settings.emailVisibilityUpdated'));
+    } catch {
+      showToast(t('settings.emailVisibilityUpdateFailed'));
+    } finally {
+      setIsUpdatingEmailVisibility(false);
+    }
+  }, [currentUser, showEmailInProfile, showToast, t]);
+
   const currentLanguageLabel = useMemo(
     () => LANGUAGE_OPTIONS.find((option) => option.value === appLanguage)?.label ?? '한국어',
     [appLanguage],
@@ -395,6 +416,38 @@ export default function SettingsScreen() {
                     className="rounded-2xl bg-primary-500 px-4 py-3"
                   >
                     <Text className="font-semibold text-white">{t('settings.changeDisplayName')}</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-950">
+                <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  {t('settings.emailVisibility')}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('settings.emailVisibilityDescription')}
+                </Text>
+                <View className="mt-3 flex-row items-center justify-between gap-3">
+                  <View className="flex-1">
+                    <Text className="text-base text-gray-900 dark:text-white">
+                      {currentUser.email ?? t('settings.emailVisibilityUnavailable')}
+                    </Text>
+                    <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {showEmailInProfile ? t('settings.emailVisible') : t('settings.emailHidden')}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => void handleEmailVisibilityToggle()}
+                    disabled={isUpdatingEmailVisibility || !currentUser.email}
+                    className={`rounded-2xl px-4 py-3 ${
+                      isUpdatingEmailVisibility || !currentUser.email
+                        ? 'bg-gray-300 dark:bg-gray-700'
+                        : 'bg-primary-500'
+                    }`}
+                  >
+                    <Text className="font-semibold text-white">
+                      {showEmailInProfile ? t('settings.hideEmail') : t('settings.showEmail')}
+                    </Text>
                   </Pressable>
                 </View>
               </View>

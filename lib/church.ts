@@ -25,6 +25,7 @@ export type ChurchUserProfile = {
   userId: string;
   displayName: string;
   email: string | null;
+  showEmail: boolean;
   avatarUrl: string | null;
 };
 
@@ -187,6 +188,7 @@ type UserProfileRow = {
   user_id: string;
   display_name: string | null;
   email: string | null;
+  show_email: boolean | null;
   avatar_url: string | null;
 };
 
@@ -309,14 +311,23 @@ function normalizeGoalStatus(raw: unknown): GoalStatus {
   });
 }
 
-function makeProfileMap(rows: UserProfileRow[]) {
+function resolveVisibleEmail(row: UserProfileRow, actorUserId?: string) {
+  if (actorUserId && actorUserId === row.user_id) {
+    return row.email ?? null;
+  }
+
+  return row.show_email ? row.email ?? null : null;
+}
+
+function makeProfileMap(rows: UserProfileRow[], actorUserId?: string) {
   return new Map(
     rows.map((row) => [
       row.user_id,
       {
         userId: row.user_id,
         displayName: row.display_name?.trim() || row.email?.trim() || `${row.user_id.slice(0, 8)}...`,
-        email: row.email ?? null,
+        email: resolveVisibleEmail(row, actorUserId),
+        showEmail: row.show_email === true,
         avatarUrl: row.avatar_url ?? null,
       } satisfies ChurchUserProfile,
     ]),
@@ -458,25 +469,24 @@ function summarizeChurchPrayer(args: {
   };
 }
 
-async function fetchProfilesForUserIds(userIds: string[]) {
+async function fetchProfilesForUserIds(userIds: string[], actorUserId?: string) {
   const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
   if (!uniqueUserIds.length) return new Map<string, ChurchUserProfile>();
 
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("user_id, display_name, email, avatar_url")
-    .in("user_id", uniqueUserIds);
+  const { data, error } = await supabase.rpc("get_visible_user_profiles", {
+    p_user_ids: uniqueUserIds,
+  });
 
   if (error) throw error;
-  return makeProfileMap((data ?? []) as UserProfileRow[]);
+  return makeProfileMap((data ?? []) as UserProfileRow[], actorUserId);
 }
 
 export async function fetchUserProfile(userId: string): Promise<ChurchUserProfile | null> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id, display_name, email, avatar_url")
+    .select("user_id, display_name, email, show_email, avatar_url")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -489,6 +499,7 @@ export async function fetchUserProfile(userId: string): Promise<ChurchUserProfil
     userId: row.user_id,
     displayName: row.display_name?.trim() || row.email?.trim() || `${row.user_id.slice(0, 8)}...`,
     email: row.email ?? null,
+    showEmail: row.show_email === true,
     avatarUrl: row.avatar_url ?? null,
   };
 }
@@ -561,6 +572,25 @@ export async function updateChurchInfo(args: {
     p_name: args.name.trim(),
     p_description: args.description.trim(),
   });
+
+  if (error) throw error;
+}
+
+export async function updateMyEmailVisibility(user: User, showEmail: boolean) {
+  const supabase = createSupabaseClient();
+  const displayName = getUserDisplayName(user) ?? user.email ?? user.id.slice(0, 8);
+
+  const { error } = await supabase.from("user_profiles").upsert(
+    {
+      user_id: user.id,
+      display_name: displayName,
+      email: user.email ?? null,
+      avatar_url: typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null,
+      show_email: showEmail,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) throw error;
 }
@@ -689,7 +719,7 @@ export async function fetchMySharedPlans(currentUserId: string): Promise<MyShare
     teamIds.length
       ? supabase.from("teams").select("id, church_id, name, created_at, updated_at, created_by_user_id, leader_user_id").in("id", teamIds)
       : Promise.resolve({ data: [], error: null }),
-    fetchProfilesForUserIds(createdByUserIds),
+    fetchProfilesForUserIds(createdByUserIds, currentUserId),
   ]);
 
   if (progressError) throw progressError;
@@ -891,7 +921,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
     ...prayerContents.map((item) => item.created_by_user_id),
   ].filter((value): value is string => Boolean(value));
 
-  const profileMap = await fetchProfilesForUserIds(userIds);
+  const profileMap = await fetchProfilesForUserIds(userIds, currentUserId);
   const teamMap = new Map(teams.map((team) => [team.id, team]));
   const myMembership = memberships.find((membership) => membership.user_id === currentUserId) ?? null;
   const myRole = myMembership?.role ?? null;
@@ -909,6 +939,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
           userId: membership.user_id,
           displayName: `${membership.user_id.slice(0, 8)}...`,
           email: null,
+          showEmail: false,
           avatarUrl: null,
         },
       teamName: membership.team_id == null ? null : teamMap.get(membership.team_id)?.name ?? null,
@@ -960,6 +991,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
         userId: request.requester_user_id,
         displayName: `${request.requester_user_id.slice(0, 8)}...`,
         email: null,
+        showEmail: false,
         avatarUrl: null,
       },
     processedBy: request.processed_by_user_id ? (profileMap.get(request.processed_by_user_id) ?? null) : null,

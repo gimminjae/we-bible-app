@@ -544,7 +544,7 @@ export default function ChurchDetailScreen() {
                       {request.requester.displayName}
                     </Text>
                     <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {request.requester.email ?? request.requester.userId}
+                      {request.requester.email ?? t('church.emailHidden')}
                     </Text>
 
                     <View className="mt-4 flex-row flex-wrap gap-2">
@@ -646,7 +646,7 @@ export default function ChurchDetailScreen() {
                         <ChurchRoleBadge role={member.role} />
                       </View>
                       <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {member.profile.email ?? member.userId}
+                        {member.profile.email ?? t('church.emailHidden')}
                       </Text>
                       <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         {member.teamName
