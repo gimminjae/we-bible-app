@@ -2,9 +2,11 @@ import type { User } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? null;
 const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? null;
+const appleAuthServiceId = process.env.EXPO_PUBLIC_APPLE_AUTH_SERVICE_ID?.trim() || null;
+const appleAuthRedirectUri = process.env.EXPO_PUBLIC_APPLE_AUTH_REDIRECT_URI?.trim() || null;
 const nativeAuthRedirectUrl = 'webibleapp://auth/callback';
 
-export type SocialProvider = 'google' | 'kakao';
+export type SocialProvider = 'google' | 'kakao' | 'apple';
 
 export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabasePublishableKey);
@@ -23,6 +25,14 @@ export function requireSupabaseConfig() {
 
 export function getNativeAuthRedirectUrl() {
   return nativeAuthRedirectUrl;
+}
+
+export function getAppleAuthRedirectUrl() {
+  return appleAuthRedirectUri;
+}
+
+export function isAppleOAuthConfigured() {
+  return Boolean(appleAuthServiceId && appleAuthRedirectUri);
 }
 
 export function getUserProvider(user: User | null) {

@@ -1,5 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-export function KakaoIcon() {
-  return <Ionicons name="chatbubble" size={24} color="black" />;
+type KakaoIconProps = {
+  color?: string;
+  size?: number;
+};
+
+export function KakaoIcon({ color = 'black', size = 24 }: KakaoIconProps) {
+  return <Ionicons name="chatbubble" size={size} color={color} />;
 }

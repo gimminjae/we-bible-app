@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js"
+import type { SignInWithIdTokenCredentials, User } from "@supabase/supabase-js"
 import { useSQLiteContext } from "expo-sqlite"
 import * as WebBrowser from "expo-web-browser"
 import {
@@ -14,6 +14,10 @@ import {
 import { AppState, Platform } from "react-native"
 
 import { useAppSettings } from "@/contexts/app-settings"
+import {
+  signInWithNativeApple,
+  type NativeAppleFullName,
+} from "@/lib/apple-auth"
 import { setActiveUserId } from "@/lib/auth-state"
 import {
   deleteMyAccount as deleteMyAccountRequest,
@@ -29,6 +33,7 @@ import {
   resumeSQLiteStateSync,
 } from "@/lib/sqlite-sync-control"
 import {
+  getAppleAuthRedirectUrl,
   getNativeAuthRedirectUrl,
   getUserProvider,
   isSupabaseConfigured,
@@ -82,6 +87,39 @@ function parseAuthResultUrl(url: string) {
       hashParams.get("error") ??
       searchParams.get("error"),
   }
+}
+
+function buildAppleUserMetadata(fullName: NativeAppleFullName | null) {
+  const givenName = fullName?.givenName?.trim() ?? ""
+  const middleName = fullName?.middleName?.trim() ?? ""
+  const familyName = fullName?.familyName?.trim() ?? ""
+  const formattedName = [givenName, middleName, familyName]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+
+  if (!formattedName && !givenName && !familyName) {
+    return null
+  }
+
+  return {
+    full_name: formattedName || undefined,
+    name: formattedName || undefined,
+    given_name: givenName || undefined,
+    family_name: familyName || undefined,
+  }
+}
+
+function getOAuthRedirectUrl(provider: SocialProvider) {
+  if (Platform.OS !== "web") {
+    return getNativeAuthRedirectUrl()
+  }
+
+  if (provider === "apple") {
+    return getAppleAuthRedirectUrl() ?? `${window.location.origin}/auth/callback`
+  }
+
+  return `${window.location.origin}/auth/callback`
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -301,73 +339,104 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLastError(null)
     setIsLoadingSession(true)
 
-    if (Platform.OS === "web") {
-      const redirectTo = `${window.location.origin}/auth/callback`
-      const { error } = await supabase.auth.signInWithOAuth({
+    try {
+      if (provider === "apple" && Platform.OS === "ios") {
+        const credential = await signInWithNativeApple()
+        const signInWithIdTokenCredentials: SignInWithIdTokenCredentials = {
+          provider: "apple",
+          token: credential.identityToken,
+          access_token: credential.authorizationCode,
+          ...(credential.nonce ? { nonce: credential.nonce } : {}),
+        }
+
+        const { error } = await supabase.auth.signInWithIdToken(
+          signInWithIdTokenCredentials,
+        )
+
+        if (error) {
+          throw error
+        }
+
+        const appleUserMetadata = buildAppleUserMetadata(credential.fullName)
+        if (appleUserMetadata) {
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: appleUserMetadata,
+          })
+
+          if (updateError) {
+            console.warn("Failed to persist Apple profile metadata.", updateError)
+          }
+        }
+
+        return
+      }
+
+      const redirectTo = getOAuthRedirectUrl(provider)
+
+      if (Platform.OS === "web") {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo,
+          },
+        })
+
+        if (error) {
+          throw error
+        }
+
+        return
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo,
+          skipBrowserRedirect: true,
         },
       })
 
-      if (error) {
-        setIsLoadingSession(false)
-        throw error
+      if (error || !data?.url) {
+        throw error ?? new Error("OAUTH_URL_MISSING")
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+      if (result.type !== "success" || !result.url) {
+        throw new Error("OAUTH_CANCELLED")
+      }
+
+      const { code, accessToken, refreshToken, errorDescription } =
+        parseAuthResultUrl(result.url)
+      if (errorDescription) {
+        throw new Error(errorDescription)
+      }
+
+      if (code) {
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          throw exchangeError
+        }
+        return
+      }
+
+      if (!accessToken || !refreshToken) {
+        throw new Error("OAUTH_SESSION_MISSING")
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+
+      if (sessionError) {
+        throw sessionError
       }
 
       return
-    }
-
-    const redirectTo = getNativeAuthRedirectUrl()
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
-    })
-
-    if (error || !data?.url) {
+    } catch (error) {
       setIsLoadingSession(false)
-      throw error ?? new Error("OAUTH_URL_MISSING")
-    }
-
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-    if (result.type !== "success" || !result.url) {
-      setIsLoadingSession(false)
-      throw new Error("OAUTH_CANCELLED")
-    }
-
-    const { code, accessToken, refreshToken, errorDescription } =
-      parseAuthResultUrl(result.url)
-    if (errorDescription) {
-      setIsLoadingSession(false)
-      throw new Error(errorDescription)
-    }
-
-    if (code) {
-      const { error: exchangeError } =
-        await supabase.auth.exchangeCodeForSession(code)
-      if (exchangeError) {
-        setIsLoadingSession(false)
-        throw exchangeError
-      }
-      return
-    }
-
-    if (!accessToken || !refreshToken) {
-      setIsLoadingSession(false)
-      throw new Error("OAUTH_SESSION_MISSING")
-    }
-
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    })
-
-    if (sessionError) {
-      setIsLoadingSession(false)
-      throw sessionError
+      throw error
     }
   }, [])
 

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdBanner } from '@/components/ads/ad-banner';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { AppleIcon } from '@/components/ui/icons/AppleIcon';
 import { GoogleIcon } from '@/components/ui/icons/GoogleIcon';
 import { KakaoIcon } from '@/components/ui/icons/KakaoIcon';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -14,7 +15,13 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
 import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
-import { getUserAccountLabel, getUserDisplayName, getUserProvider, type SocialProvider } from '@/lib/supabase';
+import {
+  getUserAccountLabel,
+  getUserDisplayName,
+  getUserProvider,
+  isAppleOAuthConfigured,
+  type SocialProvider,
+} from '@/lib/supabase';
 import { useI18n } from '@/utils/i18n';
 import { useToast } from '@/contexts/toast-context';
 
@@ -204,7 +211,13 @@ export default function SettingsScreen() {
       try {
         await signInWithOAuth(provider);
       } catch {
-        showToast(provider === 'google' ? t('settings.googleLoginFailed') : t('settings.kakaoLoginFailed'));
+        showToast(
+          provider === 'google'
+            ? t('settings.googleLoginFailed')
+            : provider === 'kakao'
+              ? t('settings.kakaoLoginFailed')
+              : t('settings.appleLoginFailed'),
+        );
       } finally {
         setIsSubmitting(false);
       }
@@ -288,6 +301,8 @@ export default function SettingsScreen() {
     () => myChurches.filter((church) => church.myRole === 'super_admin'),
     [myChurches],
   );
+  const shouldShowAppleLogin = Platform.OS === 'ios' || isAppleOAuthConfigured();
+  const socialLoginIconColor = theme === 'light' ? '#111827' : '#ffffff';
 
   const userLabel =
     getUserAccountLabel(currentUser) ??
@@ -295,6 +310,8 @@ export default function SettingsScreen() {
       ? t('settings.googleAccountConnected')
       : getUserProvider(currentUser) === 'kakao'
         ? t('settings.kakaoAccountConnected')
+        : getUserProvider(currentUser) === 'apple'
+          ? t('settings.appleAccountConnected')
         : currentUser
           ? t('settings.socialAccountConnected')
           : null);
@@ -522,25 +539,47 @@ export default function SettingsScreen() {
                 <Pressable
                   onPress={() => void handleSocialLogin('google')}
                   disabled={isSubmitting}
-                  className="flex-1 flex-row items-center justify-center rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800"
-                  style={{ gap: scale(8) }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('settings.googleLogin')}
+                  className={`flex-1 items-center justify-center rounded-2xl border px-4 py-4 ${
+                    isSubmitting
+                      ? 'border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900'
+                      : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'
+                  }`}
+                  style={{ minHeight: scale(56) }}
                 >
-                  <GoogleIcon />
-                  <Text className="font-semibold text-gray-900 dark:text-white">
-                    {t('settings.googleLogin')}
-                  </Text>
+                  <GoogleIcon color={socialLoginIconColor} />
                 </Pressable>
                 <Pressable
                   onPress={() => void handleSocialLogin('kakao')}
                   disabled={isSubmitting}
-                  className="flex-1 flex-row items-center justify-center rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800"
-                  style={{ gap: scale(8) }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('settings.kakaoLogin')}
+                  className={`flex-1 items-center justify-center rounded-2xl border px-4 py-4 ${
+                    isSubmitting
+                      ? 'border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900'
+                      : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'
+                  }`}
+                  style={{ minHeight: scale(56) }}
                 >
-                  <KakaoIcon />
-                  <Text className="font-semibold text-gray-900 dark:text-white">
-                    {t('settings.kakaoLogin')}
-                  </Text>
+                  <KakaoIcon color={socialLoginIconColor} />
                 </Pressable>
+                {shouldShowAppleLogin ? (
+                  <Pressable
+                    onPress={() => void handleSocialLogin('apple')}
+                    disabled={isSubmitting}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('settings.appleLogin')}
+                    className={`flex-1 items-center justify-center rounded-2xl border px-4 py-4 ${
+                      isSubmitting
+                        ? 'border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900'
+                        : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'
+                    }`}
+                    style={{ minHeight: scale(56) }}
+                  >
+                    <AppleIcon color={socialLoginIconColor} />
+                  </Pressable>
+                ) : null}
               </View>
             </>
           )}
