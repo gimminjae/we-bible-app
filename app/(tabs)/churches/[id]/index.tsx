@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import {
   ChurchPrayerSheet,
   type ChurchPrayerAudienceOption,
@@ -71,6 +72,7 @@ export default function ChurchDetailScreen() {
     removeMember,
     leaveChurch,
     deleteChurch,
+    updateChurchInfo,
     createTeam,
     createChurchPrayer,
     updateChurchPrayer,
@@ -90,6 +92,7 @@ export default function ChurchDetailScreen() {
   const [createPrayerVisible, setCreatePrayerVisible] = useState(false);
   const [editPrayerVisible, setEditPrayerVisible] = useState(false);
   const [appendPrayerVisible, setAppendPrayerVisible] = useState(false);
+  const [editChurchInfoVisible, setEditChurchInfoVisible] = useState(false);
 
   const churchWidePrayers = useMemo(
     () => churchDetail?.prayers.filter((prayer) => prayer.teamId == null) ?? [],
@@ -408,6 +411,15 @@ export default function ChurchDetailScreen() {
               <Text className="text-2xl font-semibold text-gray-900 dark:text-white">
                 {churchDetail.church.name}
               </Text>
+              {churchDetail.church.description ? (
+                <Text className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                  {churchDetail.church.description}
+                </Text>
+              ) : (
+                <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.noDescription')}
+                </Text>
+              )}
               <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {t('church.memberCount').replace('{count}', String(churchDetail.church.memberCount))}
               </Text>
@@ -420,6 +432,16 @@ export default function ChurchDetailScreen() {
 
             <View className="items-end gap-2">
               {churchDetail.church.myRole ? <ChurchRoleBadge role={churchDetail.church.myRole} /> : null}
+              {churchDetail.church.isSuperAdmin ? (
+                <Pressable
+                  onPress={() => setEditChurchInfoVisible(true)}
+                  className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
+                >
+                  <Text className="font-semibold text-gray-900 dark:text-white">
+                    {t('church.editInfo')}
+                  </Text>
+                </Pressable>
+              ) : null}
               {dataUserId &&
               churchDetail.church.myRole &&
               churchDetail.church.myRole !== 'super_admin' ? (
@@ -1151,6 +1173,33 @@ export default function ChurchDetailScreen() {
               prayerError instanceof Error
                 ? prayerError.message
                 : t('church.prayerContentAddFailed'),
+            );
+          } finally {
+            setProcessingKey(null);
+          }
+        }}
+      />
+
+      <ChurchInfoSheet
+        visible={editChurchInfoVisible}
+        mode="edit"
+        initialName={churchDetail.church.name}
+        initialDescription={churchDetail.church.description}
+        isSubmitting={processingKey === 'update-church-info'}
+        onClose={() => setEditChurchInfoVisible(false)}
+        onSubmit={async (input) => {
+          setProcessingKey('update-church-info');
+          try {
+            await updateChurchInfo({
+              churchId: churchDetail.church.id,
+              name: input.name,
+              description: input.description,
+            });
+            setEditChurchInfoVisible(false);
+            showToast(t('toast.churchUpdated'));
+          } catch (churchError) {
+            showToast(
+              churchError instanceof Error ? churchError.message : t('church.updateFailed'),
             );
           } finally {
             setProcessingKey(null);

@@ -22,6 +22,7 @@ import {
   requestChurchJoin,
   searchChurches,
   transferChurchSuperAdmin as transferChurchSuperAdminRequest,
+  updateChurchInfo as updateChurchInfoRequest,
   updateChurchMemberRole,
   updateChurchMemberTeam,
   updateChurchPrayer as updateChurchPrayerRequest,
@@ -145,10 +146,14 @@ export function useChurchActions() {
     }
 
     return {
-      async createChurch(name: string) {
-        const churchId = await createChurchRequest(name);
+      async createChurch(args: { name: string; description: string }) {
+        const churchId = await createChurchRequest(args);
         await invalidateChurchQueries(churchId);
         return churchId;
+      },
+      async updateChurchInfo(args: { churchId: string; name: string; description: string }) {
+        await updateChurchInfoRequest(args);
+        await invalidateChurchQueries(args.churchId);
       },
       async requestJoin(churchId: string) {
         await requestChurchJoin(churchId, requireUserId(dataUserId));

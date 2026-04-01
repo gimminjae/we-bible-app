@@ -117,6 +117,7 @@ export type ChurchTeam = {
 export type ChurchSummary = {
   id: string;
   name: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
   memberCount: number;
@@ -134,6 +135,7 @@ export type ChurchDetail = {
   church: {
     id: string;
     name: string;
+    description: string;
     createdAt: string;
     updatedAt: string;
     createdByUserId: string;
@@ -191,6 +193,7 @@ type UserProfileRow = {
 type ChurchRow = {
   id: number;
   name: string | null;
+  description: string | null;
   created_at: string | null;
   updated_at: string | null;
   created_by_user_id: string | null;
@@ -537,11 +540,29 @@ export async function syncUserProfileFromAuthUser(user: User) {
   if (error) throw error;
 }
 
-export async function createChurch(name: string) {
+export async function createChurch(args: { name: string; description: string }) {
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase.rpc("create_church", { p_name: name.trim() });
+  const { data, error } = await supabase.rpc("create_church", {
+    p_name: args.name.trim(),
+    p_description: args.description.trim(),
+  });
   if (error) throw error;
   return String(data);
+}
+
+export async function updateChurchInfo(args: {
+  churchId: string;
+  name: string;
+  description: string;
+}) {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.rpc("update_church_info", {
+    p_church_id: Number(args.churchId),
+    p_name: args.name.trim(),
+    p_description: args.description.trim(),
+  });
+
+  if (error) throw error;
 }
 
 export async function requestChurchJoin(churchId: string, userId: string) {
@@ -573,7 +594,7 @@ export async function fetchMyChurches(userId: string): Promise<ChurchSummary[]> 
   const [{ data: churchData, error: churchError }, { data: teamData, error: teamError }] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
       .in("id", churchIds),
     teamIds.length
       ? supabase.from("teams").select("id, church_id, name, created_at, updated_at, created_by_user_id, leader_user_id").in("id", teamIds)
@@ -592,6 +613,7 @@ export async function fetchMyChurches(userId: string): Promise<ChurchSummary[]> 
       return {
         id: String(church.id),
         name: church.name ?? "",
+        description: church.description?.trim() ?? "",
         createdAt: church.created_at ?? "",
         updatedAt: church.updated_at ?? "",
         memberCount: Math.max(0, Math.floor(toNumber(church.member_count, 0))),
@@ -620,7 +642,7 @@ export async function fetchMySharedPlans(currentUserId: string): Promise<MyShare
   const [{ data: churchData, error: churchError }, { data: planData, error: planError }] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
       .in("id", churchIds),
     supabase
       .from("plans")
@@ -706,7 +728,7 @@ export async function searchChurches(userId: string, searchTerm: string): Promis
   const supabase = createSupabaseClient();
   const { data: churchData, error: churchError } = await supabase
     .from("churches")
-    .select("id, name, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+    .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
     .ilike("name", `%${keyword}%`)
     .order("name", { ascending: true })
     .limit(20);
@@ -743,6 +765,7 @@ export async function searchChurches(userId: string, searchTerm: string): Promis
     return {
       id: String(church.id),
       name: church.name ?? "",
+      description: church.description?.trim() ?? "",
       createdAt: church.created_at ?? "",
       updatedAt: church.updated_at ?? "",
       memberCount: Math.max(0, Math.floor(toNumber(church.member_count, 0))),
@@ -769,7 +792,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
   ] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
       .eq("id", numericChurchId)
       .maybeSingle(),
     supabase
@@ -958,6 +981,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
     church: {
       id: String(church.id),
       name: church.name ?? "",
+      description: church.description?.trim() ?? "",
       createdAt: church.created_at ?? "",
       updatedAt: church.updated_at ?? "",
       createdByUserId: church.created_by_user_id ?? "",

@@ -12,7 +12,7 @@
 --
 -- Notes:
 --   - Church/team lifecycle changes that must bypass direct table access
---     (create_church, set_team_leader, set_church_member_team, remove_church_member,
+--     (create_church, update_church_info, set_team_leader, set_church_member_team, remove_church_member,
 --      transfer_church_super_admin, delete_church_as_super_admin, delete_my_account)
 --     should continue to use SECURITY DEFINER RPC functions.
 --   - Team-scoped shared plans are readable by their target team members and church admins.
