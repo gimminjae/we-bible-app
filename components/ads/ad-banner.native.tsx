@@ -54,24 +54,7 @@ export function AdBanner({ className }: AdBannerProps) {
     };
   }, [hasNativeAdsModule, unitId]);
 
-  if (!hasNativeAdsModule) {
-    return (
-      <View className={className} style={{ marginTop: scale(12) }}>
-        <View
-          className="rounded-xl border border-dashed border-gray-300 bg-gray-100 px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-          style={{ gap: scale(8) }}
-        >
-          <Text className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-            광고 영역 미리보기 (Expo Go)
-          </Text>
-          <View className="h-24 w-full rounded-lg bg-gray-200 dark:bg-gray-800" />
-          <View className="h-3 w-4/5 rounded bg-gray-200 dark:bg-gray-800" />
-          <View className="h-3 w-3/5 rounded bg-gray-200 dark:bg-gray-800" />
-          <View className="mt-1 h-9 w-28 rounded-lg bg-primary-400/70" />
-        </View>
-      </View>
-    );
-  }
+  if (!hasNativeAdsModule) return null;
 
   if (!nativeAd || !adApi) return null;
 
@@ -84,79 +67,76 @@ export function AdBanner({ className }: AdBannerProps) {
   const adBadgeMinWidth = Math.max(scale(94), 94);
   const adChoicesReservedWidth = Math.max(scale(28), 28);
 
+  const nativeAdClassName = [
+    className,
+    "rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <View className={className} style={{ marginTop: scale(12) }}>
-      <NativeAdView nativeAd={nativeAd}>
+    <NativeAdView nativeAd={nativeAd} className={nativeAdClassName} style={{ marginTop: scale(12), gap: scale(8) }}>
+      <View className="flex-row items-start justify-between">
         <View
-          className="rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-          style={{ gap: scale(8) }}
+          className="rounded-md bg-black px-2.5 py-0.5"
+          style={{
+            minHeight: adBadgeHeight,
+            minWidth: adBadgeMinWidth,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
-          <View className="flex-row items-start justify-between">
-            <View
-              className="rounded-md bg-black px-2.5 py-0.5"
-              style={{
-                minHeight: adBadgeHeight,
-                minWidth: adBadgeMinWidth,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              {/* Keep attribution text explicit and high-contrast so validator can detect it reliably. */}
-              <Text className="text-[11px] font-semibold text-white" numberOfLines={1}>
-                {adAttributionLabel}
-              </Text>
-            </View>
-
-            <View
-              pointerEvents="none"
-              style={{ width: adChoicesReservedWidth, height: adBadgeHeight }}
-            />
-          </View>
-
-          <View className="flex-row items-center" style={{ gap: scale(8) }}>
-            {nativeAd.icon ? (
-              <NativeAsset assetType={NativeAssetType.ICON}>
-                <Image
-                  source={{ uri: nativeAd.icon.url }}
-                  style={{ width: scale(28), height: scale(28), borderRadius: scale(6) }}
-                />
-              </NativeAsset>
-            ) : null}
-
-            <NativeAsset assetType={NativeAssetType.HEADLINE}>
-              <Text className="flex-1 font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
-                {nativeAd.headline}
-              </Text>
-            </NativeAsset>
-          </View>
-
-          {nativeAd.advertiser ? (
-            <NativeAsset assetType={NativeAssetType.ADVERTISER}>
-              <Text className="text-xs font-medium text-gray-500 dark:text-gray-400" numberOfLines={1}>
-                {nativeAd.advertiser}
-              </Text>
-            </NativeAsset>
-          ) : null}
-
-          <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
-
-          {nativeAd.body ? (
-            <NativeAsset assetType={NativeAssetType.BODY}>
-              <Text className="text-sm text-gray-700 dark:text-gray-200" numberOfLines={2}>
-                {nativeAd.body}
-              </Text>
-            </NativeAsset>
-          ) : null}
-
-          {nativeAd.callToAction ? (
-            <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
-              <Text className="rounded-lg bg-primary-500 px-3 py-2 text-center font-semibold text-white">
-                {nativeAd.callToAction}
-              </Text>
-            </NativeAsset>
-          ) : null}
+          {/* Keep attribution text explicit and high-contrast so validator can detect it reliably. */}
+          <Text className="text-[11px] font-semibold text-white" numberOfLines={1}>
+            {adAttributionLabel}
+          </Text>
         </View>
-      </NativeAdView>
-    </View>
+
+        <View pointerEvents="none" style={{ width: adChoicesReservedWidth, height: adBadgeHeight }} />
+      </View>
+
+      <View className="flex-row items-center" style={{ gap: scale(8) }}>
+        {nativeAd.icon ? (
+          <NativeAsset assetType={NativeAssetType.ICON}>
+            <Image
+              source={{ uri: nativeAd.icon.url }}
+              style={{ width: scale(28), height: scale(28), borderRadius: scale(6) }}
+            />
+          </NativeAsset>
+        ) : null}
+
+        <NativeAsset assetType={NativeAssetType.HEADLINE}>
+          <Text className="flex-1 font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
+            {nativeAd.headline}
+          </Text>
+        </NativeAsset>
+      </View>
+
+      {nativeAd.advertiser ? (
+        <NativeAsset assetType={NativeAssetType.ADVERTISER}>
+          <Text className="text-xs font-medium text-gray-500 dark:text-gray-400" numberOfLines={1}>
+            {nativeAd.advertiser}
+          </Text>
+        </NativeAsset>
+      ) : null}
+
+      <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
+
+      {nativeAd.body ? (
+        <NativeAsset assetType={NativeAssetType.BODY}>
+          <Text className="text-sm text-gray-700 dark:text-gray-200" numberOfLines={2}>
+            {nativeAd.body}
+          </Text>
+        </NativeAsset>
+      ) : null}
+
+      {nativeAd.callToAction ? (
+        <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
+          <Text className="rounded-lg bg-primary-500 px-3 py-2 text-center font-semibold text-white">
+            {nativeAd.callToAction}
+          </Text>
+        </NativeAsset>
+      ) : null}
+    </NativeAdView>
   );
 }
