@@ -79,8 +79,9 @@ export function AdBanner({ className }: AdBannerProps) {
   const NativeAsset = adApi.NativeAsset;
   const NativeMediaView = adApi.NativeMediaView;
   const NativeAssetType = adApi.NativeAssetType;
-  const adBadgeHeight = Math.max(scale(20), 20);
-  const adBadgeMinWidth = Math.max(scale(32), 32);
+  const adAttributionLabel = "Sponsored";
+  const adBadgeHeight = Math.max(scale(22), 22);
+  const adBadgeMinWidth = Math.max(scale(94), 94);
   const adChoicesReservedWidth = Math.max(scale(28), 28);
 
   return (
@@ -92,7 +93,7 @@ export function AdBanner({ className }: AdBannerProps) {
         >
           <View className="flex-row items-start justify-between">
             <View
-              className="rounded-md bg-black px-2"
+              className="rounded-md bg-black px-2.5 py-0.5"
               style={{
                 minHeight: adBadgeHeight,
                 minWidth: adBadgeMinWidth,
@@ -100,8 +101,9 @@ export function AdBanner({ className }: AdBannerProps) {
                 alignItems: "center",
               }}
             >
-              <Text className="text-[12px] font-bold uppercase tracking-[0.3px] text-white">
-                Ad
+              {/* Keep attribution text explicit and high-contrast so validator can detect it reliably. */}
+              <Text className="text-[11px] font-semibold text-white" numberOfLines={1}>
+                {adAttributionLabel}
               </Text>
             </View>
 
@@ -158,4 +160,3 @@ export function AdBanner({ className }: AdBannerProps) {
     </View>
   );
 }
-
