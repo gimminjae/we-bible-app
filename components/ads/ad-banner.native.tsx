@@ -1,7 +1,7 @@
 import { useResponsive } from "@/hooks/use-responsive";
 import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from "@/lib/google-mobile-ads";
 import { useEffect, useMemo, useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, Platform, Text, View } from "react-native";
 
 type AdBannerProps = {
   className?: string;
@@ -63,19 +63,24 @@ export function AdBanner({ className }: AdBannerProps) {
   const NativeMediaView = adApi.NativeMediaView;
   const NativeAssetType = adApi.NativeAssetType;
 
-  // Keep attribution explicit, localized, and large enough for the validator to detect.
-  const adAttributionLabel = "\uAD11\uACE0";
+  // Keep attribution explicit and easy for the iOS validator to recognize.
+  const adAttributionLabel = Platform.OS === "ios" ? "Ad" : "\uAD11\uACE0";
   const adBadgeHeight = Math.max(scale(22), 22);
   const adBadgeMinWidth = Math.max(scale(42), 42);
   const adChoicesReservedWidth = Math.max(scale(40), 40);
+  const adContentTopPadding = adBadgeHeight + scale(10);
 
   const nativeAdClassName = [className, "rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <NativeAdView nativeAd={nativeAd} className={nativeAdClassName} style={{ marginTop: scale(12), gap: scale(8) }}>
-      <View className="flex-row items-start justify-between">
+    <NativeAdView
+      nativeAd={nativeAd}
+      className={nativeAdClassName}
+      style={{ marginTop: scale(12), gap: scale(8), position: "relative", paddingTop: adContentTopPadding }}
+    >
+      <View className="flex-row items-start justify-between" pointerEvents="none" style={{ left: 0, position: "absolute", right: 0, top: 0, zIndex: 1 }}>
         <View
           className="rounded-md bg-black px-3"
           style={{
@@ -90,7 +95,7 @@ export function AdBanner({ className }: AdBannerProps) {
           </Text>
         </View>
 
-        <View pointerEvents="none" style={{ width: adChoicesReservedWidth, height: adBadgeHeight }} />
+        <View style={{ width: adChoicesReservedWidth, height: adBadgeHeight }} />
       </View>
 
       <View className="flex-row items-center" style={{ gap: scale(8) }}>
