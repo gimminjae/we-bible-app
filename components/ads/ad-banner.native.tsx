@@ -30,6 +30,7 @@ export function AdBanner({ className }: AdBannerProps) {
         if (!mounted || !mod) return undefined;
         setAdApi(mod);
         return mod.NativeAd.createForAdRequest(unitId, {
+          adChoicesPlacement: mod.NativeAdChoicesPlacement.TOP_RIGHT,
           aspectRatio: mod.NativeMediaAspectRatio.LANDSCAPE,
           startVideoMuted: true,
         });
@@ -78,6 +79,9 @@ export function AdBanner({ className }: AdBannerProps) {
   const NativeAsset = adApi.NativeAsset;
   const NativeMediaView = adApi.NativeMediaView;
   const NativeAssetType = adApi.NativeAssetType;
+  const adBadgeHeight = Math.max(scale(20), 20);
+  const adBadgeMinWidth = Math.max(scale(32), 32);
+  const adChoicesReservedWidth = Math.max(scale(28), 28);
 
   return (
     <View className={className} style={{ marginTop: scale(12) }}>
@@ -86,9 +90,26 @@ export function AdBanner({ className }: AdBannerProps) {
           className="rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
           style={{ gap: scale(8) }}
         >
-          <Text className="self-start rounded bg-gray-100 px-2 py-1 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-            Sponsored
-          </Text>
+          <View className="flex-row items-start justify-between">
+            <View
+              className="rounded-md bg-black px-2"
+              style={{
+                minHeight: adBadgeHeight,
+                minWidth: adBadgeMinWidth,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text className="text-[12px] font-bold uppercase tracking-[0.3px] text-white">
+                Ad
+              </Text>
+            </View>
+
+            <View
+              pointerEvents="none"
+              style={{ width: adChoicesReservedWidth, height: adBadgeHeight }}
+            />
+          </View>
 
           <View className="flex-row items-center" style={{ gap: scale(8) }}>
             {nativeAd.icon ? (
@@ -106,6 +127,14 @@ export function AdBanner({ className }: AdBannerProps) {
               </Text>
             </NativeAsset>
           </View>
+
+          {nativeAd.advertiser ? (
+            <NativeAsset assetType={NativeAssetType.ADVERTISER}>
+              <Text className="text-xs font-medium text-gray-500 dark:text-gray-400" numberOfLines={1}>
+                {nativeAd.advertiser}
+              </Text>
+            </NativeAsset>
+          ) : null}
 
           <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
 
