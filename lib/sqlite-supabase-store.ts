@@ -35,9 +35,7 @@ const ACTIVE_DATA_USER_ID_KEY = 'activeDataUserId';
 const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
-const POINT_CLAIMED_STEP_UNITS_KEY = 'pointClaimedStepUnitsByDate';
 const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
-const STEP_REWARD_USED_DATE_KEY = 'stepRewardUsedDate';
 const GRASS_META_ROW_DATE = '__meta__';
 
 const PERSISTED_SLICE_KEYS = ['appState', 'favorites', 'memos', 'plans', 'prayers', 'grassData'] as const;
@@ -119,7 +117,6 @@ export type PersistedStateSnapshot = {
   plans: PersistedPlanRecord[];
   grassData: GrassDataMap;
   grassTheme: GrassColorTheme;
-  stepRewardUsedDate: string | null;
 };
 
 type StateRecord = {
@@ -254,7 +251,6 @@ const DEFAULT_STATE: PersistedStateSnapshot = {
   plans: [],
   grassData: {},
   grassTheme: 'green',
-  stepRewardUsedDate: null,
 };
 
 let persistWriteQueue: Promise<void> = Promise.resolve();
@@ -607,16 +603,12 @@ async function readLocalGrassTheme(db: SQLiteDatabase): Promise<GrassColorTheme>
   return isGrassTheme(value) ? value : DEFAULT_STATE.grassTheme;
 }
 
-async function readLocalStepRewardUsedDate(db: SQLiteDatabase): Promise<string | null> {
-  return await getBibleStateValue(db, STEP_REWARD_USED_DATE_KEY);
-}
-
 export async function getLocalDataOwnerUserId(db: SQLiteDatabase): Promise<string | null> {
   return await getBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY);
 }
 
 export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<PersistedStateSnapshot> {
-  const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme, stepRewardUsedDate] =
+  const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme] =
     await Promise.all([
       readLocalTheme(db),
       readLocalAppLanguage(db),
@@ -627,7 +619,6 @@ export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<Per
       readLocalPrayers(db),
       readLocalGrassData(db),
       readLocalGrassTheme(db),
-      readLocalStepRewardUsedDate(db),
     ]);
 
   return createInitialSnapshot({
@@ -640,7 +631,6 @@ export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<Per
     prayers,
     grassData,
     grassTheme,
-    stepRewardUsedDate,
   });
 }
 
@@ -854,7 +844,6 @@ async function replaceGrass(userId: string, state: PersistedStateSnapshot): Prom
     data: {
       type: 'meta',
       grassTheme: state.grassTheme,
-      stepRewardUsedDate: state.stepRewardUsedDate,
     },
   });
 
@@ -1026,7 +1015,7 @@ export async function loadPersistedStateFromSupabase(
   const metaRow = grassRows.find((row) => row.date === GRASS_META_ROW_DATE);
   const meta =
     metaRow && typeof metaRow.data === 'object' && metaRow.data !== null
-      ? (metaRow.data as { grassTheme?: unknown; stepRewardUsedDate?: unknown })
+      ? (metaRow.data as { grassTheme?: unknown })
       : null;
 
   return createInitialSnapshot({
@@ -1097,7 +1086,6 @@ export async function loadPersistedStateFromSupabase(
         .map((row) => [row.date, normalizeGrassDayValue(row.date, row.data)]),
     ),
     grassTheme: isGrassTheme(meta?.grassTheme) ? meta.grassTheme : DEFAULT_STATE.grassTheme,
-    stepRewardUsedDate: typeof meta?.stepRewardUsedDate === 'string' ? meta.stepRewardUsedDate : null,
   });
 }
 
@@ -1124,9 +1112,7 @@ async function replaceLocalPersistedState(
       PENDING_NAVIGATION_KEY,
       LAST_AUTO_SYNC_AT_KEY,
       POINT_TOTAL_KEY,
-      POINT_CLAIMED_STEP_UNITS_KEY,
       GRASS_COLOR_THEME_KEY,
-      STEP_REWARD_USED_DATE_KEY,
     ];
 
     for (const key of keysToDelete) {
@@ -1137,9 +1123,6 @@ async function replaceLocalPersistedState(
     await setBibleStateValue(db, APP_LANGUAGE_KEY, state.appLanguage);
     await setBibleStateValue(db, BIBLE_SEARCH_INFO_KEY, JSON.stringify(state.bible));
     await setBibleStateValue(db, GRASS_COLOR_THEME_KEY, state.grassTheme);
-    if (state.stepRewardUsedDate) {
-      await setBibleStateValue(db, STEP_REWARD_USED_DATE_KEY, state.stepRewardUsedDate);
-    }
 
     for (const favorite of state.favorites) {
       await db.runAsync(

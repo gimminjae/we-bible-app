@@ -7,14 +7,12 @@ import { AdBanner } from '@/components/ads/ad-banner';
 import { BibleGrass } from '@/components/bible-grass';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useResponsive } from '@/hooks/use-responsive';
-import { useStepCount } from '@/hooks/use-step-count';
 import { useI18n } from '@/utils/i18n';
 
 export default function MyPageScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
-  const { steps, available, meetsGoal } = useStepCount();
 
   const renderMenuCard = (
     key: string,
@@ -65,25 +63,6 @@ export default function MyPageScreen() {
           >
             {t('mypage.title')}
           </Text>
-          {available !== false ? (
-            <View
-              className={`rounded-lg px-3 py-2 ${
-                meetsGoal
-                  ? 'bg-emerald-100 dark:bg-emerald-900/40'
-                  : 'bg-gray-100 dark:bg-gray-800'
-              }`}
-            >
-              <Text
-                className={`text-sm font-medium ${
-                  meetsGoal
-                    ? 'text-emerald-700 dark:text-emerald-300'
-                    : 'text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                {t('mypage.pointStepsToday').replace('{steps}', String(steps))}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         <BibleGrass />
