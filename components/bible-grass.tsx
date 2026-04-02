@@ -68,6 +68,7 @@ const GRASS_THEME_OPTIONS: GrassColorTheme[] = [
   "purple",
   "sky",
 ]
+const REWARD_MODAL_CLOSE_DELAY_SECONDS = 3
 
 function toDateString(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0")
@@ -83,6 +84,7 @@ function getSundayBefore(d: Date): Date {
 }
 
 type CellInfo = { dateStr: string; count: number }
+type RewardModalAction = "changeColor" | "fillGrass"
 
 /** row 0 = Sunday, row 1 = Mon, ..., row 6 = Sat (일요일 기준 주) */
 const ROW_TO_DAY_OFFSET = [0, 1, 2, 3, 4, 5, 6]
@@ -269,6 +271,9 @@ export function BibleGrass() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [grassTheme, setGrassTheme] = useState<GrassColorTheme>("green")
   const [stepRewardUsedToday, setStepRewardUsedToday] = useState(false)
+  const [rewardModalAction, setRewardModalAction] = useState<RewardModalAction | null>(null)
+  const [rewardModalSecondsLeft, setRewardModalSecondsLeft] = useState(0)
+  const [rewardModalSubmitting, setRewardModalSubmitting] = useState(false)
 
   const load = useCallback(() => {
     getGrassData(db).then(setGrassData)
@@ -315,6 +320,20 @@ export function BibleGrass() {
     setSelectedDate(null)
   }, [selectedYear])
 
+  useEffect(() => {
+    if (!rewardModalAction) {
+      setRewardModalSecondsLeft(0)
+      return
+    }
+
+    setRewardModalSecondsLeft(REWARD_MODAL_CLOSE_DELAY_SECONDS)
+    const countdownId = setInterval(() => {
+      setRewardModalSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+
+    return () => clearInterval(countdownId)
+  }, [rewardModalAction])
+
   const monthLabels = useMemo(
     () => getMonthLabels(selectedYear),
     [selectedYear],
@@ -348,11 +367,24 @@ export function BibleGrass() {
   const canUseFreeStepReward = meetsGoal && !stepRewardUsedToday
   const needsAdForStepFeature = (meetsGoal && stepRewardUsedToday) || !pedometerAvailable
   const stepGoalNotMet = !meetsGoal && pedometerAvailable
+  const rewardModalClosable = rewardModalSecondsLeft <= 0 && !rewardModalSubmitting
+  const rewardModalVisible = rewardModalAction !== null
 
   const markStepRewardUsed = useCallback(async () => {
     await setStepRewardUsedDateToDb(db, getTodayString())
     setStepRewardUsedToday(true)
   }, [db])
+
+  const openRewardModal = useCallback((action: RewardModalAction) => {
+    setRewardModalSubmitting(false)
+    setRewardModalAction(action)
+  }, [])
+
+  const closeRewardModal = useCallback(() => {
+    if (!rewardModalClosable) return
+    setRewardModalAction(null)
+    setRewardModalSubmitting(false)
+  }, [rewardModalClosable])
 
   const performColorChange = useCallback(async () => {
     const nextTheme = pickRandomNextTheme(grassTheme)
@@ -392,6 +424,10 @@ export function BibleGrass() {
       return
     }
     const useAd = needsAdForStepFeature
+    if (useAd && Platform.OS !== "web") {
+      openRewardModal("changeColor")
+      return
+    }
     const confirmMsg = useAd ? t("grass.changeColorConfirm") : t("grass.changeColorConfirmFree")
     Alert.alert(t("grass.changeColorTitle"), confirmMsg, [
       { text: t("grass.changeColorCancel"), style: "cancel" },
@@ -402,7 +438,7 @@ export function BibleGrass() {
         },
       },
     ])
-  }, [handleChangeColorTheme, needsAdForStepFeature, stepGoalNotMet, showToast, t])
+  }, [handleChangeColorTheme, needsAdForStepFeature, openRewardModal, stepGoalNotMet, showToast, t])
 
   const performFillGrass = useCallback(async () => {
     if (!selectedDate || !canFillSelectedDate) return
@@ -450,6 +486,10 @@ export function BibleGrass() {
       return
     }
     const useAd = needsAdForStepFeature
+    if (useAd && Platform.OS !== "web") {
+      openRewardModal("fillGrass")
+      return
+    }
     const confirmMsg = useAd ? t("grass.fillConfirm") : t("grass.fillConfirmFree")
     Alert.alert(t("grass.fillTitle"), confirmMsg, [
       { text: t("grass.fillCancel"), style: "cancel" },
@@ -460,7 +500,38 @@ export function BibleGrass() {
         },
       },
     ])
-  }, [canFillSelectedDate, handleFillPastGrass, needsAdForStepFeature, selectedDate, stepGoalNotMet, showToast, t])
+  }, [canFillSelectedDate, handleFillPastGrass, needsAdForStepFeature, openRewardModal, selectedDate, stepGoalNotMet, showToast, t])
+
+  const handleConfirmRewardModal = useCallback(async () => {
+    if (!rewardModalAction || rewardModalSubmitting || !adLoaded) return
+
+    const nextAction = rewardModalAction
+    setRewardModalSubmitting(true)
+    setRewardModalAction(null)
+
+    try {
+      if (nextAction === "changeColor") {
+        await handleChangeColorTheme(true)
+      } else {
+        await handleFillPastGrass(true)
+      }
+    } finally {
+      setRewardModalSubmitting(false)
+    }
+  }, [adLoaded, handleChangeColorTheme, handleFillPastGrass, rewardModalAction, rewardModalSubmitting])
+
+  const rewardModalTitle =
+    rewardModalAction === "fillGrass" ? t("grass.fillTitle") : t("grass.changeColorTitle")
+  const rewardModalMessage =
+    rewardModalAction === "fillGrass" ? t("grass.fillConfirm") : t("grass.changeColorConfirm")
+  const rewardModalCloseLabel = rewardModalClosable
+    ? t("grass.rewardModalClose")
+    : t("grass.rewardModalCloseLocked").replace("{seconds}", String(rewardModalSecondsLeft))
+  const rewardModalPrimaryLabel = rewardModalSubmitting
+    ? t("grass.rewardModalOpeningAd")
+    : adLoaded
+      ? t("grass.rewardModalWatchAd")
+      : t("grass.rewardModalLoading")
 
   return (
     <View
@@ -705,6 +776,87 @@ export function BibleGrass() {
                 </Text>
               </Pressable>
             ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={rewardModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeRewardModal}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-center px-5"
+          onPress={rewardModalClosable ? closeRewardModal : undefined}
+        >
+          <Pressable
+            className="rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
+            style={{ paddingHorizontal: scale(18), paddingVertical: scale(18) }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="font-bold text-gray-900 dark:text-white"
+              style={{ fontSize: moderateScale(18) }}
+            >
+              {rewardModalTitle}
+            </Text>
+
+            <Text
+              className="mt-3 text-gray-700 dark:text-gray-300"
+              style={{ fontSize: moderateScale(14), lineHeight: moderateScale(22) }}
+            >
+              {rewardModalMessage}
+            </Text>
+
+            <View
+              className="mt-4 rounded-2xl bg-gray-100 dark:bg-gray-800"
+              style={{ paddingHorizontal: scale(14), paddingVertical: scale(12) }}
+            >
+              <Text
+                className="text-gray-600 dark:text-gray-300"
+                style={{ fontSize: moderateScale(13), lineHeight: moderateScale(20) }}
+              >
+                {t("grass.rewardModalDescription")}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                void handleConfirmRewardModal()
+              }}
+              disabled={!adLoaded || rewardModalSubmitting}
+              className={`mt-5 items-center justify-center rounded-2xl ${
+                !adLoaded || rewardModalSubmitting ? "bg-gray-300 dark:bg-gray-700" : "bg-primary-500"
+              }`}
+              style={{ minHeight: scale(48) }}
+            >
+              <Text className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
+                {rewardModalPrimaryLabel}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={closeRewardModal}
+              disabled={!rewardModalClosable}
+              className={`mt-3 items-center justify-center rounded-2xl border ${
+                rewardModalClosable
+                  ? "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+                  : "border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-800"
+              }`}
+              style={{ minHeight: scale(44) }}
+            >
+              <Text
+                className={
+                  rewardModalClosable
+                    ? "font-medium text-gray-700 dark:text-gray-200"
+                    : "font-medium text-gray-400 dark:text-gray-500"
+                }
+                style={{ fontSize: moderateScale(14) }}
+              >
+                {rewardModalCloseLabel}
+              </Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>

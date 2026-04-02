@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { AdBanner } from '@/components/ads/ad-banner';
 import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -343,6 +344,10 @@ export default function ChurchesScreen() {
               </Pressable>
             ))
           )}
+        </View>
+
+        <View className="mt-2">
+          <AdBanner />
         </View>
       </ScrollView>
 

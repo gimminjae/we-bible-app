@@ -1,103 +1,111 @@
-# Welcome to your Expo app 👋
+# We Bible
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+위바이블(We Bible) - 매일의 말씀 묵상을 더 깊고 꾸준하게
 
-## TODO
+체계적인 성경 읽기 습관을 만들고 싶으신가요?  
+위바이블은 성경 읽기부터 묵상 기록, 기도 관리, 교회 공동체 기능까지 여러분의 신앙생활이 매일매일 성장할 수 있도록 돕는 앱입니다. 직관적이고 눈이 편안한 디자인으로 오직 말씀에만 집중해 보세요.
 
-- ~~성경읽기~~
-- ~~관심~~
-- ~~메모~~
-- ~~화이트/다크 모드~~
-- 테마
-- ~~i18n~~
-- ~~성경 언어버전 선택~~
-- ~~성경복사~~
-- ~~기도목록~~
-- ~~성경읽기표~~
-- ~~성경 목표세워 읽기~~
-- ~~성경 잔디~~
-- ~~소셜 로그인(kakao, google)~~
-- ~~sqlite 파일 데이터 동기화~~
-- ~~닉네임 변경~~
-- ~~비밀번호 변경~~
-- 성경 인물 탐구 기능
-- 비밀번호 재설정
-- 푯대말씀 기능 (알림)
-- 개발자에게 한마디, 1:1문의 (firebase)
-- 광고 넣기
-- 성경 잔디 테마 바꾸기
-- 성경 이력 채우기
+## 주요 기능
 
-## Challenge TODO
-- 공동체(교회) 기능
-- 공동체 초대
-- 공동체 인원 확장 및 결제
-- 성경 읽기표 공동 목표 기능 - 성경 함께 읽기
+### 편안한 성경 읽기 & 다크 모드
 
+- 군더더기 없는 깔끔한 UI로 성경을 읽을 수 있습니다.
+- 시스템 언어 설정과 눈이 편안한 다크 모드를 지원합니다.
 
-## Get started
+### 한눈에 보는 성경 읽기 습관
 
-1. Install dependencies
+- 오늘 어떤 말씀을 얼마나 읽었는지 캘린더에 직관적으로 기록됩니다.
+- 매일매일 색이 채워지는 달력을 보며 꾸준한 성경 읽기 습관을 만들 수 있습니다.
 
-   ```bash
-   npm install
-   ```
+### 관심 성경 구절 스크랩
 
-2. Start the app
+- 성경을 읽다가 마음에 와닿은 구절은 바로 저장할 수 있습니다.
+- 관심 성경 구절 목록에서 은혜로운 말씀을 언제든 다시 꺼내어 볼 수 있습니다.
 
-   ```bash
-   npx expo start
-   ```
+### 깊이 있는 묵상 메모
 
-3. (Optional) Enable account login with Supabase
+- 말씀을 통해 깨달은 은혜와 감동을 메모로 남길 수 있습니다.
+- 묵상 메모 목록을 통해 나의 영적 성장의 발자취를 돌아볼 수 있습니다.
 
-   Create a `.env` file at project root:
+### 나만의 기도 목록 관리
 
-   ```bash
-   EXPO_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
-   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
-   ```
+- 매일 잊지 않고 기도해야 할 제목들을 기록하고 관리할 수 있습니다.
+- 체계적인 기도 생활을 꾸준히 이어갈 수 있도록 돕습니다.
 
-   If these values are not set, the app still works normally without login.
+### 성경 읽기표 & 계획
 
-4. (Optional) Enable Supabase social OAuth
+- 막연했던 성경 통독을 계획적으로 시작할 수 있습니다.
+- 나만의 속도에 맞춘 성경 읽기표를 통해 통독 목표를 세울 수 있습니다.
 
-   - In Supabase Dashboard: `Authentication > Providers > Google` and/or `Kakao` enable provider.
-   - Add redirect URL using app scheme:
-     - `webibleapp://auth/callback`
-   - In Google Cloud OAuth, register the Supabase callback URL and client credentials.
-   - In Kakao Developers, register the Supabase callback URL as the Redirect URI.
-   - Because native social auth uses the app scheme callback, test it in a development build or a release build, not Expo Go.
+### 안전한 데이터 연동
 
-In the output, you'll find options to open the app in a
+- 구글, 카카오, 애플 로그인 등 계정 연동을 통해 소중한 기록들을 보관할 수 있습니다.
+- 기기를 변경해도 읽기 기록, 메모, 기도 제목을 다시 불러올 수 있습니다.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 교회 기능
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 교회 생성, 검색, 가입 신청
 
-## Get a fresh project
+- 교회를 직접 생성하고 이름과 설명을 관리할 수 있습니다.
+- 원하는 교회를 검색하고 가입 신청을 보낼 수 있습니다.
 
-When you're ready, run:
+### 교회 멤버 & 팀 관리
+
+- 교회 관리자는 가입 신청을 승인하거나 거절할 수 있습니다.
+- 멤버 역할을 관리하고 팀을 생성하거나 팀 리더를 지정할 수 있습니다.
+- 교회 내 멤버 정보를 확인하며 공동체를 체계적으로 운영할 수 있습니다.
+
+### 교회/팀 기도제목 공유
+
+- 교회 전체 또는 팀 단위로 기도제목을 등록하고 함께 나눌 수 있습니다.
+- 기도 내용이 누적되어 공동체의 기도 흐름을 꾸준히 이어갈 수 있습니다.
+
+### 교회 공동 성경 읽기표
+
+- 교회 전체 또는 팀별로 함께 보는 성경 읽기표를 만들 수 있습니다.
+- 멤버별 진행률과 평균 달성률을 확인하며 함께 말씀 읽기 습관을 만들어 갈 수 있습니다.
+
+## 개발 시작
+
+### 1. 의존성 설치
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. 앱 실행
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3. Supabase 연동 설정
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+프로젝트 루트에 `.env` 파일을 만들고 아래 값을 설정합니다.
 
-## Join the community
+```bash
+EXPO_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+```
 
-Join our community of developers creating universal apps.
+이 값이 없으면 앱은 비로그인 상태 기준으로만 동작합니다.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 4. 소셜 로그인 설정
+
+지원 로그인:
+
+- Google
+- Kakao
+- Apple
+
+기본 리디렉트 URL:
+
+- `webibleapp://auth/callback`
+
+추가로 각 공급자 콘솔과 Supabase Dashboard에서 Provider 활성화 및 Redirect URL 설정이 필요합니다.
+
+## 참고
+
+- 네이티브 소셜 로그인 테스트는 Expo Go보다 development build 또는 release build 환경을 권장합니다.
+- iOS Apple 로그인 테스트는 실제 기기에서 확인하는 편이 가장 안전합니다.
+
