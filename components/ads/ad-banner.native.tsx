@@ -62,14 +62,14 @@ export function AdBanner({ className }: AdBannerProps) {
   const NativeAsset = adApi.NativeAsset;
   const NativeMediaView = adApi.NativeMediaView;
   const NativeAssetType = adApi.NativeAssetType;
-  const adAttributionLabel = "Ad";
-  const adBadgeHeight = Math.max(scale(20), 20);
-  const adBadgeMinWidth = Math.max(scale(36), 36);
-  const adChoicesReservedWidth = Math.max(scale(34), 34);
+  const adAttributionLabel = "Sponsored";
+  const adBadgeHeight = Math.max(scale(22), 22);
+  const adBadgeMinWidth = Math.max(scale(94), 94);
+  const adChoicesReservedWidth = Math.max(scale(28), 28);
 
   const nativeAdClassName = [
     className,
-    "rounded-xl border border-gray-200 bg-white px-3 py-3",
+    "rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900",
   ]
     .filter(Boolean)
     .join(" ");
@@ -86,7 +86,8 @@ export function AdBanner({ className }: AdBannerProps) {
             alignItems: "center",
           }}
         >
-          <Text className="text-[12px] font-bold text-white" numberOfLines={1}>
+          {/* Keep attribution text explicit and high-contrast so validator can detect it reliably. */}
+          <Text className="text-[11px] font-semibold text-white" numberOfLines={1}>
             {adAttributionLabel}
           </Text>
         </View>
@@ -99,13 +100,13 @@ export function AdBanner({ className }: AdBannerProps) {
           <NativeAsset assetType={NativeAssetType.ICON}>
             <Image
               source={{ uri: nativeAd.icon.url }}
-              style={{ width: scale(28), height: scale(28) }}
+              style={{ width: scale(28), height: scale(28), borderRadius: scale(6) }}
             />
           </NativeAsset>
         ) : null}
 
         <NativeAsset assetType={NativeAssetType.HEADLINE}>
-          <Text className="flex-1 font-semibold text-gray-900" numberOfLines={3}>
+          <Text className="flex-1 font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
             {nativeAd.headline}
           </Text>
         </NativeAsset>
@@ -113,17 +114,17 @@ export function AdBanner({ className }: AdBannerProps) {
 
       {nativeAd.advertiser ? (
         <NativeAsset assetType={NativeAssetType.ADVERTISER}>
-          <Text className="text-xs font-medium text-gray-500" numberOfLines={1}>
+          <Text className="text-xs font-medium text-gray-500 dark:text-gray-400" numberOfLines={1}>
             {nativeAd.advertiser}
           </Text>
         </NativeAsset>
       ) : null}
 
-      <NativeMediaView resizeMode="contain" style={{ width: "100%" }} />
+      <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
 
       {nativeAd.body ? (
         <NativeAsset assetType={NativeAssetType.BODY}>
-          <Text className="text-sm text-gray-700" numberOfLines={3}>
+          <Text className="text-sm text-gray-700 dark:text-gray-200" numberOfLines={2}>
             {nativeAd.body}
           </Text>
         </NativeAsset>
