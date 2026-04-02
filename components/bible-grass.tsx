@@ -65,7 +65,7 @@ const GRASS_THEME_OPTIONS: GrassColorTheme[] = [
   "purple",
   "sky",
 ]
-const REWARD_MODAL_CLOSE_DELAY_SECONDS = 3
+const REWARD_MODAL_CLOSE_DELAY_SECONDS = 5
 
 function toDateString(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0")
