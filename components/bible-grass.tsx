@@ -3,12 +3,12 @@
 import { useFocusEffect } from "@react-navigation/native"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native"
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
 
+import { AdBanner } from "@/components/ads/ad-banner"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
-import { useRewardedAd } from "@/hooks/use-rewarded-ad"
 import { getBookName } from "@/services/bible"
 import {
   getGrassColorThemeFromDb,
@@ -257,7 +257,6 @@ export function BibleGrass() {
   const { showToast } = useToast()
   const { theme, appLanguage } = useAppSettings()
   const { scale, moderateScale } = useResponsive()
-  const { show: showRewardedAd, loaded: adLoaded } = useRewardedAd()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear(),
@@ -364,12 +363,6 @@ export function BibleGrass() {
     setRewardModalAction(action)
   }, [])
 
-  const closeRewardModal = useCallback(() => {
-    if (!rewardModalClosable) return
-    setRewardModalAction(null)
-    setRewardModalSubmitting(false)
-  }, [rewardModalClosable])
-
   const performColorChange = useCallback(async () => {
     const nextTheme = pickRandomNextTheme(grassTheme)
     const changed = await setGrassColorThemeWithoutPoint(db, nextTheme)
@@ -382,17 +375,8 @@ export function BibleGrass() {
   }, [db, grassTheme, pickRandomNextTheme, showToast, t])
 
   const handleChangeColorTheme = useCallback(async () => {
-    if (Platform.OS === "web" || !adLoaded) {
-      showToast(t("grass.colorChangeNeedPoint"), "📺")
-      return
-    }
-    try {
-      await showRewardedAd()
-      await performColorChange()
-    } catch {
-      showToast(t("grass.colorChangeNeedPoint"), "📺")
-    }
-  }, [adLoaded, performColorChange, showRewardedAd, showToast, t])
+    await performColorChange()
+  }, [performColorChange])
 
   const handlePressChangeColor = useCallback(() => {
     Alert.alert(t("grass.changeColorTitle"), t("grass.changeColorConfirm"), [
@@ -416,17 +400,8 @@ export function BibleGrass() {
 
   const handleFillPastGrass = useCallback(async () => {
     if (!selectedDate || !canFillSelectedDate) return
-    if (Platform.OS === "web" || !adLoaded) {
-      showToast(t("grass.fillNeedPoint"), "📺")
-      return
-    }
-    try {
-      await showRewardedAd()
-      await performFillGrass()
-    } catch {
-      showToast(t("grass.fillNeedPoint"), "📺")
-    }
-  }, [adLoaded, canFillSelectedDate, performFillGrass, selectedDate, showRewardedAd, showToast, t])
+    await performFillGrass()
+  }, [canFillSelectedDate, performFillGrass, selectedDate])
 
   const handlePressFillPastGrass = useCallback(() => {
     if (!selectedDate || !canFillSelectedDate) return
@@ -441,8 +416,8 @@ export function BibleGrass() {
     ])
   }, [canFillSelectedDate, openRewardModal, selectedDate, t])
 
-  const handleConfirmRewardModal = useCallback(async () => {
-    if (!rewardModalAction || rewardModalSubmitting || !adLoaded) return
+  const handleCloseRewardModal = useCallback(async () => {
+    if (!rewardModalAction || !rewardModalClosable || rewardModalSubmitting) return
 
     const nextAction = rewardModalAction
     setRewardModalSubmitting(true)
@@ -457,7 +432,7 @@ export function BibleGrass() {
     } finally {
       setRewardModalSubmitting(false)
     }
-  }, [adLoaded, handleChangeColorTheme, handleFillPastGrass, rewardModalAction, rewardModalSubmitting])
+  }, [handleChangeColorTheme, handleFillPastGrass, rewardModalAction, rewardModalClosable, rewardModalSubmitting])
 
   const rewardModalTitle =
     rewardModalAction === "fillGrass" ? t("grass.fillTitle") : t("grass.changeColorTitle")
@@ -466,15 +441,10 @@ export function BibleGrass() {
   const rewardModalCloseLabel = rewardModalClosable
     ? t("grass.rewardModalClose")
     : t("grass.rewardModalCloseLocked").replace("{seconds}", String(rewardModalSecondsLeft))
-  const rewardModalPrimaryLabel = rewardModalSubmitting
-    ? t("grass.rewardModalOpeningAd")
-    : adLoaded
-      ? t("grass.rewardModalWatchAd")
-      : t("grass.rewardModalLoading")
 
   return (
     <View
-      className="mb-6 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
+      className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
       style={{
         paddingHorizontal: scale(20),
         paddingVertical: scale(24),
@@ -723,12 +693,9 @@ export function BibleGrass() {
         visible={rewardModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={closeRewardModal}
+        onRequestClose={() => {}}
       >
-        <Pressable
-          className="flex-1 bg-black/40 justify-center px-5"
-          onPress={rewardModalClosable ? closeRewardModal : undefined}
-        >
+        <Pressable className="flex-1 bg-black/40 justify-center px-5">
           <Pressable
             className="rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
             style={{ paddingHorizontal: scale(18), paddingVertical: scale(18) }}
@@ -760,23 +727,12 @@ export function BibleGrass() {
               </Text>
             </View>
 
-            <Pressable
-              onPress={() => {
-                void handleConfirmRewardModal()
-              }}
-              disabled={!adLoaded || rewardModalSubmitting}
-              className={`mt-5 items-center justify-center rounded-2xl ${
-                !adLoaded || rewardModalSubmitting ? "bg-gray-300 dark:bg-gray-700" : "bg-primary-500"
-              }`}
-              style={{ minHeight: scale(48) }}
-            >
-              <Text className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
-                {rewardModalPrimaryLabel}
-              </Text>
-            </Pressable>
+            <AdBanner className="mt-5" />
 
             <Pressable
-              onPress={closeRewardModal}
+              onPress={() => {
+                void handleCloseRewardModal()
+              }}
               disabled={!rewardModalClosable}
               className={`mt-3 items-center justify-center rounded-2xl border ${
                 rewardModalClosable

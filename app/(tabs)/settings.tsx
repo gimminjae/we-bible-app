@@ -362,42 +362,6 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="mb-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {t('settings.systemLanguage')}
-          </Text>
-          <Pressable
-            onPress={() => setLanguageSheetVisible(true)}
-            className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
-          >
-            <Text className="text-base text-gray-900 dark:text-white">{currentLanguageLabel}</Text>
-            <IconSymbol
-              name="chevron.down"
-              size={moderateScale(18)}
-              color={theme === 'light' ? '#374151' : '#9ca3af'}
-            />
-          </Pressable>
-
-          <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
-            {t('settings.theme')}
-          </Text>
-          <Pressable
-            onPress={handleToggleTheme}
-            className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
-          >
-            <Text className="text-base text-gray-900 dark:text-white">
-              {theme === 'light' ? t('settings.lightMode') : t('settings.darkMode')}
-            </Text>
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-              <IconSymbol
-                name={theme === 'light' ? 'moon.fill' : 'sun.max.fill'}
-                size={moderateScale(22)}
-                color={theme === 'light' ? '#374151' : '#f59e0b'}
-              />
-            </View>
-          </Pressable>
-        </View>
-
-        <View className="mb-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <View className="mb-4 flex-row items-center" style={{ gap: scale(6) }}>
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {t('settings.account')}
@@ -587,6 +551,42 @@ export default function SettingsScreen() {
         </View>
 
         <AdBanner />
+
+        <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {t('settings.systemLanguage')}
+          </Text>
+          <Pressable
+            onPress={() => setLanguageSheetVisible(true)}
+            className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
+          >
+            <Text className="text-base text-gray-900 dark:text-white">{currentLanguageLabel}</Text>
+            <IconSymbol
+              name="chevron.down"
+              size={moderateScale(18)}
+              color={theme === 'light' ? '#374151' : '#9ca3af'}
+            />
+          </Pressable>
+
+          <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
+            {t('settings.theme')}
+          </Text>
+          <Pressable
+            onPress={handleToggleTheme}
+            className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
+          >
+            <Text className="text-base text-gray-900 dark:text-white">
+              {theme === 'light' ? t('settings.lightMode') : t('settings.darkMode')}
+            </Text>
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+              <IconSymbol
+                name={theme === 'light' ? 'moon.fill' : 'sun.max.fill'}
+                size={moderateScale(22)}
+                color={theme === 'light' ? '#374151' : '#f59e0b'}
+              />
+            </View>
+          </Pressable>
+        </View>
 
         {currentUser ? (
           <View className="mt-6 rounded-3xl border border-red-200 bg-white p-5 dark:border-red-900 dark:bg-gray-900">

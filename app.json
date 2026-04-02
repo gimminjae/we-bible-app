@@ -55,7 +55,6 @@
         }
       ],
       "expo-sqlite",
-      "expo-sensors",
       [
         "expo-web-browser",
         {
