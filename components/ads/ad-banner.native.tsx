@@ -79,11 +79,21 @@ export function AdBanner({ className }: AdBannerProps) {
   const NativeAsset = adApi.NativeAsset;
   const NativeMediaView = adApi.NativeMediaView;
   const NativeAssetType = adApi.NativeAssetType;
-  const adAttributionLabel = "Sponsored";
-  const adBadgeHeight = Math.max(scale(22), 22);
-  const adBadgeMinWidth = Math.max(scale(94), 94);
-  const adChoicesReservedWidth = Math.max(scale(28), 28);
+  const adAttributionLabel = "Ad";
+  const adBadgeHeight = Math.max(scale(20), 20);
+  const adBadgeMinWidth = Math.max(scale(36), 36);
+  const adChoicesReservedWidth = Math.max(scale(34), 34);
 
+<<<<<<< HEAD
+=======
+  const nativeAdClassName = [
+    className,
+    "rounded-xl border border-gray-200 bg-white px-3 py-3",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+>>>>>>> parent of be2798d (Revert "ad")
   return (
     <View className={className} style={{ marginTop: scale(12) }}>
       <NativeAdView nativeAd={nativeAd}>
@@ -91,6 +101,7 @@ export function AdBanner({ className }: AdBannerProps) {
           className="rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
           style={{ gap: scale(8) }}
         >
+<<<<<<< HEAD
           <View className="flex-row items-start justify-between">
             <View
               className="rounded-md bg-black px-2.5 py-0.5"
@@ -110,9 +121,26 @@ export function AdBanner({ className }: AdBannerProps) {
             <View
               pointerEvents="none"
               style={{ width: adChoicesReservedWidth, height: adBadgeHeight }}
+=======
+          <Text className="text-[12px] font-bold text-white" numberOfLines={1}>
+            {adAttributionLabel}
+          </Text>
+        </View>
+
+        <View pointerEvents="none" style={{ width: adChoicesReservedWidth, height: adBadgeHeight }} />
+      </View>
+
+      <View className="flex-row items-center" style={{ gap: scale(8) }}>
+        {nativeAd.icon ? (
+          <NativeAsset assetType={NativeAssetType.ICON}>
+            <Image
+              source={{ uri: nativeAd.icon.url }}
+              style={{ width: scale(28), height: scale(28) }}
+>>>>>>> parent of be2798d (Revert "ad")
             />
           </View>
 
+<<<<<<< HEAD
           <View className="flex-row items-center" style={{ gap: scale(8) }}>
             {nativeAd.icon ? (
               <NativeAsset assetType={NativeAssetType.ICON}>
@@ -139,6 +167,32 @@ export function AdBanner({ className }: AdBannerProps) {
           ) : null}
 
           <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
+=======
+        <NativeAsset assetType={NativeAssetType.HEADLINE}>
+          <Text className="flex-1 font-semibold text-gray-900" numberOfLines={3}>
+            {nativeAd.headline}
+          </Text>
+        </NativeAsset>
+      </View>
+
+      {nativeAd.advertiser ? (
+        <NativeAsset assetType={NativeAssetType.ADVERTISER}>
+          <Text className="text-xs font-medium text-gray-500" numberOfLines={1}>
+            {nativeAd.advertiser}
+          </Text>
+        </NativeAsset>
+      ) : null}
+
+      <NativeMediaView resizeMode="contain" style={{ width: "100%" }} />
+
+      {nativeAd.body ? (
+        <NativeAsset assetType={NativeAssetType.BODY}>
+          <Text className="text-sm text-gray-700" numberOfLines={3}>
+            {nativeAd.body}
+          </Text>
+        </NativeAsset>
+      ) : null}
+>>>>>>> parent of be2798d (Revert "ad")
 
           {nativeAd.body ? (
             <NativeAsset assetType={NativeAssetType.BODY}>
