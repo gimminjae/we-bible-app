@@ -5,7 +5,7 @@ import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
 
-import { AdBanner } from "@/components/ads/ad-banner"
+import { AdNativeCard } from "@/components/ads/ad-native-card"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
@@ -727,7 +727,7 @@ export function BibleGrass() {
               </Text>
             </View>
 
-            <AdBanner className="mt-5" />
+            <AdNativeCard className="mt-5" />
 
             <Pressable
               onPress={() => {

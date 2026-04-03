@@ -4,14 +4,19 @@ import { Text, View } from "react-native";
 type AdBannerPreviewProps = {
   className?: string;
   label?: string;
+  slotText?: string;
+  slotMinHeight?: number;
 };
 
 export function AdBannerPreview({
   className,
-  label = "배너 광고 미리보기 (개발환경)",
+  label = "\uBC30\uB108 \uAD11\uACE0 \uBBF8\uB9AC\uBCF4\uAE30 (\uAC1C\uBC1C\uD658\uACBD)",
+  slotText = "AdMob Banner",
+  slotMinHeight,
 }: AdBannerPreviewProps) {
   const { scale } = useResponsive();
   const containerClassName = [className, "items-center"].filter(Boolean).join(" ");
+  const minHeight = slotMinHeight ?? Math.max(scale(56), 56);
 
   return (
     <View className={containerClassName} style={{ marginTop: scale(12) }}>
@@ -25,10 +30,10 @@ export function AdBannerPreview({
 
         <View
           className="w-full rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-950"
-          style={{ minHeight: Math.max(scale(56), 56), justifyContent: "center" }}
+          style={{ minHeight, justifyContent: "center" }}
         >
           <Text className="text-center text-xs font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-gray-500">
-            AdMob Banner
+            {slotText}
           </Text>
         </View>
       </View>

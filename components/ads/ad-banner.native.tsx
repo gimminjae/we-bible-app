@@ -8,7 +8,10 @@ type AdBannerProps = {
   className?: string;
 };
 
-const IOS_BANNER_UNIT_ID = "ca-app-pub-4493633870090510/3852124487";
+const BANNER_UNIT_IDS = {
+  ios: "ca-app-pub-4493633870090510/3852124487",
+  android: "ca-app-pub-4493633870090510/7490220239",
+} as const;
 
 export function AdBanner({ className }: AdBannerProps) {
   const { scale } = useResponsive();
@@ -18,10 +21,10 @@ export function AdBanner({ className }: AdBannerProps) {
 
   const productionUnitId = useMemo(() => {
     if (Platform.OS === "ios") {
-      return process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || IOS_BANNER_UNIT_ID;
+      return process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || BANNER_UNIT_IDS.ios;
     }
 
-    return process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || null;
+    return process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || BANNER_UNIT_IDS.android;
   }, []);
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function AdBanner({ className }: AdBannerProps) {
   }, [adApi]);
 
   if (__DEV__ && !hasGoogleMobileAds) {
-    return <AdBannerPreview className={className} label="배너 광고 미리보기 (Expo Go)" />;
+    return <AdBannerPreview className={className} label="\uBC30\uB108 \uAD11\uACE0 \uBBF8\uB9AC\uBCF4\uAE30 (Expo Go)" />;
   }
 
   if (!hasGoogleMobileAds || !adApi) {
@@ -69,10 +72,6 @@ export function AdBanner({ className }: AdBannerProps) {
   const BannerAdSize = adApi.BannerAdSize;
   const TestIds = adApi.TestIds;
   const unitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : productionUnitId;
-
-  if (!unitId) {
-    return null;
-  }
 
   const containerClassName = [className, "items-center"].filter(Boolean).join(" ");
 
