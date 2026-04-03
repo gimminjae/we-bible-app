@@ -1,145 +1,84 @@
+import { AdBannerPreview } from "@/components/ads/ad-banner-preview";
 import { useResponsive } from "@/hooks/use-responsive";
 import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from "@/lib/google-mobile-ads";
-import { useEffect, useMemo, useState } from "react";
-import { Image, Platform, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Platform, View } from "react-native";
 
 type AdBannerProps = {
   className?: string;
 };
 
+const IOS_BANNER_UNIT_ID = "ca-app-pub-4493633870090510/3852124487";
+
 export function AdBanner({ className }: AdBannerProps) {
   const { scale } = useResponsive();
-  const [nativeAd, setNativeAd] = useState<any>(null);
   const [adApi, setAdApi] = useState<any>(null);
-  const hasNativeAdsModule = canUseGoogleMobileAds();
+  const bannerRef = useRef<{ load?: () => void } | null>(null);
+  const hasGoogleMobileAds = canUseGoogleMobileAds();
 
-  const unitId = useMemo(() => {
-    const testNativeUnitId = "ca-app-pub-3940256099942544/2247696110";
-    if (__DEV__) return testNativeUnitId;
-    return process.env.EXPO_PUBLIC_ADMOB_NATIVE_UNIT_ID || testNativeUnitId;
+  const productionUnitId = useMemo(() => {
+    if (Platform.OS === "ios") {
+      return process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || IOS_BANNER_UNIT_ID;
+    }
+
+    return process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID_UNIT_ID || process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID || null;
   }, []);
 
   useEffect(() => {
-    if (!hasNativeAdsModule) return;
+    if (!hasGoogleMobileAds) return;
 
     let mounted = true;
-    let loadedAd: any;
 
     loadGoogleMobileAdsModule()
       .then((mod) => {
-        if (!mounted || !mod) return undefined;
+        if (!mounted || !mod) return;
         setAdApi(mod);
-        return mod.NativeAd.createForAdRequest(unitId, {
-          adChoicesPlacement: mod.NativeAdChoicesPlacement.TOP_RIGHT,
-          aspectRatio: mod.NativeMediaAspectRatio.LANDSCAPE,
-          startVideoMuted: true,
-        });
-      })
-      .then((ad) => {
-        if (!ad) return;
-        loadedAd = ad;
-        if (!mounted) {
-          ad.destroy();
-          return;
-        }
-        setNativeAd(ad);
       })
       .catch(() => {
-        // Expo Go or no-fill environments skip ad rendering silently.
+        // Ignore ad loading in environments without the native module.
       });
 
     return () => {
       mounted = false;
-      loadedAd?.destroy();
     };
-  }, [hasNativeAdsModule, unitId]);
+  }, [hasGoogleMobileAds]);
 
-  if (!hasNativeAdsModule || !nativeAd || !adApi) {
+  useEffect(() => {
+    if (!adApi || Platform.OS !== "ios") return;
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        bannerRef.current?.load?.();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [adApi]);
+
+  if (__DEV__ && !hasGoogleMobileAds) {
+    return <AdBannerPreview className={className} label="배너 광고 미리보기 (Expo Go)" />;
+  }
+
+  if (!hasGoogleMobileAds || !adApi) {
     return null;
   }
 
-  const NativeAdView = adApi.NativeAdView;
-  const NativeAsset = adApi.NativeAsset;
-  const NativeMediaView = adApi.NativeMediaView;
-  const NativeAssetType = adApi.NativeAssetType;
+  const BannerAd = adApi.BannerAd;
+  const BannerAdSize = adApi.BannerAdSize;
+  const TestIds = adApi.TestIds;
+  const unitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : productionUnitId;
 
-  // Keep attribution explicit and easy for the iOS validator to recognize.
-  const adAttributionLabel = Platform.OS === "ios" ? "Ad" : "\uAD11\uACE0";
-  const adBadgeHeight = Math.max(scale(22), 22);
-  const adBadgeMinWidth = Math.max(scale(42), 42);
-  const adChoicesReservedWidth = Math.max(scale(40), 40);
-  const adContentTopPadding = adBadgeHeight + scale(10);
+  if (!unitId) {
+    return null;
+  }
 
-  const nativeAdClassName = [className, "rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"]
-    .filter(Boolean)
-    .join(" ");
+  const containerClassName = [className, "items-center"].filter(Boolean).join(" ");
 
   return (
-    <NativeAdView
-      nativeAd={nativeAd}
-      className={nativeAdClassName}
-      style={{ marginTop: scale(12), gap: scale(8), position: "relative", paddingTop: adContentTopPadding }}
-    >
-      <View className="flex-row items-start justify-between" pointerEvents="none" style={{ left: 0, position: "absolute", right: 0, top: 0, zIndex: 1 }}>
-        <View
-          className="rounded-md bg-black px-3"
-          style={{
-            minHeight: adBadgeHeight,
-            minWidth: adBadgeMinWidth,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text className="text-[12px] font-bold text-white" numberOfLines={1}>
-            {adAttributionLabel}
-          </Text>
-        </View>
-
-        <View style={{ width: adChoicesReservedWidth, height: adBadgeHeight }} />
-      </View>
-
-      <View className="flex-row items-center" style={{ gap: scale(8) }}>
-        {nativeAd.icon ? (
-          <NativeAsset assetType={NativeAssetType.ICON}>
-            <Image
-              source={{ uri: nativeAd.icon.url }}
-              style={{ width: scale(28), height: scale(28), borderRadius: scale(6) }}
-            />
-          </NativeAsset>
-        ) : null}
-
-        <NativeAsset assetType={NativeAssetType.HEADLINE}>
-          <Text className="flex-1 font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
-            {nativeAd.headline}
-          </Text>
-        </NativeAsset>
-      </View>
-
-      {nativeAd.advertiser ? (
-        <NativeAsset assetType={NativeAssetType.ADVERTISER}>
-          <Text className="text-xs font-medium text-gray-500 dark:text-gray-400" numberOfLines={1}>
-            {nativeAd.advertiser}
-          </Text>
-        </NativeAsset>
-      ) : null}
-
-      <NativeMediaView style={{ width: "100%", aspectRatio: 1.91 }} />
-
-      {nativeAd.body ? (
-        <NativeAsset assetType={NativeAssetType.BODY}>
-          <Text className="text-sm text-gray-700 dark:text-gray-200" numberOfLines={2}>
-            {nativeAd.body}
-          </Text>
-        </NativeAsset>
-      ) : null}
-
-      {nativeAd.callToAction ? (
-        <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
-          <Text className="rounded-lg bg-primary-500 px-3 py-2 text-center font-semibold text-white">
-            {nativeAd.callToAction}
-          </Text>
-        </NativeAsset>
-      ) : null}
-    </NativeAdView>
+    <View className={containerClassName} style={{ marginTop: scale(12) }}>
+      <BannerAd ref={bannerRef} unitId={unitId} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+    </View>
   );
 }
