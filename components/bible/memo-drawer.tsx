@@ -3,14 +3,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 type MemoDrawerProps = {
   isOpen: boolean;
@@ -83,10 +76,7 @@ export function MemoDrawer({
           {isEditMode ? t('memoDrawer.editTitle') : t('memoDrawer.title')}
         </Text>
       </View>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, minHeight: 280 }}
-      >
+      <View style={{ flex: 1, minHeight: 280 }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -94,6 +84,8 @@ export function MemoDrawer({
             paddingVertical: scale(12),
             paddingBottom: scale(16),
           }}
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
         >
@@ -200,7 +192,7 @@ export function MemoDrawer({
             </ButtonText>
           </Button>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </BottomSheet>
   );
 }

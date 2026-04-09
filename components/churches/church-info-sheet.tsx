@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -68,10 +61,12 @@ export function ChurchInfoSheet({
           </Text>
         </View>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           <ScrollView
             className="flex-1"
             contentContainerStyle={{ padding: 24, paddingBottom: 28 }}
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -88,7 +83,6 @@ export function ChurchInfoSheet({
                 onChangeText={setName}
                 placeholder={t('church.createPlaceholder')}
                 placeholderTextColor="#9ca3af"
-                autoFocus={visible}
                 className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
               />
             </View>
@@ -129,7 +123,7 @@ export function ChurchInfoSheet({
               <ButtonText className="font-semibold text-white">{getSubmitLabel(mode, t)}</ButtonText>
             </Button>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </BottomSheet>
   );

@@ -82,7 +82,13 @@ export function ChurchPrayerSheet({
             </Text>
           </View>
 
-          <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ padding: 24 }}
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+          >
             {showAudienceSelect ? (
               <View className="mb-5">
                 <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
