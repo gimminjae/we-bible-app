@@ -6,10 +6,11 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 type ScreenHeaderProps = {
   title: string;
   onBack?: () => void;
+  titleAccessory?: ReactNode;
   right?: ReactNode;
 };
 
-export function ScreenHeader({ title, onBack, right }: ScreenHeaderProps) {
+export function ScreenHeader({ title, onBack, titleAccessory, right }: ScreenHeaderProps) {
   return (
     <View className="flex-row items-center justify-between px-4 pb-3 pt-4">
       <View className="min-w-0 flex-1 flex-row items-center">
@@ -26,9 +27,12 @@ export function ScreenHeader({ title, onBack, right }: ScreenHeaderProps) {
             />
           </Pressable>
         ) : null}
-        <Text className="flex-1 text-xl font-bold text-gray-900 dark:text-white" numberOfLines={1}>
-          {title}
-        </Text>
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
+          <Text className="shrink text-xl font-bold text-gray-900 dark:text-white" numberOfLines={1}>
+            {title}
+          </Text>
+          {titleAccessory ? <View className="shrink-0">{titleAccessory}</View> : null}
+        </View>
       </View>
       {right ? <View className="ml-3 flex-row items-center gap-2">{right}</View> : null}
     </View>

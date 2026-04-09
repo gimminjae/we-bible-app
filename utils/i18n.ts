@@ -226,6 +226,11 @@ const messages = {
     },
     church: {
       title: "교회",
+      aboutTitle: "교회란 무엇인가?",
+      aboutBody:
+        "교회는 '에클레시아'로,\n거듭난 이들의 무리를 뜻해요.\n\n건물 자체만을 가리키는 말이 아니라,\n예수 그리스도를 믿는 사람들이 함께 모이는 공동체를 의미합니다.\n\n그래서 어디든 두 명 이상의 크리스천이 모여 하나님을 예배하고,\n서로를 세워 간다면 그곳은 교회라고 할 수 있어요.",
+      aboutOpen: "교회 설명 열기",
+      aboutClose: "설명 닫기",
       detailTitle: "교회 상세",
       authNotConfigured: "Supabase 설정이 없어 교회 기능을 사용할 수 없습니다.",
       loginRequired: "교회 기능은 로그인 후 사용할 수 있어요.",
@@ -757,6 +762,11 @@ const messages = {
     },
     church: {
       title: "Church",
+      aboutTitle: "What Is the Church?",
+      aboutBody:
+        "The church is 'ekklesia',\na gathering of people who have been born again.\n\nIt does not simply mean a building.\nIt points to a community of believers who gather in Jesus Christ.\n\nSo wherever two or more Christians gather to worship God\nand build one another up, that place can be called a church.",
+      aboutOpen: "Open church description",
+      aboutClose: "Close description",
       detailTitle: "Church Detail",
       authNotConfigured:
         "Supabase is not configured, so church features are unavailable.",

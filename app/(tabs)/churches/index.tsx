@@ -1,19 +1,24 @@
 import { useState } from 'react';
 import {
+  ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { AdBanner } from '@/components/ads/ad-banner';
 import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
@@ -21,6 +26,8 @@ import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchSearch, useMyChurches } from '@/hooks/use-churches';
 import type { ChurchSearchResult } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
+
+const churchExplainerBackground = require('../../../assets/images/church-explainer-bg.png');
 
 type HeaderActionButtonProps = {
   label: string;
@@ -183,6 +190,89 @@ function SearchChurchDrawer({
   );
 }
 
+type ChurchAboutModalProps = {
+  visible: boolean;
+  onClose: () => void;
+};
+
+function ChurchAboutModal({ visible, onClose }: ChurchAboutModalProps) {
+  const { t } = useI18n();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View className="flex-1 items-center justify-center bg-black/70 px-5">
+        <Pressable
+          className="absolute inset-0"
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('church.aboutClose')}
+        />
+
+        <View className="w-full overflow-hidden rounded-3xl" style={{ maxWidth: 390, borderRadius: 30 }}>
+          <ImageBackground
+            source={churchExplainerBackground}
+            resizeMode="cover"
+            style={{ minHeight: 500 }}
+          >
+            <View className="flex-1 justify-between overflow-hidden px-6 py-7">
+              <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.22)' }]} />
+                <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+                  <Defs>
+                    <RadialGradient id="churchAboutVignette" cx="50%" cy="44%" rx="78%" ry="78%">
+                      <Stop offset="0%" stopColor="#000000" stopOpacity="0.04" />
+                      <Stop offset="48%" stopColor="#000000" stopOpacity="0.16" />
+                      <Stop offset="78%" stopColor="#000000" stopOpacity="0.38" />
+                      <Stop offset="100%" stopColor="#000000" stopOpacity="0.62" />
+                    </RadialGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width="100%" height="100%" fill="url(#churchAboutVignette)" />
+                </Svg>
+              </View>
+
+              <View>
+                <View className="mb-3 flex-row items-center gap-2">
+                  <IconSymbol name="questionmark.circle" size={16} color="#ffffff" />
+                  <Text className="text-xs font-semibold uppercase text-white" style={{ letterSpacing: 1.8 }}>
+                    {t('church.title')}
+                  </Text>
+                </View>
+
+                <Text
+                  className="font-bold text-white"
+                  style={{ fontSize: 32, lineHeight: 40, textShadowColor: 'rgba(0,0,0,0.28)', textShadowRadius: 8 }}
+                >
+                  {t('church.aboutTitle')}
+                </Text>
+                <Text
+                  className="mt-5 font-medium text-white"
+                  style={{ fontSize: 18, lineHeight: 32, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 6 }}
+                >
+                  {t('church.aboutBody')}
+                </Text>
+              </View>
+
+              <Button
+                onPress={onClose}
+                action="secondary"
+                className="h-auto self-start rounded-full border-0 bg-white/15 px-4 py-2.5"
+              >
+                <ButtonText className="font-semibold text-white">{t('church.aboutClose')}</ButtonText>
+              </Button>
+            </View>
+          </ImageBackground>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function ChurchesScreen() {
   const router = useRouter();
   const { t } = useI18n();
@@ -192,6 +282,7 @@ export default function ChurchesScreen() {
   const { createChurch, requestJoin } = useChurchActions();
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
+  const [isAboutChurchModalOpen, setIsAboutChurchModalOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
   const [submittingJoinChurchId, setSubmittingJoinChurchId] = useState<string | null>(null);
@@ -271,6 +362,16 @@ export default function ChurchesScreen() {
     >
       <ScreenHeader
         title={t('church.title')}
+        titleAccessory={
+          <Pressable
+            onPress={() => setIsAboutChurchModalOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('church.aboutOpen')}
+            className="h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800"
+          >
+            <IconSymbol name="questionmark.circle" size={18} color="#9ca3af" />
+          </Pressable>
+        }
         right={
           canUseChurchFeature ? (
             <>
@@ -374,6 +475,11 @@ export default function ChurchesScreen() {
         onClose={closeSearchDrawer}
         onEnter={handleEnterChurch}
         onRequestJoin={handleRequestJoin}
+      />
+
+      <ChurchAboutModal
+        visible={isAboutChurchModalOpen}
+        onClose={() => setIsAboutChurchModalOpen(false)}
       />
     </SafeAreaView>
   );

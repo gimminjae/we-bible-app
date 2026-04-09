@@ -33,6 +33,7 @@ const MAPPING = {
   'trash.fill': 'delete',
   'hands.sparkles': 'volunteer-activism',
   'calendar': 'event',
+  'questionmark.circle': 'help-outline',
 } as IconMapping;
 
 /**
