@@ -1,4 +1,5 @@
 import { useToast } from '@/contexts/toast-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useBibleQuery } from '@/hooks/use-bible-query';
 import { useFavoriteVerses } from '@/hooks/use-favorite-verses';
 import { useMemoVerses } from '@/hooks/use-memo-verses';
@@ -34,6 +35,7 @@ export function useBibleReader() {
   const db = useSQLiteContext();
   const { showToast } = useToast();
   const { t } = useI18n();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const [bookCode, setBookCode] = useState('genesis');
   const [chapter, setChapter] = useState(1);
   const [primaryLang, setPrimaryLang] = useState<BibleLang>('ko');
@@ -49,6 +51,11 @@ export function useBibleReader() {
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
   const [hasRestored, setHasRestored] = useState(false);
+  const isAccountDataBusy =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
+  const canUseAccountDataFeatures = !isAccountDataBusy;
 
   const restoreBibleSearchInfoFromStorage = useCallback(() => {
     if (hasRestored) return;
@@ -115,14 +122,17 @@ export function useBibleReader() {
   });
 
   const { favoriteVerseNumbers, addVerses: addFavoriteVerses, removeVerses: removeFavoriteVerses } =
-    useFavoriteVerses(bookCode, chapter);
-  const { memoVerseNumbers, addMemo: addMemoToDb } = useMemoVerses(bookCode, chapter);
+    useFavoriteVerses(bookCode, chapter, { enabled: canUseAccountDataFeatures });
+  const { memoVerseNumbers, addMemo: addMemoToDb } = useMemoVerses(bookCode, chapter, {
+    enabled: canUseAccountDataFeatures,
+  });
 
   const allSelectedAreFavorites =
     selectedVerseNumbers.length > 0 &&
     selectedVerseNumbers.every((n) => favoriteVerseNumbers.includes(n));
 
   const addSelectedToFavorites = useCallback(() => {
+    if (!canUseAccountDataFeatures) return;
     const toAdd = [...new Set(selectedVerseNumbers)].filter((n) => !favoriteVerseNumbers.includes(n));
     if (toAdd.length === 0) return;
     const versesWithText = toAdd
@@ -137,9 +147,18 @@ export function useBibleReader() {
         showToast(t('toast.favoriteAdded'), '❤️');
       });
     }
-  }, [selectedVerseNumbers, favoriteVerseNumbers, verses, addFavoriteVerses, showToast, t]);
+  }, [
+    canUseAccountDataFeatures,
+    selectedVerseNumbers,
+    favoriteVerseNumbers,
+    verses,
+    addFavoriteVerses,
+    showToast,
+    t,
+  ]);
 
   const removeSelectedFromFavorites = useCallback(() => {
+    if (!canUseAccountDataFeatures) return;
     const toRemove = [...new Set(selectedVerseNumbers)].filter((n) =>
       favoriteVerseNumbers.includes(n)
     );
@@ -149,7 +168,14 @@ export function useBibleReader() {
         showToast(t('toast.favoriteRemoved'), '❤️');
       });
     }
-  }, [selectedVerseNumbers, favoriteVerseNumbers, removeFavoriteVerses, showToast, t]);
+  }, [
+    canUseAccountDataFeatures,
+    selectedVerseNumbers,
+    favoriteVerseNumbers,
+    removeFavoriteVerses,
+    showToast,
+    t,
+  ]);
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load') : null;
 
@@ -168,11 +194,15 @@ export function useBibleReader() {
     return makeCopyBibles(contentList);
   }, [selectedVerseNumbers, verses, bookName, chapter]);
 
-  const openMemoDrawer = useCallback(() => setShowMemoDrawer(true), []);
+  const openMemoDrawer = useCallback(() => {
+    if (!canUseAccountDataFeatures) return;
+    setShowMemoDrawer(true);
+  }, [canUseAccountDataFeatures]);
   const closeMemoDrawer = useCallback(() => setShowMemoDrawer(false), []);
 
   const saveMemo = useCallback(
     (title: string, content: string) => {
+      if (!canUseAccountDataFeatures) return;
       const toSave = [...new Set(selectedVerseNumbers)];
       if (toSave.length === 0) return;
       const verseText = memoInitialContent;
@@ -182,7 +212,14 @@ export function useBibleReader() {
         showToast(t('toast.memoAdded'), '📝');
       });
     },
-    [selectedVerseNumbers, memoInitialContent, addMemoToDb, showToast, t]
+    [
+      canUseAccountDataFeatures,
+      selectedVerseNumbers,
+      memoInitialContent,
+      addMemoToDb,
+      showToast,
+      t,
+    ]
   );
   const maxChapter = currentBook?.maxChapter ?? 1;
 
@@ -316,6 +353,8 @@ export function useBibleReader() {
     favoriteVerseNumbers,
     memoVerseNumbers,
     allSelectedAreFavorites,
+    canUseAccountDataFeatures,
+    isAccountDataBusy,
     pickerStep,
     showSecondarySelector,
     BOOKS,

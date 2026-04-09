@@ -116,6 +116,14 @@ export function BibleReaderHome() {
           onOpenSettings={bible.openSettings}
         />
 
+        {bible.isAccountDataBusy ? (
+          <View className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
+            <Text className="text-sm text-amber-800 dark:text-amber-200">
+              {t('common.accountSyncInProgress')}
+            </Text>
+          </View>
+        ) : null}
+
         <BibleContent
           loading={bible.loading}
           error={bible.error}
@@ -154,21 +162,41 @@ export function BibleReaderHome() {
                 ? bible.removeSelectedFromFavorites
                 : bible.addSelectedToFavorites
             }
-            className="rounded-full bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            disabled={!bible.canUseAccountDataFeatures}
+            className={`rounded-full items-center justify-center ${
+              bible.canUseAccountDataFeatures
+                ? 'bg-gray-200 dark:bg-gray-700 active:opacity-80'
+                : 'bg-gray-100 dark:bg-gray-800'
+            }`}
             style={{ width: scale(48), height: scale(48) }}
           >
             <IconSymbol
               name={bible.allSelectedAreFavorites ? 'heart.fill' : 'heart'}
               size={moderateScale(24)}
-              color={bible.allSelectedAreFavorites ? '#ec4899' : '#6b7280'}
+              color={
+                bible.canUseAccountDataFeatures
+                  ? bible.allSelectedAreFavorites
+                    ? '#ec4899'
+                    : '#6b7280'
+                  : '#9ca3af'
+              }
             />
           </Pressable>
           <Pressable
             onPress={bible.openMemoDrawer}
-            className="rounded-full bg-amber-100 dark:bg-amber-900/40 items-center justify-center active:opacity-80"
+            disabled={!bible.canUseAccountDataFeatures}
+            className={`rounded-full items-center justify-center ${
+              bible.canUseAccountDataFeatures
+                ? 'bg-amber-100 dark:bg-amber-900/40 active:opacity-80'
+                : 'bg-gray-100 dark:bg-gray-800'
+            }`}
             style={{ width: scale(48), height: scale(48) }}
           >
-            <IconSymbol name="note.text" size={moderateScale(24)} color="#b45309" />
+            <IconSymbol
+              name="note.text"
+              size={moderateScale(24)}
+              color={bible.canUseAccountDataFeatures ? '#b45309' : '#9ca3af'}
+            />
           </Pressable>
           <Pressable
             onPress={bible.copySelectedVerses}

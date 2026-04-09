@@ -16,6 +16,8 @@ const messages = {
       cancel: "취소",
       copy: "복사",
       confirm: "확인",
+      accountSyncInProgress:
+        "계정 데이터를 동기화하는 중이에요. 메모와 즐겨찾기는 잠시 후 사용할 수 있어요.",
     },
     settings: {
       title: "설정",
@@ -524,6 +526,8 @@ const messages = {
       cancel: "Cancel",
       copy: "Copy",
       confirm: "OK",
+      accountSyncInProgress:
+        "Account data is still syncing. Memos and favorites will be available shortly.",
     },
     settings: {
       title: "Settings",

@@ -10,8 +10,17 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type { FavoriteVerseInput };
 
-export function useFavoriteVerses(bookCode: string, chapter: number) {
+type UseFavoriteVersesOptions = {
+  enabled?: boolean;
+};
+
+export function useFavoriteVerses(
+  bookCode: string,
+  chapter: number,
+  options: UseFavoriteVersesOptions = {}
+) {
   const db = useSQLiteContext();
+  const enabled = options.enabled ?? true;
   const [favoriteVerseNumbers, setFavoriteVerseNumbers] = useState<number[]>([]);
   const [initDone, setInitDone] = useState(false);
 
@@ -42,25 +51,29 @@ export function useFavoriteVerses(bookCode: string, chapter: number) {
 
   useEffect(() => {
     if (!initDone) return;
+    if (!enabled) {
+      setFavoriteVerseNumbers([]);
+      return;
+    }
     refetch();
-  }, [initDone, refetch]);
+  }, [enabled, initDone, refetch]);
 
   const addVerses = useCallback(
     async (verses: FavoriteVerseInput[]) => {
-      if (verses.length === 0) return;
+      if (!enabled || verses.length === 0) return;
       await dbAddFavorites(db, bookCode, chapter, verses);
       await refetch();
     },
-    [db, bookCode, chapter, refetch]
+    [db, bookCode, chapter, enabled, refetch]
   );
 
   const removeVerses = useCallback(
     async (verseNumbers: number[]) => {
-      if (verseNumbers.length === 0) return;
+      if (!enabled || verseNumbers.length === 0) return;
       await dbRemoveFavorites(db, bookCode, chapter, verseNumbers);
       await refetch();
     },
-    [db, bookCode, chapter, refetch]
+    [db, bookCode, chapter, enabled, refetch]
   );
 
   return {

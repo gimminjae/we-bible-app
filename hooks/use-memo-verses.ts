@@ -6,8 +6,17 @@ import {
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 
-export function useMemoVerses(bookCode: string, chapter: number) {
+type UseMemoVersesOptions = {
+  enabled?: boolean;
+};
+
+export function useMemoVerses(
+  bookCode: string,
+  chapter: number,
+  options: UseMemoVersesOptions = {}
+) {
   const db = useSQLiteContext();
+  const enabled = options.enabled ?? true;
   const [memoVerseNumbers, setMemoVerseNumbers] = useState<number[]>([]);
   const [initDone, setInitDone] = useState(false);
 
@@ -38,16 +47,20 @@ export function useMemoVerses(bookCode: string, chapter: number) {
 
   useEffect(() => {
     if (!initDone) return;
+    if (!enabled) {
+      setMemoVerseNumbers([]);
+      return;
+    }
     refetch();
-  }, [initDone, refetch]);
+  }, [enabled, initDone, refetch]);
 
   const addMemo = useCallback(
     async (title: string, content: string, verseText: string, verseNumbers: number[]) => {
-      if (verseNumbers.length === 0) return;
+      if (!enabled || verseNumbers.length === 0) return;
       await dbAddMemo(db, title, content, verseText, bookCode, chapter, verseNumbers);
       await refetch();
     },
-    [db, bookCode, chapter, refetch]
+    [db, bookCode, chapter, enabled, refetch]
   );
 
   return {

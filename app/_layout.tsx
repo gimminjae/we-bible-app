@@ -75,8 +75,14 @@ function AuthSyncGate({ children }: { children: ReactNode }) {
   const { isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const pathname = usePathname();
   const isAuthCallbackRoute = pathname === '/auth/callback';
+  const isBibleHomeRoute = pathname === '/';
 
-  if (!isAuthCallbackRoute && isConfigured && (isLoadingSession || isSyncingData)) {
+  if (
+    !isAuthCallbackRoute &&
+    !isBibleHomeRoute &&
+    isConfigured &&
+    (isLoadingSession || isSyncingData)
+  ) {
     return <LoadingScreen message="Synchronizing account data..." />;
   }
 
