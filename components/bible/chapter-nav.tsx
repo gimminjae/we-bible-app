@@ -1,5 +1,5 @@
+import { Button, ButtonText } from '@/components/ui/button';
 import { useCallback, useEffect } from 'react';
-import { Pressable, Text } from 'react-native';
 import { useResponsive } from '@/hooks/use-responsive';
 import Animated, {
   useAnimatedStyle,
@@ -45,30 +45,30 @@ export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) 
         },
       ]}
     >
-      <Pressable
+      <Button
         onPress={onPrev}
-        className="rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        className="rounded-full bg-primary-500 px-0 shadow-lg active:opacity-90"
         style={{ width: scale(56), height: scale(56) }}
       >
-        <Text
+        <ButtonText
           style={{ fontSize: moderateScale(20), color: 'white' }}
           className="font-medium"
         >
           ←
-        </Text>
-      </Pressable>
-      <Pressable
+        </ButtonText>
+      </Button>
+      <Button
         onPress={onNext}
-        className="rounded-full bg-primary-500 items-center justify-center shadow-lg active:opacity-90"
+        className="rounded-full bg-primary-500 px-0 shadow-lg active:opacity-90"
         style={{ width: scale(56), height: scale(56) }}
       >
-        <Text
+        <ButtonText
           style={{ fontSize: moderateScale(20), color: 'white' }}
           className="font-medium"
         >
           →
-        </Text>
-      </Pressable>
+        </ButtonText>
+      </Button>
     </Animated.View>
   );
 }

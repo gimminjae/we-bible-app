@@ -98,30 +98,36 @@ export function PlanForm({
         <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
           {t('planDrawer.startDateLabel')}
         </Text>
-        <Pressable
+        <Button
           onPress={() => {
             setDateField('start');
             setCalendarOpen(true);
           }}
-          className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+          action="secondary"
+          variant="outline"
+          className="mb-4 h-auto justify-start rounded-2xl border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
         >
-          <Text className="text-base text-gray-900 dark:text-white">{startDate}</Text>
-        </Pressable>
+          <ButtonText className="text-base font-normal text-gray-900 dark:text-white">{startDate}</ButtonText>
+        </Button>
 
         <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
           {t('planDrawer.endDateLabel')}
         </Text>
-        <Pressable
+        <Button
           onPress={() => {
             setDateField('end');
             setCalendarOpen(true);
           }}
-          className="mb-2 rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+          action="secondary"
+          variant="outline"
+          className="mb-2 h-auto justify-start rounded-2xl border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
         >
-          <Text className={`${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'} text-base`}>
+          <ButtonText
+            className={`text-base font-normal ${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
+          >
             {endDate || 'YYYY-MM-DD'}
-          </Text>
-        </Pressable>
+          </ButtonText>
+        </Button>
 
         {isDateRangeInvalid ? (
           <Text className="mb-3 text-xs text-red-500">{t('planDrawer.invalidDateRange')}</Text>
@@ -143,32 +149,38 @@ export function PlanForm({
                   ? t('bibleDrawer.newTestament')
                   : t(`bibleDrawer.category.${categoryKey}`);
             return (
-              <Pressable
+              <Button
                 key={categoryKey}
                 onPress={() => setCategory(categoryKey)}
-                className={`rounded-2xl px-3.5 py-2 ${selected ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
+                action={selected ? 'primary' : 'secondary'}
+                size="sm"
+                className={`rounded-2xl ${
+                  selected ? 'bg-primary-500' : 'border-0 bg-gray-200 dark:bg-gray-800'
+                }`}
               >
-                <Text
+                <ButtonText
                   className={`text-sm font-semibold ${
                     selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {label}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
             );
           })}
         </View>
 
         <View className="mb-4">
-          <Pressable
+          <Button
             onPress={toggleSelectAllByCategory}
-            className="self-start rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
+            action="secondary"
+            variant="outline"
+            className="h-auto self-start rounded-2xl border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
           >
-            <Text className="text-sm font-medium text-gray-900 dark:text-white">
+            <ButtonText className="text-sm font-medium text-gray-900 dark:text-white">
               {t('planDrawer.selectAll')}
-            </Text>
-          </Pressable>
+            </ButtonText>
+          </Button>
         </View>
 
         <View className="flex-row flex-wrap gap-2">
@@ -191,7 +203,7 @@ export function PlanForm({
           })}
         </View>
 
-        <Pressable
+        <Button
           disabled={!canSubmit || isSubmitting}
           onPress={() =>
             void onSubmit({
@@ -201,12 +213,12 @@ export function PlanForm({
               selectedBookCodes: [...selectedBookCodes],
             })
           }
-          className={`mt-6 items-center justify-center rounded-2xl px-4 py-4 ${
+          className={`mt-6 h-auto rounded-2xl px-4 py-4 ${
             !canSubmit || isSubmitting ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
           }`}
         >
-          <Text className="font-semibold text-white">{submitLabel}</Text>
-        </Pressable>
+          <ButtonText className="font-semibold text-white">{submitLabel}</ButtonText>
+        </Button>
       </ScrollView>
 
       <Modal

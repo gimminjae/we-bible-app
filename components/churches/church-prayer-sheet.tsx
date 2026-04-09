@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
 import type { ChurchPrayer } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
@@ -87,12 +88,14 @@ export function ChurchPrayerSheet({
                 <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                   {t('church.prayerAudienceLabel')}
                 </Text>
-                <Pressable
+                <Button
                   onPress={() => setAudienceSheetVisible(true)}
-                  className="rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+                  action="secondary"
+                  variant="outline"
+                  className="h-auto rounded-2xl border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
                 >
-                  <Text className="text-base text-gray-900 dark:text-white">{currentAudienceLabel}</Text>
-                </Pressable>
+                  <ButtonText className="text-base text-gray-900 dark:text-white">{currentAudienceLabel}</ButtonText>
+                </Button>
               </View>
             ) : null}
 
@@ -159,16 +162,18 @@ export function ChurchPrayerSheet({
             </View>
 
             <View className="flex-row gap-3">
-              <Pressable
+              <Button
                 onPress={onClose}
                 disabled={isSubmitting}
-                className="flex-1 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+                action="secondary"
+                variant="outline"
+                className="h-auto flex-1 rounded-2xl border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
               >
-                <Text className="font-semibold text-gray-900 dark:text-white">
+                <ButtonText className="font-semibold text-gray-900 dark:text-white">
                   {t('prayerDrawer.cancel')}
-                </Text>
-              </Pressable>
-              <Pressable
+                </ButtonText>
+              </Button>
+              <Button
                 onPress={() =>
                   void onSubmit({
                     teamId: audienceValue || null,
@@ -178,12 +183,12 @@ export function ChurchPrayerSheet({
                   })
                 }
                 disabled={saveDisabled}
-                className={`flex-1 items-center justify-center rounded-2xl px-4 py-4 ${
+                className={`h-auto flex-1 rounded-2xl px-4 py-4 ${
                   saveDisabled ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
                 }`}
               >
-                <Text className="font-semibold text-white">{t('prayerDrawer.save')}</Text>
-              </Pressable>
+                <ButtonText className="font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
+              </Button>
             </View>
           </ScrollView>
         </View>

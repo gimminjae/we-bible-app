@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { useAppSettings } from '@/contexts/app-settings';
 import type { SharedPlanMemberProgress } from '@/lib/church';
 import { BIBLE_BOOKS, type GoalStatus } from '@/lib/plan';
@@ -97,12 +98,16 @@ export function SharedPlanProgressSheet({
               {(['ot', 'nt'] as const).map((tab) => {
                 const isActive = activeTab === tab;
                 return (
-                  <Pressable
+                  <Button
                     key={tab}
                     onPress={() => setActiveTab(tab)}
-                    className={`flex-1 rounded-2xl px-4 py-3 ${isActive ? 'bg-white dark:bg-gray-900' : ''}`}
+                    action={isActive ? 'primary' : 'secondary'}
+                    variant={isActive ? 'solid' : 'outline'}
+                    className={`h-auto flex-1 rounded-2xl border-0 px-4 py-3 ${
+                      isActive ? 'bg-white dark:bg-gray-900' : 'bg-transparent'
+                    }`}
                   >
-                    <Text
+                    <ButtonText
                       className={`text-center text-sm font-semibold ${
                         isActive
                           ? 'text-primary-600 dark:text-primary-400'
@@ -110,8 +115,8 @@ export function SharedPlanProgressSheet({
                       }`}
                     >
                       {tab === 'ot' ? t('bibleDrawer.oldTestament') : t('bibleDrawer.newTestament')}
-                    </Text>
-                  </Pressable>
+                    </ButtonText>
+                  </Button>
                 );
               })}
             </View>
@@ -143,7 +148,7 @@ export function SharedPlanProgressSheet({
                         </Text>
                       </View>
                       {canEdit ? (
-                        <Pressable
+                        <Button
                           onPress={() =>
                             setLocalGoalStatus((previous) =>
                               previous.map((row, index) =>
@@ -153,12 +158,14 @@ export function SharedPlanProgressSheet({
                               ),
                             )
                           }
-                          className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-800 dark:bg-gray-800"
+                          action="secondary"
+                          variant="outline"
+                          className="h-auto rounded-2xl border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-800 dark:bg-gray-800"
                         >
-                          <Text className="text-sm font-semibold text-gray-900 dark:text-white">
+                          <ButtonText className="text-sm font-semibold text-gray-900 dark:text-white">
                             {t('mypage.checkAll')}
-                          </Text>
-                        </Pressable>
+                          </ButtonText>
+                        </Button>
                       ) : null}
                     </View>
 
@@ -166,7 +173,7 @@ export function SharedPlanProgressSheet({
                       {Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
                         const read = chapters[chapterIndex] === 1;
                         return (
-                          <Pressable
+                          <Button
                             key={`${book.bookCode}-${chapterIndex}`}
                             disabled={!canEdit}
                             onPress={() =>
@@ -182,16 +189,18 @@ export function SharedPlanProgressSheet({
                                   )
                                 : undefined
                             }
-                            className={`h-10 w-10 items-center justify-center rounded-2xl border ${
+                            action={read ? 'positive' : 'secondary'}
+                            variant={read ? 'solid' : 'outline'}
+                            className={`h-10 w-10 rounded-2xl px-0 border ${
                               read
                                 ? 'border-emerald-500 bg-emerald-500'
                                 : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
                             } ${!canEdit ? 'opacity-70' : ''}`}
                           >
-                            <Text className={`text-sm font-semibold ${read ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                            <ButtonText className={`text-sm font-semibold ${read ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                               {chapterIndex + 1}
-                            </Text>
-                          </Pressable>
+                            </ButtonText>
+                          </Button>
                         );
                       })}
                     </View>
@@ -203,7 +212,7 @@ export function SharedPlanProgressSheet({
 
           {canEdit ? (
             <View className="border-t border-gray-200 px-6 py-4 dark:border-gray-800">
-              <Pressable
+              <Button
                 disabled={isSaving}
                 onPress={async () => {
                   setIsSaving(true);
@@ -214,12 +223,12 @@ export function SharedPlanProgressSheet({
                     setIsSaving(false);
                   }
                 }}
-                className={`items-center justify-center rounded-2xl px-4 py-4 ${
+                className={`h-auto rounded-2xl px-4 py-4 ${
                   isSaving ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
                 }`}
               >
-                <Text className="font-semibold text-white">{t('mypage.savePlan')}</Text>
-              </Pressable>
+                <ButtonText className="font-semibold text-white">{t('mypage.savePlan')}</ButtonText>
+              </Button>
             </View>
           ) : null}
         </View>

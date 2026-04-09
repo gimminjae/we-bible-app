@@ -1,3 +1,4 @@
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
 import { useI18n } from '@/utils/i18n';
@@ -111,12 +112,12 @@ export default function EditPrayerScreen() {
             {t('prayerDrawer.editTitle')}
           </Text>
         </View>
-        <Pressable
+        <Button
           onPress={handleSave}
-          className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+          className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
         >
-          <Text className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</Text>
-        </Pressable>
+          <ButtonText className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
+        </Button>
       </View>
 
       <KeyboardAvoidingView
@@ -155,12 +156,13 @@ export default function EditPrayerScreen() {
             <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">
               {t('prayerDrawer.contentLabel')}
             </Text>
-            <Pressable
+            <Button
               onPress={handleAddContent}
-              className="px-3 py-1.5 rounded-lg bg-primary-500 active:opacity-90"
+              size="sm"
+              className="h-auto rounded-lg bg-primary-500 px-3 py-1.5 active:opacity-90"
             >
-              <Text className="text-sm font-semibold text-white">{t('prayerDrawer.addContent')}</Text>
-            </Pressable>
+              <ButtonText className="text-sm font-semibold text-white">{t('prayerDrawer.addContent')}</ButtonText>
+            </Button>
           </View>
 
           {contents.map((item, index) => (

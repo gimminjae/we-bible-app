@@ -15,6 +15,7 @@ import { AdBanner } from '@/components/ads/ad-banner';
 import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
@@ -30,12 +31,14 @@ type HeaderActionButtonProps = {
 
 function HeaderActionButton({ label, onPress }: HeaderActionButtonProps) {
   return (
-    <Pressable
+    <Button
+      action="secondary"
+      variant="outline"
       onPress={onPress}
-      className="rounded-full border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+      className="h-auto rounded-full border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
     >
-      <Text className="text-sm font-semibold text-gray-900 dark:text-white">{label}</Text>
-    </Pressable>
+      <ButtonText className="text-sm font-semibold text-gray-900 dark:text-white">{label}</ButtonText>
+    </Button>
   );
 }
 
@@ -50,9 +53,9 @@ function DrawerHeader({ title, onClose }: DrawerHeaderProps) {
   return (
     <View className="flex-row items-center justify-between border-b border-gray-100 px-5 pb-3 pt-4 dark:border-gray-800">
       <Text className="flex-1 text-lg font-bold text-gray-900 dark:text-white">{title}</Text>
-      <Pressable onPress={onClose} className="rounded-2xl px-3 py-2">
-        <Text className="font-semibold text-gray-500 dark:text-gray-400">{t('common.cancel')}</Text>
-      </Pressable>
+      <Button action="secondary" variant="link" onPress={onClose} className="h-auto rounded-2xl px-3 py-2">
+        <ButtonText className="font-semibold text-gray-500 dark:text-gray-400">{t('common.cancel')}</ButtonText>
+      </Button>
     </View>
   );
 }
@@ -145,12 +148,12 @@ function SearchChurchDrawer({
                   </View>
 
                   {church.isMember ? (
-                    <Pressable
+                    <Button
                       onPress={() => onEnter(church.id)}
-                      className="rounded-2xl bg-primary-500 px-4 py-3"
+                      className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
                     >
-                      <Text className="font-semibold text-white">{t('church.enter')}</Text>
-                    </Pressable>
+                      <ButtonText className="font-semibold text-white">{t('church.enter')}</ButtonText>
+                    </Button>
                   ) : church.pendingRequestStatus === 'pending' ? (
                     <View className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
                       <Text className="font-semibold text-gray-500 dark:text-gray-400">
@@ -158,17 +161,17 @@ function SearchChurchDrawer({
                       </Text>
                     </View>
                   ) : (
-                    <Pressable
+                    <Button
                       disabled={submittingJoinChurchId === church.id || !canUseChurchFeature}
                       onPress={() => onRequestJoin(church.id)}
-                      className={`rounded-2xl px-4 py-3 ${
+                      className={`h-auto rounded-2xl px-4 py-3 ${
                         submittingJoinChurchId === church.id || !canUseChurchFeature
                           ? 'bg-gray-300 dark:bg-gray-700'
                           : 'bg-primary-500'
                       }`}
                     >
-                      <Text className="font-semibold text-white">{t('church.requestJoin')}</Text>
-                    </Pressable>
+                      <ButtonText className="font-semibold text-white">{t('church.requestJoin')}</ButtonText>
+                    </Button>
                   )}
                 </View>
               </View>

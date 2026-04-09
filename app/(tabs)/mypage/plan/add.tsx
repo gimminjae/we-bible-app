@@ -164,24 +164,30 @@ export default function AddPlanScreen() {
         <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
           {t('planDrawer.startDateLabel')}
         </Text>
-        <Pressable
+        <Button
           onPress={() => handleOpenCalendar('start')}
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-3 mb-4"
+          action="secondary"
+          variant="outline"
+          className="mb-4 h-auto justify-start rounded-lg border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
         >
-          <Text className="text-gray-900 dark:text-white text-base">{startDate}</Text>
-        </Pressable>
+          <ButtonText className="text-base font-normal text-gray-900 dark:text-white">{startDate}</ButtonText>
+        </Button>
 
         <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
           {t('planDrawer.endDateLabel')}
         </Text>
-        <Pressable
+        <Button
           onPress={() => handleOpenCalendar('end')}
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-3 mb-2"
+          action="secondary"
+          variant="outline"
+          className="mb-2 h-auto justify-start rounded-lg border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
         >
-          <Text className={`text-base ${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+          <ButtonText
+            className={`text-base font-normal ${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
+          >
             {endDate || 'YYYY-MM-DD'}
-          </Text>
-        </Pressable>
+          </ButtonText>
+        </Button>
         {isDateRangeInvalid ? (
           <Text className="text-red-500 text-xs mb-3">{t('planDrawer.invalidDateRange')}</Text>
         ) : (
@@ -203,28 +209,36 @@ export default function AddPlanScreen() {
                   ? t('bibleDrawer.newTestament')
                   : t(`bibleDrawer.category.${categoryKey}`);
             return (
-              <Pressable
+              <Button
                 key={categoryKey}
                 onPress={() => setCategory(categoryKey)}
-                className={`px-3.5 py-2 rounded-xl ${selected ? 'bg-primary-500' : 'bg-gray-200 dark:bg-gray-800'}`}
+                action={selected ? 'primary' : 'secondary'}
+                size="sm"
+                className={`rounded-xl ${
+                  selected ? 'bg-primary-500' : 'border-0 bg-gray-200 dark:bg-gray-800'
+                }`}
               >
-                <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                <ButtonText
+                  className={`text-sm font-semibold ${selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
                   {label}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
             );
           })}
         </View>
 
         <View className="mb-2">
-          <Pressable
+          <Button
             onPress={toggleSelectAllByCategory}
-            className="self-start rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            action="secondary"
+            variant="outline"
+            className="h-auto self-start rounded-lg border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-900"
           >
-            <Text className="text-sm font-medium text-gray-900 dark:text-white">
+            <ButtonText className="text-sm font-medium text-gray-900 dark:text-white">
               {`${categoryLabel} ${t('planDrawer.selectAll')}`}
-            </Text>
-          </Pressable>
+            </ButtonText>
+          </Button>
         </View>
 
         <View className="flex-row flex-wrap gap-2">

@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Button, ButtonText } from '@/components/ui/button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useMySharedPlans } from '@/hooks/use-churches';
@@ -57,12 +57,12 @@ export default function PlanListScreen() {
         title={t('mypage.plansTitle')}
         onBack={() => router.back()}
         right={
-          <Pressable
+          <Button
             onPress={() => router.push('/(tabs)/mypage/plan/add')}
-            className="rounded-2xl bg-primary-500 px-4 py-3"
+            className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
           >
-            <Text className="font-semibold text-white">{t('mypage.addPlan')}</Text>
-          </Pressable>
+            <ButtonText className="font-semibold text-white">{t('mypage.addPlan')}</ButtonText>
+          </Button>
         }
       />
 

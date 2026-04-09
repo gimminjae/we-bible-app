@@ -6,6 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { SharedPlanProgressSheet } from '@/components/churches/shared-plan-progress-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useToast } from '@/contexts/toast-context';
@@ -72,20 +73,22 @@ export default function ChurchPlanDetailScreen() {
         right={
           sharedPlanDetail.canEditPlan ? (
             <>
-              <Pressable
+              <Button
                 onPress={() =>
                   router.push(`/churches/${churchId}/plans/${planId}/edit` as never)
                 }
-                className="rounded-2xl bg-primary-500 px-4 py-3"
+                className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
               >
-                <Text className="font-semibold text-white">{t('mypage.editPlan')}</Text>
-              </Pressable>
-              <Pressable
+                <ButtonText className="font-semibold text-white">{t('mypage.editPlan')}</ButtonText>
+              </Button>
+              <Button
                 onPress={handleDeletePlan}
-                className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
+                action="negative"
+                variant="outline"
+                className="h-auto rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
               >
-                <Text className="font-semibold text-red-500">{t('mypage.deletePlan')}</Text>
-              </Pressable>
+                <ButtonText className="font-semibold text-red-500">{t('mypage.deletePlan')}</ButtonText>
+              </Button>
             </>
           ) : null
         }

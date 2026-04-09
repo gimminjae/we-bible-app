@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   Text,
   View,
@@ -253,14 +252,16 @@ export default function PlanDetailScreen() {
           {(["ot", "nt"] as const).map((tab) => {
             const isActive = activeTab === tab
             return (
-              <Pressable
+              <Button
                 key={tab}
                 onPress={() => setActiveTab(tab)}
-                className={`flex-1 py-3 items-center justify-center border-b-2 ${
+                action={isActive ? "primary" : "secondary"}
+                variant="link"
+                className={`h-auto flex-1 rounded-none border-b-2 py-3 ${
                   isActive ? "border-primary-500" : "border-transparent"
                 }`}
               >
-                <Text
+                <ButtonText
                   className={`text-base font-medium ${
                     isActive
                       ? "text-primary-600 dark:text-primary-400"
@@ -270,8 +271,8 @@ export default function PlanDetailScreen() {
                   {tab === "ot"
                     ? t("bibleDrawer.oldTestament")
                     : t("bibleDrawer.newTestament")}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
             )
           })}
         </View>
@@ -430,9 +431,9 @@ function ChapterEditDrawer({
         <Text className="text-lg font-bold text-gray-900 dark:text-white">
           {getBookName(book.bookCode, appLanguage)}
         </Text>
-        <Pressable onPress={onClose} className="px-2 py-1">
-          <Text className="text-base text-gray-600 dark:text-gray-400">✕</Text>
-        </Pressable>
+        <Button onPress={onClose} action="secondary" variant="link" className="h-auto px-2 py-1">
+          <ButtonText className="text-base text-gray-600 dark:text-gray-400">✕</ButtonText>
+        </Button>
       </View>
       <ScrollView
         className="flex-1"

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { useI18n } from '@/utils/i18n';
 
 type ChurchInfoSheetMode = 'create' | 'edit';
@@ -110,22 +110,24 @@ export function ChurchInfoSheet({
           </ScrollView>
 
           <View className="flex-row gap-3 border-t border-gray-200 px-6 pb-5 pt-3 dark:border-gray-800">
-            <Pressable
+            <Button
               onPress={onClose}
               disabled={isSubmitting}
-              className="flex-1 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
+              action="secondary"
+              variant="outline"
+              className="h-auto flex-1 rounded-2xl border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900"
             >
-              <Text className="font-semibold text-gray-900 dark:text-white">{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
+              <ButtonText className="font-semibold text-gray-900 dark:text-white">{t('common.cancel')}</ButtonText>
+            </Button>
+            <Button
               onPress={() => void onSubmit({ name: name.trim(), description: description.trim() })}
               disabled={submitDisabled}
-              className={`flex-1 items-center justify-center rounded-2xl px-4 py-4 ${
+              className={`h-auto flex-1 rounded-2xl px-4 py-4 ${
                 submitDisabled ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
               }`}
             >
-              <Text className="font-semibold text-white">{getSubmitLabel(mode, t)}</Text>
-            </Pressable>
+              <ButtonText className="font-semibold text-white">{getSubmitLabel(mode, t)}</ButtonText>
+            </Button>
           </View>
         </KeyboardAvoidingView>
       </View>

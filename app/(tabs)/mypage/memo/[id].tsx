@@ -1,4 +1,5 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -113,18 +114,19 @@ export default function MemoDetailScreen() {
             <Pressable onPress={handleCopyPress} hitSlop={8} className="p-2 active:opacity-70">
               <IconSymbol name="doc.on.doc" size={20} color="#6b7280" />
             </Pressable>
-            <Pressable
+            <Button
               onPress={() => setShowEditDrawer(true)}
-              className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+              className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
             >
-              <Text className="text-sm font-semibold text-white">{t('mypage.editMemo')}</Text>
-            </Pressable>
-            <Pressable
+              <ButtonText className="text-sm font-semibold text-white">{t('mypage.editMemo')}</ButtonText>
+            </Button>
+            <Button
               onPress={handleDeletePress}
-              className="px-3 py-2 rounded-lg bg-red-500 active:opacity-90"
+              action="negative"
+              className="h-auto rounded-lg px-3 py-2 active:opacity-90"
             >
-              <Text className="text-sm font-semibold text-white">{t('mypage.deleteMemo')}</Text>
-            </Pressable>
+              <ButtonText className="text-sm font-semibold text-white">{t('mypage.deleteMemo')}</ButtonText>
+            </Button>
           </View>
         ) : null}
       </View>

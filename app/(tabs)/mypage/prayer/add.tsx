@@ -1,3 +1,4 @@
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
 import { useI18n } from '@/utils/i18n';
@@ -8,7 +9,6 @@ import { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -54,13 +54,13 @@ export default function AddPrayerScreen() {
             {t('prayerDrawer.addTitle')}
           </Text>
         </View>
-        <Pressable
+        <Button
           onPress={handleSave}
           disabled={!content.trim()}
-          className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90 disabled:opacity-50"
+          className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90 disabled:opacity-50"
         >
-          <Text className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</Text>
-        </Pressable>
+          <ButtonText className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
+        </Button>
       </View>
 
       <KeyboardAvoidingView

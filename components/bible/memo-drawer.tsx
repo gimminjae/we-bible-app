@@ -1,11 +1,11 @@
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -174,30 +174,31 @@ export function MemoDrawer({
             gap: scale(12),
           }}
         >
-          <Pressable
+          <Button
             onPress={onClose}
-            className="flex-1 rounded-xl bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+            action="secondary"
+            className="h-auto flex-1 rounded-xl border-0 bg-gray-200 dark:bg-gray-700 active:opacity-80"
             style={{ height: scale(48) }}
           >
-            <Text
+            <ButtonText
               className="font-semibold text-gray-800 dark:text-gray-100"
               style={{ fontSize: moderateScale(16) }}
             >
               {t('memoDrawer.cancel')}
-            </Text>
-          </Pressable>
-          <Pressable
+            </ButtonText>
+          </Button>
+          <Button
             onPress={handleSave}
-            className="flex-1 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+            className="h-auto flex-1 rounded-xl bg-primary-500 active:opacity-90"
             style={{ height: scale(48) }}
           >
-            <Text
+            <ButtonText
               className="font-semibold text-white"
               style={{ fontSize: moderateScale(16) }}
             >
               {t('memoDrawer.save')}
-            </Text>
-          </Pressable>
+            </ButtonText>
+          </Button>
         </View>
       </KeyboardAvoidingView>
     </BottomSheet>

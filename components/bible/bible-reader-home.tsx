@@ -4,6 +4,7 @@ import { BookChapterDrawer } from '@/components/bible/book-chapter-drawer';
 import { ChapterNav } from '@/components/bible/chapter-nav';
 import { LanguageDrawer } from '@/components/bible/language-drawer';
 import { MemoDrawer } from '@/components/bible/memo-drawer';
+import { Button, ButtonText } from '@/components/ui/button';
 import { SettingsDrawer } from '@/components/bible/settings-drawer';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
@@ -198,21 +199,21 @@ export function BibleReaderHome() {
               color={bible.canUseAccountDataFeatures ? '#b45309' : '#9ca3af'}
             />
           </Pressable>
-          <Pressable
+          <Button
             onPress={bible.copySelectedVerses}
-            className="bg-primary-500 rounded-full shadow-lg active:opacity-90"
+            className="h-auto rounded-full bg-primary-500 shadow-lg active:opacity-90"
             style={{
               paddingHorizontal: scale(24),
               paddingVertical: scale(12),
             }}
           >
-            <Text
+            <ButtonText
               style={{ fontSize: moderateScale(16) }}
               className="text-white font-semibold"
             >
               {t('common.copy')}
-            </Text>
-          </Pressable>
+            </ButtonText>
+          </Button>
         </Animated.View>
 
         <MemoDrawer

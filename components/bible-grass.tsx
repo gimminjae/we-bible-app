@@ -26,6 +26,7 @@ import {
   type GrassDayEntry,
 } from "@/utils/grass-db"
 
+import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 
 /** Sun at top (row 0), then Mon..Sat */
@@ -841,15 +842,15 @@ export function BibleGrass() {
               </View>
             </ScrollView>
 
-            <Pressable
+            <Button
               onPress={() => setGuideOpen(false)}
-              className="mt-4 rounded-xl bg-primary-500 items-center justify-center active:opacity-90"
+              className="mt-4 rounded-xl bg-primary-500 active:opacity-90"
               style={{ height: scale(44) }}
             >
-              <Text className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
+              <ButtonText className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
                 {t("grass.guide.close")}
-              </Text>
-            </Pressable>
+              </ButtonText>
+            </Button>
           </Pressable>
         </Pressable>
       </Modal>
@@ -879,17 +880,19 @@ export function BibleGrass() {
             {t("grass.more")}
           </Text>
         </View>
-        <Pressable
+        <Button
           onPress={handlePressChangeColor}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1 dark:border-gray-700 dark:bg-gray-800"
+          action="secondary"
+          variant="outline"
+          className="h-auto rounded-lg border-gray-200 bg-white px-3 py-1 dark:border-gray-700 dark:bg-gray-800"
         >
-          <Text
+          <ButtonText
             className="text-gray-700 dark:text-gray-200"
             style={{ fontSize: moderateScale(12) }}
           >
             {t("grass.changeColorButton")}
-          </Text>
-        </Pressable>
+          </ButtonText>
+        </Button>
       </View>
 
       {/* 날짜별 읽은 성경 */}
@@ -918,14 +921,15 @@ export function BibleGrass() {
               )}
             </Text>
             {canFillSelectedDate ? (
-              <Pressable
+              <Button
                 onPress={handlePressFillPastGrass}
-                className="mt-3 self-start rounded-lg bg-emerald-600 px-3 py-2 active:opacity-90"
+                action="positive"
+                className="mt-3 h-auto self-start rounded-lg bg-emerald-600 px-3 py-2 active:opacity-90"
               >
-                <Text className="font-semibold text-white" style={{ fontSize: moderateScale(12) }}>
+                <ButtonText className="font-semibold text-white" style={{ fontSize: moderateScale(12) }}>
                   {t("grass.fillButton")}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
             ) : null}
           </View>
         ) : recentDates.length > 0 ? (

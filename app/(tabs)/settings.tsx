@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdBanner } from '@/components/ads/ad-banner';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppleIcon } from '@/components/ui/icons/AppleIcon';
 import { GoogleIcon } from '@/components/ui/icons/GoogleIcon';
@@ -388,16 +389,16 @@ export default function SettingsScreen() {
                       ? t('settings.authChecking')
                       : displayName || t('settings.displayNameEmpty')}
                   </Text>
-                  <Pressable
+                  <Button
                     onPress={() => {
                       setDisplayNameInput(displayName);
                       setDisplayNameSheetVisible(true);
                     }}
                     disabled={isLoadingDisplayName}
-                    className="rounded-2xl bg-primary-500 px-4 py-3"
+                    className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
                   >
-                    <Text className="font-semibold text-white">{t('settings.changeDisplayName')}</Text>
-                  </Pressable>
+                    <ButtonText className="font-semibold text-white">{t('settings.changeDisplayName')}</ButtonText>
+                  </Button>
                 </View>
               </View>
 
@@ -417,29 +418,31 @@ export default function SettingsScreen() {
                       {showEmailInProfile ? t('settings.emailVisible') : t('settings.emailHidden')}
                     </Text>
                   </View>
-                  <Pressable
+                  <Button
                     onPress={() => void handleEmailVisibilityToggle()}
                     disabled={isUpdatingEmailVisibility || !currentUser.email}
-                    className={`rounded-2xl px-4 py-3 ${
+                    className={`h-auto rounded-2xl px-4 py-3 ${
                       isUpdatingEmailVisibility || !currentUser.email
                         ? 'bg-gray-300 dark:bg-gray-700'
                         : 'bg-primary-500'
                     }`}
                   >
-                    <Text className="font-semibold text-white">
+                    <ButtonText className="font-semibold text-white">
                       {showEmailInProfile ? t('settings.hideEmail') : t('settings.showEmail')}
-                    </Text>
-                  </Pressable>
+                    </ButtonText>
+                  </Button>
                 </View>
               </View>
 
-              <Pressable
+              <Button
                 onPress={handleLogout}
                 disabled={isSubmitting}
-                className="mt-4 items-center justify-center rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800"
+                action="secondary"
+                variant="outline"
+                className="mt-4 h-auto rounded-2xl border-gray-200 px-4 py-4 dark:border-gray-800"
               >
-                <Text className="font-semibold text-gray-900 dark:text-white">{t('settings.logout')}</Text>
-              </Pressable>
+                <ButtonText className="font-semibold text-gray-900 dark:text-white">{t('settings.logout')}</ButtonText>
+              </Button>
             </>
           ) : (
             <>
@@ -477,27 +480,29 @@ export default function SettingsScreen() {
                 />
               ) : null}
 
-              <Pressable
+              <Button
                 onPress={() => void handleEmailAuth()}
                 disabled={isSubmitting}
-                className={`items-center justify-center rounded-2xl px-4 py-4 ${
+                className={`h-auto rounded-2xl px-4 py-4 ${
                   isSubmitting ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
                 }`}
               >
-                <Text className="font-semibold text-white">
+                <ButtonText className="font-semibold text-white">
                   {isSignUpMode ? t('settings.signUp') : t('settings.signIn')}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
 
-              <Pressable
+              <Button
                 onPress={() => setIsSignUpMode((previous) => !previous)}
                 disabled={isSubmitting}
-                className="mt-3 items-center justify-center rounded-2xl border border-gray-200 px-4 py-4 dark:border-gray-800"
+                action="secondary"
+                variant="outline"
+                className="mt-3 h-auto rounded-2xl border-gray-200 px-4 py-4 dark:border-gray-800"
               >
-                <Text className="font-semibold text-gray-900 dark:text-white">
+                <ButtonText className="font-semibold text-gray-900 dark:text-white">
                   {isSignUpMode ? t('settings.switchToSignIn') : t('settings.switchToSignUp')}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
 
               <View className="mt-3 flex-row gap-3">
                 <Pressable
@@ -598,15 +603,16 @@ export default function SettingsScreen() {
                 ? t('settings.deleteAccountBlockedBySuperAdminChurch')
                 : t('settings.deleteAccountDescription')}
             </Text>
-            <Pressable
+            <Button
               onPress={handleDeleteAccount}
               disabled={isSubmitting}
-              className={`mt-4 items-center justify-center rounded-2xl px-4 py-4 ${
+              action="negative"
+              className={`mt-4 h-auto rounded-2xl px-4 py-4 ${
                 isSubmitting ? 'bg-red-300 dark:bg-red-950/50' : 'bg-red-500'
               }`}
             >
-              <Text className="font-semibold text-white">{t('settings.deleteAccount')}</Text>
-            </Pressable>
+              <ButtonText className="font-semibold text-white">{t('settings.deleteAccount')}</ButtonText>
+            </Button>
           </View>
         ) : null}
       </ScrollView>
@@ -649,15 +655,15 @@ export default function SettingsScreen() {
             <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
               {t('settings.displayNameInvalidRule')}
             </Text>
-            <Pressable
+            <Button
               onPress={() => void handleDisplayNameSave()}
               disabled={isUpdatingDisplayName}
-              className={`mt-5 items-center justify-center rounded-2xl px-4 py-4 ${
+              className={`mt-5 h-auto rounded-2xl px-4 py-4 ${
                 isUpdatingDisplayName ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
               }`}
             >
-              <Text className="font-semibold text-white">{t('settings.displayNameSave')}</Text>
-            </Pressable>
+              <ButtonText className="font-semibold text-white">{t('settings.displayNameSave')}</ButtonText>
+            </Button>
           </View>
         </View>
       </BottomSheet>

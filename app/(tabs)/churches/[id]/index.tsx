@@ -16,6 +16,7 @@ import {
   type ChurchPrayerAudienceOption,
 } from '@/components/churches/church-prayer-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
+import { Button, ButtonText } from '@/components/ui/button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
@@ -52,6 +53,38 @@ function getChurchActionErrorMessage(
   }
 
   return translate(fallbackKey);
+}
+
+type ActionTextButtonProps = {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  action?: 'primary' | 'secondary' | 'positive' | 'negative';
+  variant?: 'solid' | 'outline' | 'link';
+  className?: string;
+  textClassName?: string;
+};
+
+function ActionTextButton({
+  label,
+  onPress,
+  disabled = false,
+  action = 'primary',
+  variant = 'solid',
+  className = '',
+  textClassName = '',
+}: ActionTextButtonProps) {
+  return (
+    <Button
+      onPress={onPress}
+      disabled={disabled}
+      action={action}
+      variant={variant}
+      className={`h-auto ${className}`.trim()}
+    >
+      <ButtonText className={textClassName}>{label}</ButtonText>
+    </Button>
+  );
 }
 
 export default function ChurchDetailScreen() {
@@ -275,29 +308,29 @@ export default function ChurchDetailScreen() {
         </Pressable>
 
         <View className="mt-4 flex-row flex-wrap gap-2">
-          <Pressable
+          <ActionTextButton
             onPress={() => {
               setSelectedPrayer(prayer);
               setAppendPrayerVisible(true);
             }}
+            label={t('church.addPrayerContent')}
             className="rounded-2xl bg-primary-500 px-4 py-3"
-          >
-            <Text className="font-semibold text-white">{t('church.addPrayerContent')}</Text>
-          </Pressable>
+            textClassName="font-semibold text-white"
+          />
           {prayer.canManagePrayer ? (
             <>
-              <Pressable
+              <ActionTextButton
                 onPress={() => {
                   setSelectedPrayer(prayer);
                   setEditPrayerVisible(true);
                 }}
-                className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-              >
-                <Text className="font-semibold text-gray-900 dark:text-white">
-                  {t('church.editPrayer')}
-                </Text>
-              </Pressable>
-              <Pressable
+                label={t('church.editPrayer')}
+                action="secondary"
+                variant="outline"
+                className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                textClassName="font-semibold text-gray-900 dark:text-white"
+              />
+              <ActionTextButton
                 onPress={() =>
                   confirmDestructive(t('church.deletePrayerConfirm'), async () => {
                     setProcessingKey(`delete-prayer-${prayer.id}`);
@@ -319,10 +352,12 @@ export default function ChurchDetailScreen() {
                   })
                 }
                 disabled={processingKey === `delete-prayer-${prayer.id}`}
-                className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
-              >
-                <Text className="font-semibold text-red-500">{t('church.deletePrayer')}</Text>
-              </Pressable>
+                label={t('church.deletePrayer')}
+                action="negative"
+                variant="outline"
+                className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
+                textClassName="font-semibold text-red-500"
+              />
             </>
           ) : null}
         </View>
@@ -352,7 +387,7 @@ export default function ChurchDetailScreen() {
                       </Text>
                     </View>
                     {content.canManage ? (
-                      <Pressable
+                      <ActionTextButton
                         onPress={() =>
                           confirmDestructive(t('church.deletePrayerContentConfirm'), async () => {
                             setProcessingKey(`delete-prayer-content-${content.id}`);
@@ -374,12 +409,12 @@ export default function ChurchDetailScreen() {
                           })
                         }
                         disabled={processingKey === `delete-prayer-content-${content.id}`}
-                        className="rounded-2xl border border-red-200 px-3 py-2 dark:border-red-900"
-                      >
-                        <Text className="text-sm font-semibold text-red-500">
-                          {t('mypage.deleteConfirm')}
-                        </Text>
-                      </Pressable>
+                        label={t('mypage.deleteConfirm')}
+                        action="negative"
+                        variant="outline"
+                        className="rounded-2xl border-red-200 px-3 py-2 dark:border-red-900"
+                        textClassName="text-sm font-semibold text-red-500"
+                      />
                     ) : null}
                   </View>
                 </View>
@@ -433,19 +468,19 @@ export default function ChurchDetailScreen() {
             <View className="items-end gap-2">
               {churchDetail.church.myRole ? <ChurchRoleBadge role={churchDetail.church.myRole} /> : null}
               {churchDetail.church.isSuperAdmin ? (
-                <Pressable
+                <ActionTextButton
                   onPress={() => setEditChurchInfoVisible(true)}
-                  className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                >
-                  <Text className="font-semibold text-gray-900 dark:text-white">
-                    {t('church.editInfo')}
-                  </Text>
-                </Pressable>
+                  label={t('church.editInfo')}
+                  action="secondary"
+                  variant="outline"
+                  className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                  textClassName="font-semibold text-gray-900 dark:text-white"
+                />
               ) : null}
               {dataUserId &&
               churchDetail.church.myRole &&
               churchDetail.church.myRole !== 'super_admin' ? (
-                <Pressable
+                <ActionTextButton
                   onPress={() =>
                     confirmDestructive(t('church.leaveConfirm'), async () => {
                       setProcessingKey('leave-church');
@@ -463,15 +498,15 @@ export default function ChurchDetailScreen() {
                     })
                   }
                   disabled={processingKey === 'leave-church'}
-                  className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                >
-                  <Text className="font-semibold text-gray-900 dark:text-white">
-                    {t('church.leave')}
-                  </Text>
-                </Pressable>
+                  label={t('church.leave')}
+                  action="secondary"
+                  variant="outline"
+                  className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                  textClassName="font-semibold text-gray-900 dark:text-white"
+                />
               ) : null}
               {canDeleteChurch ? (
-                <Pressable
+                <ActionTextButton
                   onPress={() =>
                     confirmDestructive(t('church.deleteChurchConfirm'), async () => {
                       setProcessingKey('delete-church');
@@ -493,10 +528,12 @@ export default function ChurchDetailScreen() {
                     })
                   }
                   disabled={processingKey === 'delete-church'}
-                  className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
-                >
-                  <Text className="font-semibold text-red-500">{t('church.deleteChurch')}</Text>
-                </Pressable>
+                  label={t('church.deleteChurch')}
+                  action="negative"
+                  variant="outline"
+                  className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
+                  textClassName="font-semibold text-red-500"
+                />
               ) : null}
             </View>
           </View>
@@ -511,19 +548,23 @@ export default function ChurchDetailScreen() {
           {(['members', 'plans', 'prayers', 'teams'] as const).map((tab) => {
             const active = activeTab === tab;
             return (
-              <Pressable
+              <Button
                 key={tab}
                 onPress={() => setActiveTab(tab)}
-                className={`flex-1 rounded-2xl px-3 py-3 ${active ? 'bg-white dark:bg-gray-900' : ''}`}
+                action={active ? 'primary' : 'secondary'}
+                variant={active ? 'solid' : 'outline'}
+                className={`h-auto flex-1 rounded-2xl border-0 px-3 py-3 ${
+                  active ? 'bg-white dark:bg-gray-900' : 'bg-transparent'
+                }`}
               >
-                <Text
+                <ButtonText
                   className={`text-center text-sm font-semibold ${
                     active ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
                   }`}
                 >
                   {tabLabel(tab)}
-                </Text>
-              </Pressable>
+                </ButtonText>
+              </Button>
             );
           })}
         </View>
@@ -548,17 +589,19 @@ export default function ChurchDetailScreen() {
                     </Text>
 
                     <View className="mt-4 flex-row flex-wrap gap-2">
-                      <Pressable
+                      <ActionTextButton
                         onPress={() => openRequestTeamPicker(request.id)}
-                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                      >
-                        <Text className="font-semibold text-gray-900 dark:text-white">
-                          {selectedRequestTeamIds[request.id]
+                        label={
+                          selectedRequestTeamIds[request.id]
                             ? churchDetail.teams.find((team) => team.id === selectedRequestTeamIds[request.id])?.name ?? t('church.noTeam')
-                            : t('church.noTeam')}
-                        </Text>
-                      </Pressable>
-                      <Pressable
+                            : t('church.noTeam')
+                        }
+                        action="secondary"
+                        variant="outline"
+                        className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                        textClassName="font-semibold text-gray-900 dark:text-white"
+                      />
+                      <ActionTextButton
                         onPress={async () => {
                           setProcessingKey(`approve-${request.id}`);
                           try {
@@ -580,11 +623,11 @@ export default function ChurchDetailScreen() {
                           }
                         }}
                         disabled={processingKey === `approve-${request.id}`}
+                        label={t('church.approve')}
                         className="rounded-2xl bg-primary-500 px-4 py-3"
-                      >
-                        <Text className="font-semibold text-white">{t('church.approve')}</Text>
-                      </Pressable>
-                      <Pressable
+                        textClassName="font-semibold text-white"
+                      />
+                      <ActionTextButton
                         onPress={async () => {
                           setProcessingKey(`reject-${request.id}`);
                           try {
@@ -604,12 +647,12 @@ export default function ChurchDetailScreen() {
                           }
                         }}
                         disabled={processingKey === `reject-${request.id}`}
-                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                      >
-                        <Text className="font-semibold text-gray-900 dark:text-white">
-                          {t('church.reject')}
-                        </Text>
-                      </Pressable>
+                        label={t('church.reject')}
+                        action="secondary"
+                        variant="outline"
+                        className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                        textClassName="font-semibold text-gray-900 dark:text-white"
+                      />
                     </View>
                   </View>
                 ))}
@@ -657,7 +700,7 @@ export default function ChurchDetailScreen() {
 
                     <View className="items-end gap-2">
                       {canTransferSuperAdmin ? (
-                        <Pressable
+                        <ActionTextButton
                           onPress={() =>
                             confirmDestructive(
                               t('church.transferSuperAdminConfirm').replace(
@@ -687,15 +730,15 @@ export default function ChurchDetailScreen() {
                             )
                           }
                           disabled={processingKey === `transfer-super-admin-${member.userId}`}
-                          className="rounded-2xl border border-primary-200 px-4 py-3 dark:border-primary-900"
-                        >
-                          <Text className="font-semibold text-primary-600 dark:text-primary-400">
-                            {t('church.transferSuperAdmin')}
-                          </Text>
-                        </Pressable>
+                          label={t('church.transferSuperAdmin')}
+                          action="primary"
+                          variant="outline"
+                          className="rounded-2xl border-primary-200 px-4 py-3 dark:border-primary-900"
+                          textClassName="font-semibold text-primary-600 dark:text-primary-400"
+                        />
                       ) : null}
                       {canToggleDeputy ? (
-                        <Pressable
+                        <ActionTextButton
                           onPress={async () => {
                             setProcessingKey(`role-${member.userId}`);
                             try {
@@ -720,18 +763,20 @@ export default function ChurchDetailScreen() {
                             }
                           }}
                           disabled={processingKey === `role-${member.userId}`}
-                          className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                        >
-                          <Text className="font-semibold text-gray-900 dark:text-white">
-                            {member.role === 'deputy_admin'
+                          label={
+                            member.role === 'deputy_admin'
                               ? t('church.revokeDeputy')
-                              : t('church.grantDeputy')}
-                          </Text>
-                        </Pressable>
+                              : t('church.grantDeputy')
+                          }
+                          action="secondary"
+                          variant="outline"
+                          className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                          textClassName="font-semibold text-gray-900 dark:text-white"
+                        />
                       ) : null}
 
                       {canRemoveMember ? (
-                        <Pressable
+                        <ActionTextButton
                           onPress={() =>
                             confirmDestructive(
                               t('church.removeMemberConfirm').replace(
@@ -759,27 +804,31 @@ export default function ChurchDetailScreen() {
                             )
                           }
                           disabled={processingKey === `remove-${member.userId}`}
-                          className="rounded-2xl border border-red-200 px-4 py-3 dark:border-red-900"
-                        >
-                          <Text className="font-semibold text-red-500">{t('church.removeMember')}</Text>
-                        </Pressable>
+                          label={t('church.removeMember')}
+                          action="negative"
+                          variant="outline"
+                          className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
+                          textClassName="font-semibold text-red-500"
+                        />
                       ) : null}
                     </View>
                   </View>
 
                   {canManageMemberTeam ? (
                     <View className="mt-4 flex-row flex-wrap gap-2">
-                      <Pressable
+                      <ActionTextButton
                         onPress={() => openMemberTeamPicker(member.userId, teamSelectValue)}
-                        className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                      >
-                        <Text className="font-semibold text-gray-900 dark:text-white">
-                          {teamSelectValue
+                        label={
+                          teamSelectValue
                             ? churchDetail.teams.find((team) => team.id === teamSelectValue)?.name ?? t('church.noTeam')
-                            : t('church.noTeam')}
-                        </Text>
-                      </Pressable>
-                      <Pressable
+                            : t('church.noTeam')
+                        }
+                        action="secondary"
+                        variant="outline"
+                        className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                        textClassName="font-semibold text-gray-900 dark:text-white"
+                      />
+                      <ActionTextButton
                         onPress={async () => {
                           setProcessingKey(`member-team-${member.userId}`);
                           try {
@@ -800,10 +849,10 @@ export default function ChurchDetailScreen() {
                           }
                         }}
                         disabled={processingKey === `member-team-${member.userId}`}
+                        label={t('church.saveTeamAssignment')}
                         className="rounded-2xl bg-primary-500 px-4 py-3"
-                      >
-                        <Text className="font-semibold text-white">{t('church.saveTeamAssignment')}</Text>
-                      </Pressable>
+                        textClassName="font-semibold text-white"
+                      />
                     </View>
                   ) : null}
                 </View>
@@ -814,16 +863,14 @@ export default function ChurchDetailScreen() {
         {activeTab === 'plans' ? (
           <>
             {churchDetail.church.isSuperAdmin ? (
-              <Pressable
+              <ActionTextButton
                 onPress={() =>
                   router.push(`/churches/${churchDetail.church.id}/plans/add` as never)
                 }
+                label={t('church.createChurchPlan')}
                 className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
-              >
-                <Text className="text-center font-semibold text-white">
-                  {t('church.createChurchPlan')}
-                </Text>
-              </Pressable>
+                textClassName="text-center font-semibold text-white"
+              />
             ) : null}
 
             {churchDetail.plans.length === 0 ? (
@@ -864,12 +911,12 @@ export default function ChurchDetailScreen() {
         {activeTab === 'prayers' ? (
           <>
             {churchDetail.church.myRole ? (
-              <Pressable
+              <ActionTextButton
                 onPress={() => setCreatePrayerVisible(true)}
+                label={t('church.createPrayer')}
                 className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
-              >
-                <Text className="text-center font-semibold text-white">{t('church.createPrayer')}</Text>
-              </Pressable>
+                textClassName="text-center font-semibold text-white"
+              />
             ) : null}
 
             <View className="mb-5">
@@ -915,7 +962,7 @@ export default function ChurchDetailScreen() {
                     placeholderTextColor="#9ca3af"
                     className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
                   />
-                  <Pressable
+                  <ActionTextButton
                     onPress={async () => {
                       setProcessingKey('create-team');
                       try {
@@ -934,14 +981,14 @@ export default function ChurchDetailScreen() {
                       }
                     }}
                     disabled={processingKey === 'create-team' || !creatingTeamName.trim()}
-                    className={`items-center justify-center rounded-2xl px-5 ${
+                    label={t('church.createTeam')}
+                    className={`rounded-2xl px-5 ${
                       processingKey === 'create-team' || !creatingTeamName.trim()
                         ? 'bg-gray-300 dark:bg-gray-700'
                         : 'bg-primary-500'
                     }`}
-                  >
-                    <Text className="font-semibold text-white">{t('church.createTeam')}</Text>
-                  </Pressable>
+                    textClassName="font-semibold text-white"
+                  />
                 </View>
               </View>
             ) : null}
@@ -973,33 +1020,35 @@ export default function ChurchDetailScreen() {
                         </Text>
                       </View>
                       {churchDetail.church.canManagePlans ? (
-                        <Pressable
+                        <ActionTextButton
                           onPress={() =>
                             router.push(
                               `/churches/${churchDetail.church.id}/plans/add?teamId=${team.id}` as never,
                             )
                           }
+                          label={t('church.createTeamPlan')}
                           className="rounded-2xl bg-primary-500 px-4 py-3"
-                        >
-                          <Text className="font-semibold text-white">{t('church.createTeamPlan')}</Text>
-                        </Pressable>
+                          textClassName="font-semibold text-white"
+                        />
                       ) : null}
                     </View>
 
                     {churchDetail.church.canManageTeams ? (
                       <View className="mt-4 flex-row flex-wrap gap-2">
-                        <Pressable
+                        <ActionTextButton
                           onPress={() => openLeaderPicker(team.id, leaderValue)}
-                          className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800"
-                        >
-                          <Text className="font-semibold text-gray-900 dark:text-white">
-                            {leaderValue
+                          label={
+                            leaderValue
                               ? churchDetail.members.find((member) => member.userId === leaderValue)?.profile
                                   .displayName ?? t('church.noLeader')
-                              : t('church.noLeader')}
-                          </Text>
-                        </Pressable>
-                        <Pressable
+                              : t('church.noLeader')
+                          }
+                          action="secondary"
+                          variant="outline"
+                          className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                          textClassName="font-semibold text-gray-900 dark:text-white"
+                        />
+                        <ActionTextButton
                           onPress={async () => {
                             setProcessingKey(`leader-${team.id}`);
                             try {
@@ -1020,10 +1069,10 @@ export default function ChurchDetailScreen() {
                             }
                           }}
                           disabled={processingKey === `leader-${team.id}`}
+                          label={t('church.saveLeader')}
                           className="rounded-2xl bg-primary-500 px-4 py-3"
-                        >
-                          <Text className="font-semibold text-white">{t('church.saveLeader')}</Text>
-                        </Pressable>
+                          textClassName="font-semibold text-white"
+                        />
                       </View>
                     ) : null}
 

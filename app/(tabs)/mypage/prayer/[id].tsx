@@ -1,3 +1,4 @@
+import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
 import {
@@ -115,18 +116,19 @@ export default function PrayerDetailScreen() {
         </View>
         {prayer ? (
           <View className="flex-row gap-2">
-            <Pressable
+            <Button
               onPress={handleEditPress}
-              className="px-3 py-2 rounded-lg bg-primary-500 active:opacity-90"
+              className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
             >
-              <Text className="text-sm font-semibold text-white">{t('mypage.editPrayer')}</Text>
-            </Pressable>
-            <Pressable
+              <ButtonText className="text-sm font-semibold text-white">{t('mypage.editPrayer')}</ButtonText>
+            </Button>
+            <Button
               onPress={handleDeletePrayer}
-              className="px-3 py-2 rounded-lg bg-red-500 active:opacity-90"
+              action="negative"
+              className="h-auto rounded-lg px-3 py-2 active:opacity-90"
             >
-              <Text className="text-sm font-semibold text-white">{t('mypage.deletePrayer')}</Text>
-            </Pressable>
+              <ButtonText className="text-sm font-semibold text-white">{t('mypage.deletePrayer')}</ButtonText>
+            </Button>
           </View>
         ) : null}
       </View>
