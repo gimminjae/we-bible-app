@@ -528,6 +528,8 @@ const messages = {
     bibleDrawer: {
       oldTestament: "구약",
       newTestament: "신약",
+      categoryInfoTitle: "성경 카테고리 안내",
+      categoryInfoClose: "닫기",
       category: {
         pentateuch: "모세오경",
         history: "역사서",
@@ -535,6 +537,58 @@ const messages = {
         prophecy: "예언서",
         gospels: "복음서",
         epistles: "서신서",
+      },
+      categoryInfo: {
+        ot: {
+          title: "구약 (Old Testament)",
+          body:
+            "구약 성경은 예수님 이전의 시대를 배경으로, 하나님께서 이스라엘 백성과 맺으신 언약과 그들의 역사, 그리고 인간의 죄와 하나님의 구원 계획의 시작을 기록한 부분입니다. 창조에서부터 시작하여 인간의 타락, 그리고 하나님이 선택하신 백성을 통해 구원의 길을 준비해 가시는 과정이 중심을 이룹니다.",
+        },
+        nt: {
+          title: "신약 (New Testament)",
+          body:
+            "신약 성경은 예수 그리스도를 중심으로 하나님의 구원 계획이 완성되는 이야기를 담고 있으며, 예수님의 삶과 사역, 십자가와 부활, 그리고 이후 초대교회의 시작과 확장을 기록합니다. 구약에서 약속된 구원이 실제로 이루어지고, 모든 사람에게 복음이 전파되는 과정을 보여줍니다.",
+        },
+        pentateuch: {
+          title: "모세오경 (율법서)",
+          body:
+            "모세오경은 성경의 기초가 되는 부분으로, 세상의 창조와 인간의 타락, 그리고 하나님과 인간 사이의 언약이 어떻게 시작되었는지를 설명합니다. 또한 이스라엘 백성이 하나님과 함께 살아가기 위해 따라야 할 율법과 규례가 제시되며, 하나님과의 관계의 기준을 세우는 역할을 합니다.",
+        },
+        history: {
+          title: "역사서 (구약)",
+          body:
+            "역사서는 이스라엘 민족이 가나안 땅에 정착한 이후부터 왕국의 형성과 분열, 그리고 결국 멸망에 이르기까지의 실제 역사를 기록한 책들입니다. 이 과정 속에서 하나님을 향한 순종과 불순종이 어떤 결과를 가져오는지를 보여주며, 하나님의 주권적인 통치가 역사 속에서 어떻게 나타나는지를 드러냅니다.",
+        },
+        poetry: {
+          title: "시가서 (지혜서)",
+          body:
+            "시가서는 인간의 삶과 감정, 고난과 기쁨, 그리고 하나님과의 관계를 보다 개인적이고 깊이 있게 다루는 책들로 구성되어 있습니다. 지혜로운 삶이 무엇인지, 고난 속에서 하나님을 어떻게 이해해야 하는지, 그리고 하나님과의 친밀한 관계 속에서 살아가는 신앙의 모습을 시와 노래, 잠언의 형식으로 표현합니다.",
+        },
+        prophecy: {
+          title: "예언서 (구약)",
+          body:
+            "예언서는 하나님께서 선지자들을 통해 이스라엘 백성에게 전하신 메시지를 담고 있으며, 죄에 대한 경고와 회개에 대한 촉구, 그리고 장차 이루어질 구원에 대한 약속을 포함합니다. 특히 메시아에 대한 예언을 통해 앞으로 오실 예수 그리스도를 미리 보여주며, 하나님의 공의와 사랑이 동시에 드러납니다.",
+        },
+        gospels: {
+          title: "복음서",
+          body:
+            "복음서는 예수 그리스도의 삶과 가르침, 기적, 그리고 십자가와 부활을 기록한 책들로, 기독교 신앙의 핵심을 이루는 부분입니다. 네 권의 복음서는 서로 다른 관점에서 예수님을 증언하지만, 모두 예수님이 누구이며 왜 이 땅에 오셨는지를 분명하게 드러냅니다.",
+        },
+        acts: {
+          title: "사도행전 (역사서)",
+          body:
+            "사도행전은 예수님의 승천 이후 성령이 임하시고 초대교회가 시작되어 복음이 예루살렘을 넘어 온 세상으로 확장되는 과정을 기록합니다. 사도들의 사역과 선교 여행을 통해 하나님 나라가 어떻게 퍼져 나가는지를 보여주는 교회의 역사서입니다.",
+        },
+        epistles: {
+          title: "서신서",
+          body:
+            "서신서는 사도들이 교회와 개인에게 보낸 편지로, 신앙의 교리와 실제적인 삶의 적용을 설명합니다. 다양한 교회의 문제를 해결하고, 올바른 신앙과 삶의 방향을 제시하며, 그리스도인이 어떻게 살아야 하는지를 구체적으로 가르칩니다.",
+        },
+        revelation: {
+          title: "요한계시록 (예언서)",
+          body:
+            "요한계시록은 성경의 마지막 책으로, 종말과 심판, 그리고 하나님 나라의 최종 완성을 상징적인 표현과 환상을 통해 보여줍니다. 세상의 끝에서 하나님이 어떻게 모든 것을 새롭게 하시는지를 드러내며, 궁극적인 승리가 하나님께 있음을 선포합니다.",
+        },
       },
     },
   },
@@ -1066,6 +1120,8 @@ const messages = {
     bibleDrawer: {
       oldTestament: "Old Testament",
       newTestament: "New Testament",
+      categoryInfoTitle: "Bible Category Guide",
+      categoryInfoClose: "Close",
       category: {
         pentateuch: "Pentateuch",
         history: "Historical Books",
@@ -1073,6 +1129,58 @@ const messages = {
         prophecy: "Prophetic Books",
         gospels: "Gospels",
         epistles: "Epistles",
+      },
+      categoryInfo: {
+        ot: {
+          title: "Old Testament",
+          body:
+            "The Old Testament is set before the coming of Jesus and records God's covenant with Israel, their history, humanity's sin, and the beginning of God's plan of salvation. From creation and the fall to the preparation of redemption through the people God chose, it shows how God steadily prepared the way for salvation.",
+        },
+        nt: {
+          title: "New Testament",
+          body:
+            "The New Testament centers on Jesus Christ and tells how God's plan of salvation is fulfilled. It records the life and ministry of Jesus, His death and resurrection, and the birth and expansion of the early church. It shows how the salvation promised in the Old Testament is accomplished and proclaimed to all people.",
+        },
+        pentateuch: {
+          title: "Pentateuch",
+          body:
+            "The Pentateuch lays the foundation of Scripture by explaining the creation of the world, the fall of humanity, and the beginning of God's covenant with people. It also presents the laws and commands Israel was to follow in order to live with God, establishing the basic pattern of life before Him.",
+        },
+        history: {
+          title: "Historical Books (Old Testament)",
+          body:
+            "The Historical Books record Israel's story from settling in Canaan through the rise and division of the kingdom, and eventually to national collapse. Through these events they show the consequences of obedience and disobedience, while revealing how God's sovereign rule is at work in history.",
+        },
+        poetry: {
+          title: "Poetry and Wisdom",
+          body:
+            "The Poetry and Wisdom books deal with human life and emotion, suffering and joy, and a deeply personal relationship with God. Through songs, poems, and sayings they express what wise living looks like, how to understand God in hardship, and how faith is lived in closeness to Him.",
+        },
+        prophecy: {
+          title: "Prophetic Books (Old Testament)",
+          body:
+            "The Prophetic Books contain God's messages through the prophets: warnings against sin, calls to repentance, and promises of future salvation. They especially point ahead to the coming Messiah, revealing both God's justice and His love.",
+        },
+        gospels: {
+          title: "Gospels",
+          body:
+            "The Gospels record the life, teaching, miracles, death, and resurrection of Jesus Christ, placing them at the center of Christian faith. Each Gospel presents Jesus from a distinct perspective, yet all clearly reveal who He is and why He came into the world.",
+        },
+        acts: {
+          title: "Acts (History)",
+          body:
+            "Acts records what happened after Jesus' ascension, when the Holy Spirit came and the early church began to spread from Jerusalem to the ends of the earth. Through the apostles' ministry and missionary journeys, it shows how the kingdom of God advanced through the church.",
+        },
+        epistles: {
+          title: "Epistles",
+          body:
+            "The Epistles are letters sent by the apostles to churches and individuals, explaining doctrine and the practical application of faith. They address real problems, guide believers into sound teaching and holy living, and show concretely how Christians are to live.",
+        },
+        revelation: {
+          title: "Revelation (Prophecy)",
+          body:
+            "Revelation, the final book of the Bible, portrays the end, judgment, and the final completion of God's kingdom through symbolic visions and imagery. It reveals how God will make all things new and proclaims that ultimate victory belongs to Him.",
+        },
       },
     },
   },
