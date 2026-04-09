@@ -63,4 +63,10 @@ after insert or update of church_id, team_id on public.plans
 for each row
 execute function public.handle_plan_audience_change();
 
+drop trigger if exists developer_inquiries_set_updated_at on public.developer_inquiries;
+create trigger developer_inquiries_set_updated_at
+before update on public.developer_inquiries
+for each row
+execute function public.touch_updated_at();
+
 commit;

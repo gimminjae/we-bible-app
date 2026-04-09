@@ -68,4 +68,10 @@ create unique index if not exists prayer_contents_prayer_id_client_id_idx
   on public.prayer_contents (prayer_id, client_id)
   where client_id is not null;
 
+create index if not exists developer_inquiries_status_created_at_idx
+  on public.developer_inquiries (status, created_at desc, id desc);
+
+create index if not exists developer_inquiries_author_user_id_created_at_idx
+  on public.developer_inquiries (author_user_id, created_at desc, id desc);
+
 commit;

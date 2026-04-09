@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
 import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
+import { createDeveloperInquiry } from '@/lib/developer-inquiries';
 import {
   getUserAccountLabel,
   getUserDisplayName,
@@ -88,6 +89,11 @@ export default function SettingsScreen() {
   const [isLoadingDisplayName, setIsLoadingDisplayName] = useState(false);
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
   const [isUpdatingEmailVisibility, setIsUpdatingEmailVisibility] = useState(false);
+  const [developerInquirySheetVisible, setDeveloperInquirySheetVisible] = useState(false);
+  const [developerInquiryAuthorName, setDeveloperInquiryAuthorName] = useState('');
+  const [developerInquiryTitle, setDeveloperInquiryTitle] = useState('');
+  const [developerInquiryContent, setDeveloperInquiryContent] = useState('');
+  const [isSubmittingDeveloperInquiry, setIsSubmittingDeveloperInquiry] = useState(false);
 
   useEffect(() => {
     if (!lastError) return;
@@ -293,6 +299,74 @@ export default function SettingsScreen() {
       setIsUpdatingEmailVisibility(false);
     }
   }, [currentUser, showEmailInProfile, showToast, t]);
+
+  const resetDeveloperInquiryForm = useCallback(() => {
+    setDeveloperInquiryAuthorName((displayName || getUserDisplayName(currentUser)) ?? '');
+    setDeveloperInquiryTitle('');
+    setDeveloperInquiryContent('');
+  }, [currentUser, displayName]);
+
+  const handleOpenDeveloperInquirySheet = useCallback(() => {
+    if (!isConfigured) {
+      showToast(t('settings.developerInquiryUnavailable'));
+      return;
+    }
+
+    resetDeveloperInquiryForm();
+    setDeveloperInquirySheetVisible(true);
+  }, [isConfigured, resetDeveloperInquiryForm, showToast, t]);
+
+  const handleSubmitDeveloperInquiry = useCallback(async () => {
+    if (!isConfigured) {
+      showToast(t('settings.developerInquiryUnavailable'));
+      return;
+    }
+
+    const trimmedAuthorName = developerInquiryAuthorName.trim();
+    const trimmedTitle = developerInquiryTitle.trim();
+    const trimmedContent = developerInquiryContent.trim();
+
+    if (!trimmedAuthorName) {
+      showToast(t('settings.developerInquiryRequiredAuthorName'));
+      return;
+    }
+
+    if (!trimmedTitle) {
+      showToast(t('settings.developerInquiryRequiredTitle'));
+      return;
+    }
+
+    if (!trimmedContent) {
+      showToast(t('settings.developerInquiryRequiredContent'));
+      return;
+    }
+
+    setIsSubmittingDeveloperInquiry(true);
+    try {
+      await createDeveloperInquiry({
+        authorUserId: currentUser?.id ?? null,
+        authorName: trimmedAuthorName,
+        title: trimmedTitle,
+        content: trimmedContent,
+      });
+      setDeveloperInquirySheetVisible(false);
+      resetDeveloperInquiryForm();
+      showToast(t('settings.developerInquirySubmitSuccess'));
+    } catch {
+      showToast(t('settings.developerInquirySubmitFailed'));
+    } finally {
+      setIsSubmittingDeveloperInquiry(false);
+    }
+  }, [
+    currentUser,
+    developerInquiryAuthorName,
+    developerInquiryContent,
+    developerInquiryTitle,
+    isConfigured,
+    resetDeveloperInquiryForm,
+    showToast,
+    t,
+  ]);
 
   const currentLanguageLabel = useMemo(
     () => LANGUAGE_OPTIONS.find((option) => option.value === appLanguage)?.label ?? '한국어',
@@ -593,6 +667,28 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {t('settings.developerInquiry')}
+          </Text>
+          <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+            {isConfigured
+              ? t('settings.developerInquiryDescription')
+              : t('settings.developerInquiryUnavailable')}
+          </Text>
+          <Button
+            onPress={handleOpenDeveloperInquirySheet}
+            disabled={!isConfigured || isSubmittingDeveloperInquiry}
+            className={`mt-4 h-auto rounded-2xl px-4 py-4 ${
+              !isConfigured || isSubmittingDeveloperInquiry
+                ? 'bg-gray-300 dark:bg-gray-700'
+                : 'bg-primary-500'
+            }`}
+          >
+            <ButtonText className="font-semibold text-white">{t('settings.developerInquiryOpen')}</ButtonText>
+          </Button>
+        </View>
+
         {currentUser ? (
           <View className="mt-6 rounded-3xl border border-red-200 bg-white p-5 dark:border-red-900 dark:bg-gray-900">
             <Text className="text-sm font-medium text-red-500 dark:text-red-400">
@@ -665,6 +761,81 @@ export default function SettingsScreen() {
               <ButtonText className="font-semibold text-white">{t('settings.displayNameSave')}</ButtonText>
             </Button>
           </View>
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={developerInquirySheetVisible}
+        onClose={() => {
+          if (isSubmittingDeveloperInquiry) return;
+          setDeveloperInquirySheetVisible(false);
+        }}
+        heightFraction={0.76}
+      >
+        <View className="flex-1">
+          <View className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+            <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t('settings.developerInquiryModalTitle')}
+            </Text>
+          </View>
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 24, paddingBottom: 32 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text className="mb-5 text-sm leading-6 text-gray-500 dark:text-gray-400">
+              {t('settings.developerInquiryDescription')}
+            </Text>
+
+            <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+              {t('settings.developerInquiryAuthorNameLabel')}
+            </Text>
+            <TextInput
+              value={developerInquiryAuthorName}
+              onChangeText={setDeveloperInquiryAuthorName}
+              placeholder={t('settings.developerInquiryAuthorNamePlaceholder')}
+              placeholderTextColor="#9ca3af"
+              maxLength={40}
+              className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+            />
+
+            <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+              {t('settings.developerInquirySubjectLabel')}
+            </Text>
+            <TextInput
+              value={developerInquiryTitle}
+              onChangeText={setDeveloperInquiryTitle}
+              placeholder={t('settings.developerInquirySubjectPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              maxLength={120}
+              className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+            />
+
+            <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+              {t('settings.developerInquiryContentLabel')}
+            </Text>
+            <TextInput
+              value={developerInquiryContent}
+              onChangeText={setDeveloperInquiryContent}
+              placeholder={t('settings.developerInquiryContentPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              multiline
+              maxLength={4000}
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+              style={{ minHeight: 160, textAlignVertical: 'top' }}
+            />
+
+            <Button
+              onPress={() => void handleSubmitDeveloperInquiry()}
+              disabled={isSubmittingDeveloperInquiry}
+              className={`mt-5 h-auto rounded-2xl px-4 py-4 ${
+                isSubmittingDeveloperInquiry ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
+              }`}
+            >
+              <ButtonText className="font-semibold text-white">{t('settings.developerInquirySubmit')}</ButtonText>
+            </Button>
+          </ScrollView>
         </View>
       </BottomSheet>
     </SafeAreaView>

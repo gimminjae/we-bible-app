@@ -19,6 +19,7 @@ alter table public.church_prayer_contents enable row level security;
 alter table public.prayers enable row level security;
 alter table public.prayer_contents enable row level security;
 alter table public.bible_grass enable row level security;
+alter table public.developer_inquiries enable row level security;
 
 drop policy if exists "bible_state_owner" on public.bible_state;
 create policy "bible_state_owner"
@@ -329,5 +330,14 @@ create policy "bible_grass_owner"
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+drop policy if exists "developer_inquiries_insert_public" on public.developer_inquiries;
+create policy "developer_inquiries_insert_public"
+  on public.developer_inquiries
+  for insert
+  with check (
+    auth.role() in ('anon', 'authenticated')
+    and (author_user_id is null or author_user_id = auth.uid())
+  );
 
 commit;
