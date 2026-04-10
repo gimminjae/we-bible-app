@@ -33,13 +33,13 @@ export function BibleHeader({
           <Button
             variant="solid"
             className="rounded-xl bg-primary-50 dark:bg-primary-950/40"
-            style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
+            // style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
             onPress={onOpenBookPicker}
             action="primary"
           >
             <ButtonText
               className="font-semibold text-primary-600 dark:text-primary-400"
-              style={{ fontSize: moderateScale(14) }}
+              // style={{ fontSize: moderateScale(14) }}
             >
               {bookName} {chapter}
             </ButtonText>
@@ -47,13 +47,13 @@ export function BibleHeader({
           <Button
             variant="solid"
             className="rounded-xl bg-primary-50 dark:bg-primary-950/40"
-            style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
+            // style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
             onPress={onOpenLangPicker}
             action="primary"
           >
             <ButtonText
               className="font-semibold text-primary-600 dark:text-primary-400"
-              style={{ fontSize: moderateScale(14) }}
+              // style={{ fontSize: moderateScale(14) }}
             >
               {langLabel}
             </ButtonText>

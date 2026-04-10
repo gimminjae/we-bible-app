@@ -48,7 +48,7 @@ export function ThemeVerseSummaryCard({
         <View className="flex-row items-start justify-between" style={{ gap: scale(12) }}>
           <View className="min-w-0 flex-1">
             <Text
-              className="text-sm font-semibold text-primary-600 dark:text-primary-400"
+              className="text-sm p-3 font-semibold text-primary-600 dark:text-primary-400"
               style={{ fontSize: moderateScale(14) }}
             >
               {replaceToken(t('themeVerse.summaryLabel'), 'year', String(year))}
