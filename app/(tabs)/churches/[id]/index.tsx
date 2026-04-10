@@ -851,7 +851,7 @@ export default function ChurchDetailScreen() {
                         disabled={processingKey === `member-team-${member.userId}`}
                         label={t('church.saveTeamAssignment')}
                         className="rounded-2xl bg-primary-500 px-4 py-3"
-                        textClassName="font-semibold text-white dark: text-gray-900"
+                        textClassName="font-semibold text-white dark:text-gray-900"
                       />
                     </View>
                   ) : null}
