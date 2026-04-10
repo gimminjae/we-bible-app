@@ -22,6 +22,7 @@ import { initGrassTable } from '@/utils/grass-db';
 import { initMemosTable } from '@/utils/memo-db';
 import { initPlansTable } from '@/utils/plan-db';
 import { initPrayersTable } from '@/utils/prayer-db';
+import { initThemeVersesTable } from '@/utils/theme-verse-db';
 
 async function initDb(db: SQLiteDatabase) {
   await initFavoriteVersesTable(db);
@@ -30,6 +31,7 @@ async function initDb(db: SQLiteDatabase) {
   await initPlansTable(db);
   await initPrayersTable(db);
   await initGrassTable(db);
+  await initThemeVersesTable(db);
 }
 
 const queryClient = new QueryClient();

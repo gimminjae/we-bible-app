@@ -18,6 +18,7 @@ export const USER_PLANS_TABLE = 'plans';
 export const USER_PRAYERS_TABLE = 'prayers';
 export const USER_PRAYER_CONTENTS_TABLE = 'prayer_contents';
 export const USER_GRASS_TABLE = 'bible_grass';
+export const USER_THEME_VERSES_TABLE = 'theme_verses';
 
 const BIBLE_STATE_TABLE = 'bible_state';
 const FAVORITES_TABLE = 'favorite_verses';
@@ -27,6 +28,7 @@ const PLANS_TABLE = 'plans';
 const PRAYERS_TABLE = 'prayers';
 const PRAYER_CONTENTS_TABLE = 'prayer_contents';
 const GRASS_TABLE = 'bible_grass';
+const THEME_VERSES_TABLE = 'theme_verses';
 
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
@@ -38,7 +40,7 @@ const POINT_TOTAL_KEY = 'pointTotal';
 const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
 const GRASS_META_ROW_DATE = '__meta__';
 
-const PERSISTED_SLICE_KEYS = ['appState', 'favorites', 'memos', 'plans', 'prayers', 'grassData'] as const;
+const PERSISTED_SLICE_KEYS = ['appState', 'favorites', 'memos', 'plans', 'prayers', 'grassData', 'themeVerses'] as const;
 
 export type PersistedSliceKey = (typeof PERSISTED_SLICE_KEYS)[number];
 
@@ -107,6 +109,19 @@ type PersistedPlanRecord = {
   updatedAt: string;
 };
 
+type PersistedThemeVerseRecord = {
+  clientId: string;
+  year: number;
+  bookCode: string;
+  chapter: number;
+  verse: number;
+  verseNumbers: number[];
+  verseText: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PersistedStateSnapshot = {
   theme: AppTheme;
   appLanguage: AppLanguage;
@@ -117,6 +132,7 @@ export type PersistedStateSnapshot = {
   plans: PersistedPlanRecord[];
   grassData: GrassDataMap;
   grassTheme: GrassColorTheme;
+  themeVerses: PersistedThemeVerseRecord[];
 };
 
 type StateRecord = {
@@ -220,6 +236,34 @@ type GrassRow = {
   data: unknown;
 };
 
+type LocalThemeVerseRow = {
+  id: number;
+  client_id: string | null;
+  year: number | null;
+  book_code: string | null;
+  chapter: number | null;
+  verse: number | null;
+  verse_numbers: unknown;
+  verse_text: string | null;
+  description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type RemoteThemeVerseRow = {
+  id: number;
+  client_id: string | null;
+  year: number | null;
+  book_code: string | null;
+  chapter: number | null;
+  verse: number | null;
+  verse_numbers: unknown;
+  verse_text: string | null;
+  description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 type SupabaseLikeError = {
   code?: unknown;
   message?: unknown;
@@ -251,6 +295,7 @@ const DEFAULT_STATE: PersistedStateSnapshot = {
   plans: [],
   grassData: {},
   grassTheme: 'green',
+  themeVerses: [],
 };
 
 let persistWriteQueue: Promise<void> = Promise.resolve();
@@ -372,6 +417,20 @@ function normalizeGoalStatus(raw: unknown): GoalStatus {
   });
 }
 
+function normalizeThemeVerseNumbers(raw: unknown, fallbackVerse?: unknown): number[] {
+  const parsed = parseJsonText<unknown>(raw, []);
+  const normalized = (Array.isArray(parsed) ? parsed : [])
+    .map((value) => Math.floor(toNumber(value, NaN)))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .sort((left, right) => left - right);
+
+  if (normalized.length > 0) return normalized;
+
+  const fallback = Math.floor(toNumber(fallbackVerse, NaN));
+  return Number.isFinite(fallback) && fallback > 0 ? [fallback] : [];
+}
+
 function buildPlanSnapshot(input: {
   clientId: string;
   planName: string;
@@ -422,6 +481,12 @@ function createInitialSnapshot(overrides?: Partial<PersistedStateSnapshot>): Per
           ...item,
           goalStatus: item.goalStatus.map((chapterStatus) => [...chapterStatus]),
           selectedBookCodes: [...item.selectedBookCodes],
+        }))
+      : [],
+    themeVerses: overrides?.themeVerses
+      ? overrides.themeVerses.map((item) => ({
+          ...item,
+          verseNumbers: [...item.verseNumbers],
         }))
       : [],
     grassData: overrides?.grassData
@@ -598,6 +663,30 @@ async function readLocalPrayers(db: SQLiteDatabase): Promise<PersistedPrayerReco
   }));
 }
 
+async function readLocalThemeVerses(db: SQLiteDatabase): Promise<PersistedThemeVerseRecord[]> {
+  const rows = await db.getAllAsync<LocalThemeVerseRow>(
+    `SELECT id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at
+     FROM ${THEME_VERSES_TABLE}
+     ORDER BY year DESC, id DESC`,
+  );
+
+  return rows.map((row) => {
+    const verseNumbers = normalizeThemeVerseNumbers(row.verse_numbers, row.verse);
+    return {
+      clientId: row.client_id?.trim() || `theme-verse-${row.id}`,
+      year: Math.floor(toNumber(row.year, 0)),
+      bookCode: row.book_code ?? '',
+      chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
+      verse: verseNumbers[0] ?? Math.max(1, Math.floor(toNumber(row.verse, 1))),
+      verseNumbers,
+      verseText: row.verse_text ?? '',
+      description: row.description ?? '',
+      createdAt: row.created_at ?? '',
+      updatedAt: row.updated_at ?? row.created_at ?? '',
+    };
+  });
+}
+
 async function readLocalGrassTheme(db: SQLiteDatabase): Promise<GrassColorTheme> {
   const value = await getBibleStateValue(db, GRASS_COLOR_THEME_KEY);
   return isGrassTheme(value) ? value : DEFAULT_STATE.grassTheme;
@@ -608,7 +697,7 @@ export async function getLocalDataOwnerUserId(db: SQLiteDatabase): Promise<strin
 }
 
 export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<PersistedStateSnapshot> {
-  const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme] =
+  const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme, themeVerses] =
     await Promise.all([
       readLocalTheme(db),
       readLocalAppLanguage(db),
@@ -619,6 +708,7 @@ export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<Per
       readLocalPrayers(db),
       readLocalGrassData(db),
       readLocalGrassTheme(db),
+      readLocalThemeVerses(db),
     ]);
 
   return createInitialSnapshot({
@@ -631,6 +721,7 @@ export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<Per
     prayers,
     grassData,
     grassTheme,
+    themeVerses,
   });
 }
 
@@ -851,6 +942,31 @@ async function replaceGrass(userId: string, state: PersistedStateSnapshot): Prom
   if (error) throwSupabaseError(error);
 }
 
+async function replaceThemeVerses(userId: string, themeVerses: PersistedThemeVerseRecord[]): Promise<void> {
+  const supabase = createSupabaseClient();
+  const { error: deleteError } = await supabase.from(USER_THEME_VERSES_TABLE).delete().eq('user_id', userId);
+  if (deleteError) throwSupabaseError(deleteError);
+
+  if (!themeVerses.length) return;
+
+  const payload = themeVerses.map((item) => ({
+    user_id: userId,
+    client_id: item.clientId,
+    year: item.year,
+    book_code: item.bookCode,
+    chapter: item.chapter,
+    verse: item.verse,
+    verse_numbers: item.verseNumbers,
+    verse_text: item.verseText,
+    description: item.description,
+    created_at: item.createdAt,
+    updated_at: item.updatedAt,
+  }));
+
+  const { error } = await supabase.from(USER_THEME_VERSES_TABLE).insert(payload);
+  if (error) throwSupabaseError(error);
+}
+
 async function savePersistedSlicesToSupabase(
   userId: string,
   state: PersistedStateSnapshot,
@@ -876,6 +992,9 @@ async function savePersistedSlicesToSupabase(
       case 'grassData':
         await replaceGrass(userId, state);
         break;
+      case 'themeVerses':
+        await replaceThemeVerses(userId, state.themeVerses);
+        break;
       default:
         break;
     }
@@ -898,6 +1017,7 @@ async function hasRemoteRows(userId: string): Promise<boolean> {
     supabase.from(USER_PLANS_TABLE).select('id').eq('user_id', userId).is('church_id', null).limit(1),
     supabase.from(USER_PRAYERS_TABLE).select('id').eq('user_id', userId).limit(1),
     supabase.from(USER_GRASS_TABLE).select('date').eq('user_id', userId).limit(1),
+    supabase.from(USER_THEME_VERSES_TABLE).select('id').eq('user_id', userId).limit(1),
   ]);
 
   for (const result of checks) {
@@ -920,6 +1040,7 @@ export async function loadPersistedStateFromSupabase(
     plansResult,
     prayersResult,
     grassResult,
+    themeVersesResult,
   ] = await Promise.all([
     supabase
       .from(USER_BIBLE_STATE_TABLE)
@@ -956,6 +1077,12 @@ export async function loadPersistedStateFromSupabase(
       .order('created_at', { ascending: false })
       .order('id', { ascending: false }),
     supabase.from(USER_GRASS_TABLE).select('date, data').eq('user_id', userId),
+    supabase
+      .from(USER_THEME_VERSES_TABLE)
+      .select('id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('year', { ascending: false })
+      .order('id', { ascending: false }),
   ]);
 
   for (const result of [
@@ -966,6 +1093,7 @@ export async function loadPersistedStateFromSupabase(
     plansResult,
     prayersResult,
     grassResult,
+    themeVersesResult,
   ]) {
     if (result.error) throwSupabaseError(result.error);
   }
@@ -977,6 +1105,7 @@ export async function loadPersistedStateFromSupabase(
   const planRows = (plansResult.data ?? []) as RemotePlanRow[];
   const prayerRows = (prayersResult.data ?? []) as RemotePrayerRow[];
   const grassRows = (grassResult.data ?? []) as GrassRow[];
+  const themeVerseRows = (themeVersesResult.data ?? []) as RemoteThemeVerseRow[];
 
   const memoVerseMap = new Map<number, LocalMemoVerseRow[]>();
   for (const row of memoVerseRows) {
@@ -1086,6 +1215,21 @@ export async function loadPersistedStateFromSupabase(
         .map((row) => [row.date, normalizeGrassDayValue(row.date, row.data)]),
     ),
     grassTheme: isGrassTheme(meta?.grassTheme) ? meta.grassTheme : DEFAULT_STATE.grassTheme,
+    themeVerses: themeVerseRows.map((row) => {
+      const verseNumbers = normalizeThemeVerseNumbers(row.verse_numbers, row.verse);
+      return {
+        clientId: row.client_id?.trim() || `theme-verse-${row.id}`,
+        year: Math.floor(toNumber(row.year, 0)),
+        bookCode: row.book_code ?? '',
+        chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
+        verse: verseNumbers[0] ?? Math.max(1, Math.floor(toNumber(row.verse, 1))),
+        verseNumbers,
+        verseText: row.verse_text ?? '',
+        description: row.description ?? '',
+        createdAt: row.created_at ?? '',
+        updatedAt: row.updated_at ?? row.created_at ?? '',
+      };
+    }),
   });
 }
 
@@ -1103,6 +1247,7 @@ async function replaceLocalPersistedState(
     await db.runAsync(`DELETE FROM ${PRAYERS_TABLE}`);
     await db.runAsync(`DELETE FROM ${PLANS_TABLE}`);
     await db.runAsync(`DELETE FROM ${GRASS_TABLE}`);
+    await db.runAsync(`DELETE FROM ${THEME_VERSES_TABLE}`);
 
     const keysToDelete = [
       BIBLE_SEARCH_INFO_KEY,
@@ -1218,6 +1363,24 @@ async function replaceLocalPersistedState(
       );
     }
 
+    for (const themeVerse of state.themeVerses) {
+      await db.runAsync(
+        `INSERT INTO ${THEME_VERSES_TABLE} (
+          client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        themeVerse.clientId,
+        themeVerse.year,
+        themeVerse.bookCode,
+        themeVerse.chapter,
+        themeVerse.verse,
+        JSON.stringify(themeVerse.verseNumbers),
+        themeVerse.verseText,
+        themeVerse.description,
+        themeVerse.createdAt,
+        themeVerse.updatedAt,
+      );
+    }
+
     await db.execAsync('COMMIT;');
   } catch (error) {
     await db.execAsync('ROLLBACK;');
@@ -1238,7 +1401,16 @@ export async function bootstrapSupabaseUserData(
     await savePersistedStateToSupabase(userId, localSnapshot);
   }
 
-  const remoteSnapshot = await loadPersistedStateFromSupabase(userId);
+  let remoteSnapshot = await loadPersistedStateFromSupabase(userId);
+
+  if (remoteSnapshot.themeVerses.length === 0 && localSnapshot.themeVerses.length > 0) {
+    await savePersistedSlicesToSupabase(userId, localSnapshot, ['themeVerses']);
+    remoteSnapshot = createInitialSnapshot({
+      ...remoteSnapshot,
+      themeVerses: localSnapshot.themeVerses,
+    });
+  }
+
   await replaceLocalPersistedState(db, remoteSnapshot);
   await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);
 }

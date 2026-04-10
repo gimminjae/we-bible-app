@@ -209,7 +209,7 @@ export function BibleReaderHome() {
           >
             <ButtonText
               style={{ fontSize: moderateScale(16) }}
-              className="text-white font-semibold"
+              className="text-white font-semibold dark:text-gray-900"
             >
               {t('common.copy')}
             </ButtonText>

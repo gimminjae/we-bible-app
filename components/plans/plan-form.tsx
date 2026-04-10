@@ -160,7 +160,7 @@ export function PlanForm({
               >
                 <ButtonText
                   className={`text-sm font-semibold ${
-                    selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                    selected ? 'text-white dark:text-gray-900' : 'text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {label}

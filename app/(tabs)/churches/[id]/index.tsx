@@ -851,7 +851,7 @@ export default function ChurchDetailScreen() {
                         disabled={processingKey === `member-team-${member.userId}`}
                         label={t('church.saveTeamAssignment')}
                         className="rounded-2xl bg-primary-500 px-4 py-3"
-                        textClassName="font-semibold text-white"
+                        textClassName="font-semibold text-white dark: text-gray-900"
                       />
                     </View>
                   ) : null}
@@ -869,7 +869,7 @@ export default function ChurchDetailScreen() {
                 }
                 label={t('church.createChurchPlan')}
                 className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
-                textClassName="text-center font-semibold text-white"
+                textClassName="text-center font-semibold text-white dark:text-gray-900"
               />
             ) : null}
 
@@ -915,7 +915,7 @@ export default function ChurchDetailScreen() {
                 onPress={() => setCreatePrayerVisible(true)}
                 label={t('church.createPrayer')}
                 className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
-                textClassName="text-center font-semibold text-white"
+                textClassName="text-center font-semibold text-white dark:text-gray-900"
               />
             ) : null}
 
@@ -1028,7 +1028,7 @@ export default function ChurchDetailScreen() {
                           }
                           label={t('church.createTeamPlan')}
                           className="rounded-2xl bg-primary-500 px-4 py-3"
-                          textClassName="font-semibold text-white"
+                          textClassName="font-semibold text-white dark:text-gray-900"
                         />
                       ) : null}
                     </View>
@@ -1071,7 +1071,7 @@ export default function ChurchDetailScreen() {
                           disabled={processingKey === `leader-${team.id}`}
                           label={t('church.saveLeader')}
                           className="rounded-2xl bg-primary-500 px-4 py-3"
-                          textClassName="font-semibold text-white"
+                          textClassName="font-semibold text-white dark:text-gray-900"
                         />
                       </View>
                     ) : null}

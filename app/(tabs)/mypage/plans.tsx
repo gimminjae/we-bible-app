@@ -1,67 +1,73 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
+import { useFocusEffect } from "@react-navigation/native"
+import { useRouter } from "expo-router"
+import { useSQLiteContext } from "expo-sqlite"
+import { useCallback, useState } from "react"
+import { Pressable, ScrollView, Text, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
-import { Button, ButtonText } from '@/components/ui/button';
-import { LoadingScreen } from '@/components/ui/loading-screen';
-import { ScreenHeader } from '@/components/ui/screen-header';
-import { useMySharedPlans } from '@/hooks/use-churches';
-import { formatShortDate } from '@/lib/date';
-import { getPlanGoalSummary } from '@/lib/plan';
-import { getAllPlans, type PlanListItem } from '@/utils/plan-db';
-import { useI18n } from '@/utils/i18n';
+import { Button, ButtonText } from "@/components/ui/button"
+import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ScreenHeader } from "@/components/ui/screen-header"
+import { useMySharedPlans } from "@/hooks/use-churches"
+import { formatShortDate } from "@/lib/date"
+import { getPlanGoalSummary } from "@/lib/plan"
+import { useI18n } from "@/utils/i18n"
+import { getAllPlans, type PlanListItem } from "@/utils/plan-db"
 
 export default function PlanListScreen() {
-  const db = useSQLiteContext();
-  const router = useRouter();
-  const { t } = useI18n();
-  const [items, setItems] = useState<PlanListItem[]>([]);
-  const [isLoadingLocal, setIsLoadingLocal] = useState(true);
-  const { sharedPlans, isLoading: isLoadingShared, error: sharedPlansError } = useMySharedPlans();
+  const db = useSQLiteContext()
+  const router = useRouter()
+  const { t } = useI18n()
+  const [items, setItems] = useState<PlanListItem[]>([])
+  const [isLoadingLocal, setIsLoadingLocal] = useState(true)
+  const {
+    sharedPlans,
+    isLoading: isLoadingShared,
+    error: sharedPlansError,
+  } = useMySharedPlans()
 
   const loadLocalPlans = useCallback(() => {
-    let active = true;
-    setIsLoadingLocal(true);
+    let active = true
+    setIsLoadingLocal(true)
     getAllPlans(db)
       .then((rows) => {
-        if (!active) return;
-        setItems(rows);
+        if (!active) return
+        setItems(rows)
       })
       .finally(() => {
-        if (active) setIsLoadingLocal(false);
-      });
+        if (active) setIsLoadingLocal(false)
+      })
     return () => {
-      active = false;
-    };
-  }, [db]);
+      active = false
+    }
+  }, [db])
 
-  useFocusEffect(loadLocalPlans);
+  useFocusEffect(loadLocalPlans)
 
   if (sharedPlansError) {
-    return <LoadingScreen message={sharedPlansError.message} />;
+    return <LoadingScreen message={sharedPlansError.message} />
   }
 
   if (isLoadingLocal || isLoadingShared) {
-    return <LoadingScreen message="Loading plans..." />;
+    return <LoadingScreen message="Loading plans..." />
   }
 
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
-      edges={['top', 'bottom', 'left', 'right']}
+      edges={["top", "bottom", "left", "right"]}
     >
       <ScreenHeader
-        title={t('mypage.plansTitle')}
+        title={t("mypage.plansTitle")}
         onBack={() => router.back()}
         right={
           <Button
-            onPress={() => router.push('/(tabs)/mypage/plan/add')}
-            className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
+            onPress={() => router.push("/(tabs)/mypage/plan/add")}
+            className="h-auto rounded-xl bg-primary-500 px-4 py-3"
           >
-            <ButtonText className="font-semibold text-white">{t('mypage.addPlan')}</ButtonText>
+            <ButtonText className="font-semibold text-white dark:text-gray-900">
+              {t("mypage.addPlan")}
+            </ButtonText>
           </Button>
         }
       />
@@ -74,26 +80,28 @@ export default function PlanListScreen() {
         <View className="mb-6">
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-base font-semibold text-gray-900 dark:text-white">
-              {t('mypage.personalPlansSection')}
+              {t("mypage.personalPlansSection")}
             </Text>
-            <Text className="text-sm text-gray-500 dark:text-gray-400">{items.length}</Text>
+            <Text className="text-sm text-gray-500 dark:text-gray-400">
+              {items.length}
+            </Text>
           </View>
 
           {items.length === 0 ? (
             <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
               <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t('mypage.emptyPlans')}
+                {t("mypage.emptyPlans")}
               </Text>
             </View>
           ) : (
             items.map((item) => {
-              const summary = getPlanGoalSummary(item.selectedBookCodes);
+              const summary = getPlanGoalSummary(item.selectedBookCodes)
               return (
                 <Pressable
                   key={item.id}
                   onPress={() =>
                     router.push({
-                      pathname: '/(tabs)/mypage/plan/[id]',
+                      pathname: "/(tabs)/mypage/plan/[id]",
                       params: { id: String(item.id) },
                     })
                   }
@@ -102,12 +110,18 @@ export default function PlanListScreen() {
                   <View className="flex-row items-start justify-between gap-4">
                     <View className="flex-1">
                       <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {item.planName || t('mypage.planDetailTitle')}
+                        {item.planName || t("mypage.planDetailTitle")}
                       </Text>
                       <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {summary.oldTestament > 0 ? `${t('bibleDrawer.oldTestament')} ${summary.oldTestament}` : ''}
-                        {summary.oldTestament > 0 && summary.newTestament > 0 ? ' · ' : ''}
-                        {summary.newTestament > 0 ? `${t('bibleDrawer.newTestament')} ${summary.newTestament}` : ''}
+                        {summary.oldTestament > 0
+                          ? `${t("bibleDrawer.oldTestament")} ${summary.oldTestament}`
+                          : ""}
+                        {summary.oldTestament > 0 && summary.newTestament > 0
+                          ? " · "
+                          : ""}
+                        {summary.newTestament > 0
+                          ? `${t("bibleDrawer.newTestament")} ${summary.newTestament}`
+                          : ""}
                       </Text>
                     </View>
                     <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
@@ -118,14 +132,15 @@ export default function PlanListScreen() {
                   </View>
 
                   <Text className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                    {t('mypage.planStartDate')} {formatShortDate(item.startDate)} · {t('mypage.planEndDate')}{' '}
-                    {formatShortDate(item.endDate)}
+                    {t("mypage.planStartDate")}{" "}
+                    {formatShortDate(item.startDate)} ·{" "}
+                    {t("mypage.planEndDate")} {formatShortDate(item.endDate)}
                   </Text>
                   <Text className="mt-2 text-sm font-medium text-primary-600 dark:text-primary-400">
-                    {item.restDay} {t('mypage.planDaysRemaining')}
+                    {item.restDay} {t("mypage.planDaysRemaining")}
                   </Text>
                 </Pressable>
-              );
+              )
             })
           )}
         </View>
@@ -133,15 +148,17 @@ export default function PlanListScreen() {
         <View>
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-base font-semibold text-gray-900 dark:text-white">
-              {t('mypage.sharedPlansSection')}
+              {t("mypage.sharedPlansSection")}
             </Text>
-            <Text className="text-sm text-gray-500 dark:text-gray-400">{sharedPlans.length}</Text>
+            <Text className="text-sm text-gray-500 dark:text-gray-400">
+              {sharedPlans.length}
+            </Text>
           </View>
 
           {sharedPlans.length === 0 ? (
             <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
               <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t('mypage.emptySharedPlans')}
+                {t("mypage.emptySharedPlans")}
               </Text>
             </View>
           ) : (
@@ -149,20 +166,27 @@ export default function PlanListScreen() {
               <Pressable
                 key={plan.id}
                 onPress={() =>
-                  router.push(`/churches/${plan.churchId}/plans/${plan.id}` as never)
+                  router.push(
+                    `/churches/${plan.churchId}/plans/${plan.id}` as never,
+                  )
                 }
                 className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
               >
                 <View className="flex-row items-start justify-between gap-4">
                   <View className="flex-1">
                     <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {plan.planName || t('church.planDetailTitle')}
+                      {plan.planName || t("church.planDetailTitle")}
                     </Text>
-                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">{plan.churchName}</Text>
+                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {plan.churchName}
+                    </Text>
                     <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {plan.teamName
-                        ? t('church.teamPlanScope').replace('{team}', plan.teamName)
-                        : t('church.churchPlanScope')}
+                        ? t("church.teamPlanScope").replace(
+                            "{team}",
+                            plan.teamName,
+                          )
+                        : t("church.churchPlanScope")}
                     </Text>
                     <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {plan.startDate} ~ {plan.endDate}
@@ -170,14 +194,17 @@ export default function PlanListScreen() {
                   </View>
                   <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
                     <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                      {plan.myGoalPercent?.toFixed(1) ?? '0.0'}%
+                      {plan.myGoalPercent?.toFixed(1) ?? "0.0"}%
                     </Text>
                   </View>
                 </View>
 
                 <View className="mt-4 flex-row items-center justify-between gap-3">
                   <Text className="text-sm text-gray-500 dark:text-gray-400">
-                    {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                    {t("church.planCreatedBy").replace(
+                      "{name}",
+                      plan.createdByName,
+                    )}
                   </Text>
                   <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">
                     {plan.averageGoalPercent.toFixed(1)}%
@@ -189,5 +216,5 @@ export default function PlanListScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }

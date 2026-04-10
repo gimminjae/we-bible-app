@@ -1,18 +1,43 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdBanner } from '@/components/ads/ad-banner';
 import { BibleGrass } from '@/components/bible-grass';
+import { ThemeVerseSummaryCard } from '@/components/mypage/theme-verse-summary-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
+import {
+  getCurrentThemeVerseYear,
+  getThemeVerseByYear,
+  type ThemeVerseRecord,
+} from '@/utils/theme-verse-db';
 
 export default function MyPageScreen() {
+  const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
   const { scale, moderateScale } = useResponsive();
+  const currentYear = getCurrentThemeVerseYear();
+  const [currentThemeVerse, setCurrentThemeVerse] = useState<ThemeVerseRecord | null>(null);
+
+  const loadThemeVerse = useCallback(() => {
+    let active = true;
+    getThemeVerseByYear(db, currentYear).then((row) => {
+      if (!active) return;
+      setCurrentThemeVerse(row);
+    });
+    return () => {
+      active = false;
+    };
+  }, [currentYear, db]);
+
+  useFocusEffect(loadThemeVerse);
 
   const renderMenuCard = (
     key: string,
@@ -60,10 +85,16 @@ export default function MyPageScreen() {
           <Text
             className="font-bold text-gray-900 dark:text-white"
             style={{ fontSize: moderateScale(24) }}
-          >
+        >
             {t('mypage.title')}
           </Text>
         </View>
+
+        <ThemeVerseSummaryCard
+          year={currentYear}
+          themeVerse={currentThemeVerse}
+          onPress={() => router.push('/(tabs)/mypage/theme-verse')}
+        />
 
         <BibleGrass />
 

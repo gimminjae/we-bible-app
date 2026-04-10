@@ -31,6 +31,7 @@
 - `supabase/migrations/202604010001_add_church_description_and_update_info.sql`
 - `supabase/migrations/202604010002_add_user_profile_show_email.sql`
 - `supabase/migrations/202604090001_add_developer_inquiries.sql`
+- `supabase/migrations/202604100001_add_theme_verses.sql`
 
 ## 참고
 

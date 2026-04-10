@@ -15,7 +15,7 @@ export function ChurchRoleBadge({ role }: { role: ChurchRole }) {
 
   return (
     <View className={`rounded-full px-3 py-1 ${palette}`}>
-      <Text className="text-xs font-semibold">{t(`church.role.${role}`)}</Text>
+      <Text className="text-xs font-semibold dark:text-white">{t(`church.role.${role}`)}</Text>
     </View>
   );
 }

@@ -471,7 +471,7 @@ export default function SettingsScreen() {
                     disabled={isLoadingDisplayName}
                     className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
                   >
-                    <ButtonText className="font-semibold text-white">{t('settings.changeDisplayName')}</ButtonText>
+                    <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.changeDisplayName')}</ButtonText>
                   </Button>
                 </View>
               </View>
@@ -501,7 +501,7 @@ export default function SettingsScreen() {
                         : 'bg-primary-500'
                     }`}
                   >
-                    <ButtonText className="font-semibold text-white">
+                    <ButtonText className="font-semibold text-white dark:text-gray-900">
                       {showEmailInProfile ? t('settings.hideEmail') : t('settings.showEmail')}
                     </ButtonText>
                   </Button>
@@ -685,7 +685,7 @@ export default function SettingsScreen() {
                 : 'bg-primary-500'
             }`}
           >
-            <ButtonText className="font-semibold text-white">{t('settings.developerInquiryOpen')}</ButtonText>
+            <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.developerInquiryOpen')}</ButtonText>
           </Button>
         </View>
 
@@ -758,7 +758,7 @@ export default function SettingsScreen() {
                 isUpdatingDisplayName ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
               }`}
             >
-              <ButtonText className="font-semibold text-white">{t('settings.displayNameSave')}</ButtonText>
+              <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.displayNameSave')}</ButtonText>
             </Button>
           </View>
         </View>
@@ -835,7 +835,7 @@ export default function SettingsScreen() {
                 isSubmittingDeveloperInquiry ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
               }`}
             >
-              <ButtonText className="font-semibold text-white">{t('settings.developerInquirySubmit')}</ButtonText>
+              <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.developerInquirySubmit')}</ButtonText>
             </Button>
           </ScrollView>
         </View>
