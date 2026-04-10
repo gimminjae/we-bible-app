@@ -144,7 +144,7 @@ export default function ThemeVerseDetailScreen() {
             <Button
               onPress={() => setIsSheetOpen(true)}
               size="md"
-              className="rounded-2xl bg-primary-500 px-4 py-3"
+              className="rounded-2xl bg-primary-500"
             >
               <ButtonText className="font-semibold text-white dark:text-gray-900">
                 {selectedItem
@@ -232,7 +232,7 @@ export default function ThemeVerseDetailScreen() {
               {isCurrentYear ? (
                 <Button
                   onPress={() => setIsSheetOpen(true)}
-                  className="mt-5 self-start rounded-2xl bg-primary-500 px-5 py-3"
+                  className="mt-5 self-start rounded-2xl bg-primary-500"
                 >
                   <ButtonText className="font-semibold text-white">
                     {t("themeVerse.setCurrentYear")}
