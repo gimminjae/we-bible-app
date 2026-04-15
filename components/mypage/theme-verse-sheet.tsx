@@ -99,7 +99,7 @@ export function ThemeVerseSheet({
 }: ThemeVerseSheetProps) {
   const { t } = useI18n();
   const { appLanguage } = useAppSettings();
-  const { scale, moderateScale } = useResponsive();
+  const { scale, moderateScale, width, sheetMaxWidth, isTablet, getAdaptiveColumns } = useResponsive();
 
   const [pickerStep, setPickerStep] = useState<PickerStep>('form');
   const [category, setCategory] = useState<BibleCategoryKey>('ot');
@@ -201,6 +201,11 @@ export function ThemeVerseSheet({
       .map((item) => `${item!.verse}. ${item!.content}`)
       .join('\n\n');
   }, [chapterVerses, selectedVerseNumbers]);
+
+  const chapterGridColumns = useMemo(() => {
+    const availableWidth = Math.min(width, sheetMaxWidth) - scale(40);
+    return getAdaptiveColumns(isTablet ? 72 : 60, scale(8), isTablet ? 8 : 5, availableWidth);
+  }, [getAdaptiveColumns, isTablet, scale, sheetMaxWidth, width]);
 
   const handleSelectBook = (nextBookCode: string) => {
     setBookCode(nextBookCode);
@@ -539,7 +544,10 @@ export function ThemeVerseSheet({
             <View className="flex-row flex-wrap">
               {Array.from({ length: selectedBook?.maxChapter ?? 0 }, (_, index) => index + 1).map(
                 (value) => (
-                  <View key={value} className="w-1/5" style={{ padding: scale(4) }}>
+                  <View
+                    key={value}
+                    style={{ padding: scale(4), width: `${100 / chapterGridColumns}%` }}
+                  >
                     <Pressable
                       onPress={() => handleSelectChapter(value)}
                       className="items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-4 dark:border-gray-800 dark:bg-gray-900"

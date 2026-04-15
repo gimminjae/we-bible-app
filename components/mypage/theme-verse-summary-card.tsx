@@ -26,7 +26,7 @@ export function ThemeVerseSummaryCard({
 }: ThemeVerseSummaryCardProps) {
   const { t } = useI18n();
   const { appLanguage } = useAppSettings();
-  const { scale, moderateScale } = useResponsive();
+  const { scale, moderateScale, dialogMaxWidth } = useResponsive();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const citation = themeVerse
@@ -120,7 +120,7 @@ export function ThemeVerseSummaryCard({
             accessibilityRole="button"
             accessibilityLabel={t('themeVerse.infoClose')}
           />
-          <View className="overflow-hidden rounded-3xl">
+          <View className="w-full overflow-hidden rounded-3xl" style={{ maxWidth: dialogMaxWidth }}>
             <ImageBackground
               source={require('../../assets/images/theme-verse-info-bg.png')}
               resizeMode="cover"

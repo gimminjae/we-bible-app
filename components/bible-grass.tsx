@@ -257,7 +257,7 @@ export function BibleGrass() {
   const { t } = useI18n()
   const { showToast } = useToast()
   const { theme, appLanguage } = useAppSettings()
-  const { scale, moderateScale } = useResponsive()
+  const { scale, moderateScale, isTablet, dialogMaxWidth } = useResponsive()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear(),
@@ -342,10 +342,10 @@ export function BibleGrass() {
     return (selected?.data.length ?? 0) === 0 && !selected?.fillYn
   }, [grassData, selectedDate])
 
-  const cellSize = scale(14)
-  const cellGap = scale(3)
-  const monthGap = scale(5)
-  const dayLabelWidth = scale(24)
+  const cellSize = isTablet ? 12 : scale(14)
+  const cellGap = isTablet ? 2 : scale(3)
+  const monthGap = isTablet ? 3 : scale(5)
+  const dayLabelWidth = isTablet ? 20 : scale(24)
   const gridWidth = dayLabelWidth + cellGap + 53 * cellSize + 52 * cellGap
   const activeColors = GRASS_THEME_COLORS[grassTheme]
 
@@ -652,6 +652,9 @@ export function BibleGrass() {
           <Pressable
             className="bg-gray-50 dark:bg-gray-900 rounded-t-2xl"
             style={{
+              width: '100%',
+              maxWidth: dialogMaxWidth,
+              alignSelf: 'center',
               paddingHorizontal: scale(16),
               paddingBottom: scale(32),
               paddingTop: scale(16),
@@ -699,7 +702,7 @@ export function BibleGrass() {
         <Pressable className="flex-1 bg-black/40 justify-center px-5">
           <Pressable
             className="rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
-            style={{ paddingHorizontal: scale(18), paddingVertical: scale(18) }}
+            style={{ width: '100%', maxWidth: dialogMaxWidth, alignSelf: 'center', paddingHorizontal: scale(18), paddingVertical: scale(18) }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text
@@ -769,7 +772,7 @@ export function BibleGrass() {
         >
           <Pressable
             className="bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700"
-            style={{ paddingHorizontal: scale(16), paddingVertical: scale(16) }}
+            style={{ width: '100%', maxWidth: dialogMaxWidth, alignSelf: 'center', paddingHorizontal: scale(16), paddingVertical: scale(16) }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text
@@ -780,7 +783,7 @@ export function BibleGrass() {
             </Text>
 
             <ScrollView
-              style={{ maxHeight: scale(340) }}
+              style={{ maxHeight: isTablet ? 420 : scale(340) }}
               contentContainerStyle={{ paddingBottom: scale(4) }}
               showsVerticalScrollIndicator
             >

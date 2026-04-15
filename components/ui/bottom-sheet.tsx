@@ -11,7 +11,7 @@ import {
   type KeyboardEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scale } from '@/utils/responsive';
+import { useResponsive } from '@/hooks/use-responsive';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -39,12 +39,14 @@ export function BottomSheet({
   heightFraction = 0.75,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { scale, isTablet, sheetMaxWidth } = useResponsive();
   const [isModalVisible, setModalVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const didOpenRef = useRef(false);
 
   const maxHeight = windowHeight * heightFraction;
+  const sheetWidth = isTablet ? Math.min(windowWidth - 32, sheetMaxWidth) : windowWidth;
   const visibleViewportHeight = Math.max(scale(SHEET_TOP_MARGIN), windowHeight - keyboardHeight);
   const availableSheetHeight = Math.max(0, visibleViewportHeight - scale(SHEET_TOP_MARGIN));
   const sheetHeight =
@@ -170,14 +172,14 @@ export function BottomSheet({
 
         <Animated.View
           pointerEvents="box-none"
-          style={[{ flex: 1, justifyContent: 'flex-end' }, sheetContainerStyle]}
+          style={[{ flex: 1, justifyContent: 'flex-end', alignItems: 'center' }, sheetContainerStyle]}
         >
           <Animated.View
             style={[
               {
                 maxHeight,
                 height: sheetHeight,
-                width: '100%',
+                width: sheetWidth,
                 backgroundColor: 'transparent',
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,

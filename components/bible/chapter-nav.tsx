@@ -16,8 +16,11 @@ type ChapterNavProps = {
 };
 
 export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) {
-  const { scale, moderateScale } = useResponsive();
+  const { scale, moderateScale, isTablet } = useResponsive();
   const opacity = useSharedValue(visible ? 1 : 0);
+  const buttonSize = isTablet ? 48 : scale(56);
+  const buttonGap = isTablet ? scale(12) : scale(20);
+  const bottomOffset = isTablet ? scale(20) : scale(24);
 
   const syncNavOpacityToVisible = useCallback(() => {
     opacity.value = withTiming(visible ? 1 : 0, { duration: FADE_DURATION });
@@ -36,19 +39,19 @@ export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) 
         animatedStyle,
         {
           position: 'absolute',
-          bottom: scale(24),
+          bottom: bottomOffset,
           left: 0,
           right: 0,
           flexDirection: 'row',
           justifyContent: 'center',
-          gap: scale(20),
+          gap: buttonGap,
         },
       ]}
     >
       <Button
         onPress={onPrev}
         className="rounded-full bg-primary-500 px-0 shadow-lg active:opacity-90"
-        style={{ width: scale(56), height: scale(56) }}
+        style={{ width: buttonSize, height: buttonSize }}
       >
         <ButtonText
           style={{ fontSize: moderateScale(20), color: 'white' }}
@@ -60,7 +63,7 @@ export function ChapterNav({ onPrev, onNext, visible = true }: ChapterNavProps) 
       <Button
         onPress={onNext}
         className="rounded-full bg-primary-500 px-0 shadow-lg active:opacity-90"
-        style={{ width: scale(56), height: scale(56) }}
+        style={{ width: buttonSize, height: buttonSize }}
       >
         <ButtonText
           style={{ fontSize: moderateScale(20), color: 'white' }}

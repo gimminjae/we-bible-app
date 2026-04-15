@@ -4,6 +4,7 @@ import { Calendar } from 'react-native-calendars';
 
 import { Button, ButtonText } from '@/components/ui/button';
 import { useAppSettings } from '@/contexts/app-settings';
+import { useResponsive } from '@/hooks/use-responsive';
 import { BIBLE_BOOKS, calcTotalReadCount, createDefaultPlanDates } from '@/lib/plan';
 import { getBookName } from '@/services/bible';
 import {
@@ -35,6 +36,7 @@ export function PlanForm({
 }: PlanFormProps) {
   const { appLanguage } = useAppSettings();
   const { t } = useI18n();
+  const { dialogMaxWidth } = useResponsive();
   const defaultDates = useMemo(() => createDefaultPlanDates(), []);
   const [planName, setPlanName] = useState(initialValues?.planName ?? '');
   const [startDate, setStartDate] = useState(initialValues?.startDate ?? defaultDates.startDate);
@@ -230,7 +232,7 @@ export function PlanForm({
         <Pressable className="flex-1 justify-center bg-black/40 px-5" onPress={() => setCalendarOpen(false)}>
           <Pressable
             className="overflow-hidden rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
-            style={{ width: '100%', maxWidth: 380, alignSelf: 'center' }}
+            style={{ width: '100%', maxWidth: dialogMaxWidth, alignSelf: 'center' }}
             onPress={(event) => event.stopPropagation()}
           >
             <View className="px-4 pb-2 pt-4">

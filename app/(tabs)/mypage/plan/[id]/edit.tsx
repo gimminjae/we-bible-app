@@ -2,6 +2,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppSettings } from '@/contexts/app-settings';
 import { useToast } from '@/contexts/toast-context';
+import { useResponsive } from '@/hooks/use-responsive';
 import { getBookName } from '@/services/bible';
 import {
   BIBLE_CATEGORY_KEYS,
@@ -35,6 +36,7 @@ export default function EditPlanScreen() {
   const { t } = useI18n();
   const { appLanguage } = useAppSettings();
   const { showToast } = useToast();
+  const { dialogMaxWidth } = useResponsive();
   const params = useLocalSearchParams<{ id?: string }>();
   const planId = useMemo(() => Number(params.id || 0), [params.id]);
   const [planName, setPlanName] = useState('');
@@ -278,7 +280,7 @@ export default function EditPlanScreen() {
         >
           <Pressable
             className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
-            style={{ width: '100%', maxWidth: 380, maxHeight: '90%', alignSelf: 'center' }}
+            style={{ width: '100%', maxWidth: dialogMaxWidth, maxHeight: '90%', alignSelf: 'center' }}
             onPress={(e) => e.stopPropagation()}
           >
             <View className="px-4 pt-4 pb-2">

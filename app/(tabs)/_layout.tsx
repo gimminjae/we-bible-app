@@ -12,8 +12,8 @@ import { useI18n } from '@/utils/i18n';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { t } = useI18n();
-  const { moderateScale } = useResponsive();
-  const iconSize = moderateScale(28);
+  const { moderateScale, isTablet } = useResponsive();
+  const iconSize = isTablet ? moderateScale(24, 0.3) : moderateScale(28);
 
   return (
     <Tabs
@@ -21,6 +21,16 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarLabelStyle: {
+          fontSize: isTablet ? 12 : 11,
+        },
+        tabBarStyle: isTablet
+          ? {
+              height: 72,
+              paddingTop: 8,
+              paddingBottom: 10,
+            }
+          : undefined,
       }}
     >
       <Tabs.Screen

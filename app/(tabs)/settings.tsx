@@ -60,7 +60,7 @@ export default function SettingsScreen() {
   const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
   const { t } = useI18n();
   const { showToast } = useToast();
-  const { scale, moderateScale } = useResponsive();
+  const { scale, moderateScale, narrowPageMaxWidth } = useResponsive();
   const {
     currentUser,
     isConfigured,
@@ -436,6 +436,7 @@ export default function SettingsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ width: '100%', maxWidth: narrowPageMaxWidth, alignSelf: 'center' }}>
         <View className="mb-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <View className="mb-4 flex-row items-center" style={{ gap: scale(6) }}>
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -711,6 +712,7 @@ export default function SettingsScreen() {
             </Button>
           </View>
         ) : null}
+        </View>
       </ScrollView>
 
       <SelectionSheet

@@ -24,6 +24,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchSearch, useMyChurches } from '@/hooks/use-churches';
+import { useResponsive } from '@/hooks/use-responsive';
 import type { ChurchSearchResult } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
 
@@ -197,6 +198,7 @@ type ChurchAboutModalProps = {
 
 function ChurchAboutModal({ visible, onClose }: ChurchAboutModalProps) {
   const { t } = useI18n();
+  const { dialogMaxWidth, isTablet } = useResponsive();
 
   return (
     <Modal
@@ -214,7 +216,10 @@ function ChurchAboutModal({ visible, onClose }: ChurchAboutModalProps) {
           accessibilityLabel={t('church.aboutClose')}
         />
 
-        <View className="w-full overflow-hidden rounded-3xl" style={{ maxWidth: 390, borderRadius: 30 }}>
+        <View
+          className="w-full overflow-hidden rounded-3xl"
+          style={{ maxWidth: isTablet ? dialogMaxWidth : 390, borderRadius: 30 }}
+        >
           <ImageBackground
             source={churchExplainerBackground}
             resizeMode="cover"
@@ -277,6 +282,7 @@ export default function ChurchesScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { pageMaxWidth } = useResponsive();
   const { currentUser, isConfigured } = useAuth();
   const { churches: myChurches, isLoading, error } = useMyChurches();
   const { createChurch, requestJoin } = useChurchActions();
@@ -387,71 +393,73 @@ export default function ChurchesScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        {!isConfigured ? (
-          <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <Text className="text-sm text-gray-500 dark:text-gray-400">
-              {t('church.authNotConfigured')}
-            </Text>
-          </View>
-        ) : null}
-
-        {isConfigured && !currentUser ? (
-          <View className="mb-4 rounded-3xl border border-dashed border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <Text className="text-sm text-gray-500 dark:text-gray-400">
-              {t('church.loginRequired')}
-            </Text>
-          </View>
-        ) : null}
-
-        <View className="mb-5">
-          <View className="mb-3 flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-gray-900 dark:text-white">
-              {t('church.myChurches')}
-            </Text>
-            <Text className="text-sm text-gray-500 dark:text-gray-400">{myChurches.length}</Text>
-          </View>
-
-          {myChurches.length === 0 ? (
-            <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
-              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t('church.emptyMyChurches')}
+        <View style={{ width: '100%', maxWidth: pageMaxWidth, alignSelf: 'center' }}>
+          {!isConfigured ? (
+            <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+              <Text className="text-sm text-gray-500 dark:text-gray-400">
+                {t('church.authNotConfigured')}
               </Text>
             </View>
-          ) : (
-            myChurches.map((church) => (
-              <Pressable
-                key={church.id}
-                onPress={() => router.push(`/churches/${church.id}` as never)}
-                className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-              >
-                <View className="flex-row items-start justify-between gap-3">
-                  <View className="flex-1">
-                    <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {church.name}
-                    </Text>
-                    {church.description ? (
-                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400" numberOfLines={2}>
-                        {church.description}
-                      </Text>
-                    ) : null}
-                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      {t('church.memberCount').replace('{count}', String(church.memberCount))}
-                    </Text>
-                    {church.myTeamName ? (
-                      <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {t('church.teamLabel')} {church.myTeamName}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
-                </View>
-              </Pressable>
-            ))
-          )}
-        </View>
+          ) : null}
 
-        <View className="mt-2">
-          <AdBanner />
+          {isConfigured && !currentUser ? (
+            <View className="mb-4 rounded-3xl border border-dashed border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+              <Text className="text-sm text-gray-500 dark:text-gray-400">
+                {t('church.loginRequired')}
+              </Text>
+            </View>
+          ) : null}
+
+          <View className="mb-5">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {t('church.myChurches')}
+              </Text>
+              <Text className="text-sm text-gray-500 dark:text-gray-400">{myChurches.length}</Text>
+            </View>
+
+            {myChurches.length === 0 ? (
+              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.emptyMyChurches')}
+                </Text>
+              </View>
+            ) : (
+              myChurches.map((church) => (
+                <Pressable
+                  key={church.id}
+                  onPress={() => router.push(`/churches/${church.id}` as never)}
+                  className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <View className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {church.name}
+                      </Text>
+                      {church.description ? (
+                        <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400" numberOfLines={2}>
+                          {church.description}
+                        </Text>
+                      ) : null}
+                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        {t('church.memberCount').replace('{count}', String(church.memberCount))}
+                      </Text>
+                      {church.myTeamName ? (
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.teamLabel')} {church.myTeamName}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </View>
+
+          <View className="mt-2">
+            <AdBanner />
+          </View>
         </View>
       </ScrollView>
 

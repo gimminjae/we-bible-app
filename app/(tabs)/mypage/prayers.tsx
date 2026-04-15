@@ -1,5 +1,6 @@
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useResponsive } from "@/hooks/use-responsive"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
@@ -7,60 +8,18 @@ import { useFocusEffect } from "@react-navigation/native"
 import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"
-import { Pressable, ScrollView, Text, View } from "react-native"
+import { ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-function formatDate(raw: string): string {
-  if (!raw) return "-"
-  const [date, time = ""] = raw.split(" ")
-  const [y = "", m = "", d = ""] = date.split("-")
-  const hm = time.slice(0, 5)
-  return `${y}.${m}.${d} ${hm}`.trim()
-}
-
-type PrayerLabelSegment = { text: string; bold?: boolean }
-
-function getPrayerLabelSegments(
-  requester: string,
-  target: string,
-  t: (key: string) => string
-): PrayerLabelSegment[] {
-  const r = requester?.trim() ?? ""
-  const tgt = target?.trim() ?? ""
-  const suffix = t("mypage.prayerNameSuffix") || ""
-  const rName = r ? `${r}${suffix}` : ""
-  const tgtName = tgt ? `${tgt}${suffix}` : ""
-
-  if (tgt && r && r !== tgt) {
-    const format = t("mypage.prayerRequestedForFormat")
-    const parts = format.split(/\{requester\}|\{target\}/)
-    const tokens = format.match(/\{requester\}|\{target\}/g) ?? []
-    const segments: PrayerLabelSegment[] = []
-    parts.forEach((part, i) => {
-      if (part) segments.push({ text: part })
-      if (tokens[i] === "{requester}") segments.push({ text: rName, bold: true })
-      if (tokens[i] === "{target}") segments.push({ text: tgtName, bold: true })
-    })
-    return segments
-  }
-  if (tgt || r) {
-    const name = tgtName || rName
-    const format = t("mypage.prayerForTargetFormat")
-    const [before, after] = format.split("{target}")
-    const segments: PrayerLabelSegment[] = []
-    if (before) segments.push({ text: before })
-    segments.push({ text: name, bold: true })
-    if (after) segments.push({ text: after })
-    return segments
-  }
-  return [{ text: "-" }]
+function getDisplayName(name: string): string {
+  return name?.trim() || "-"
 }
 
 export default function PrayerListScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { t } = useI18n()
-  const { scale, moderateScale } = useResponsive()
+  const { scale, moderateScale, pageMaxWidth } = useResponsive()
   const [items, setItems] = useState<PrayListItem[]>([])
 
   const load = useCallback(() => {
@@ -124,52 +83,90 @@ export default function PrayerListScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {items.length === 0 ? (
-          <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>
-            {t("mypage.emptyPrayers")}
-          </Text>
-        ) : (
-          items.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() =>
-                router.push({
-                  pathname: "/(tabs)/mypage/prayer/[id]",
-                  params: { id: String(item.id) },
-                })
-              }
-              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
-              style={{ marginBottom: scale(12), paddingHorizontal: scale(16), paddingVertical: scale(12) }}
-            >
-              <Text className="text-primary-600 dark:text-primary-400 font-medium" style={{ fontSize: moderateScale(14) }}>
-                {getPrayerLabelSegments(item.requester, item.target, t).map(
-                  (seg, i) =>
-                    seg.bold ? (
-                      <Text key={i} className="font-bold">
-                        {seg.text}
+        <View style={{ width: "100%", maxWidth: pageMaxWidth, alignSelf: "center" }}>
+          {items.length === 0 ? (
+            <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>
+              {t("mypage.emptyPrayers")}
+            </Text>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableHead
+                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  textClassName="text-center"
+                  style={{ flex: 0.85, minWidth: 0 }}
+                >
+                  {t("mypage.prayerRequester")}
+                </TableHead>
+                <TableHead
+                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  textClassName="text-center"
+                  style={{ flex: 0.85, minWidth: 0 }}
+                >
+                  {t("mypage.prayerTarget")}
+                </TableHead>
+                <TableHead
+                  className="items-start"
+                  textClassName="text-left"
+                  style={{ flex: 1.6, minWidth: 0 }}
+                >
+                  {t("mypage.prayerTableLatestContent")}
+                </TableHead>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, index) => (
+                  <TableRow
+                    key={item.id}
+                    isLast={index === items.length - 1}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(tabs)/mypage/prayer/[id]",
+                        params: { id: String(item.id) },
+                      })
+                    }
+                  >
+                    <TableCell
+                      className="items-center border-r border-gray-200 dark:border-gray-700"
+                      style={{ flex: 0.85, minWidth: 0 }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center font-medium text-primary-600 dark:text-primary-400"
+                        style={{ fontSize: moderateScale(14), lineHeight: moderateScale(20) }}
+                      >
+                        {getDisplayName(item.requester)}
                       </Text>
-                    ) : (
-                      <Text key={i}>{seg.text}</Text>
-                    )
-                )}
-              </Text>
-              <Text
-                numberOfLines={2}
-                className="text-gray-900 dark:text-white"
-                style={{
-                  fontSize: moderateScale(16),
-                  lineHeight: moderateScale(24),
-                  marginTop: scale(4),
-                }}
-              >
-                {item.latestContent || "-"}
-              </Text>
-              <Text className="text-gray-500 dark:text-gray-400" style={{ fontSize: moderateScale(14), marginTop: scale(8) }}>
-                {formatDate(item.latestContentAt)}
-              </Text>
-            </Pressable>
-          ))
-        )}
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 dark:border-gray-700"
+                      style={{ flex: 0.85, minWidth: 0 }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center font-medium text-primary-600 dark:text-primary-400"
+                        style={{ fontSize: moderateScale(14), lineHeight: moderateScale(20) }}
+                      >
+                        {getDisplayName(item.target)}
+                      </Text>
+                    </TableCell>
+                    <TableCell className="items-start" style={{ flex: 1.6, minWidth: 0 }}>
+                      <Text
+                        numberOfLines={2}
+                        className="text-left text-gray-900 dark:text-white"
+                        style={{
+                          fontSize: moderateScale(15),
+                          lineHeight: moderateScale(22),
+                        }}
+                      >
+                        {item.latestContent || "-"}
+                      </Text>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   )

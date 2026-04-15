@@ -20,9 +20,11 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchDetail } from '@/hooks/use-churches';
+import { useResponsive } from '@/hooks/use-responsive';
 import { formatShortDateTime } from '@/lib/date';
 import { buildPrayerLabel } from '@/lib/prayer';
 import type { ChurchPrayer } from '@/lib/church';
@@ -87,11 +89,16 @@ function ActionTextButton({
   );
 }
 
+function getPrayerCellText(value: string) {
+  return value.trim() || '-';
+}
+
 export default function ChurchDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const churchId = params.id ?? '';
   const router = useRouter();
   const { t } = useI18n();
+  const { widePageMaxWidth } = useResponsive();
   const { showToast } = useToast();
   const { dataUserId } = useAuth();
   const { churchDetail, isLoading, error } = useChurchDetail(churchId);
@@ -264,48 +271,41 @@ export default function ChurchDetailScreen() {
     });
   };
 
-  const renderPrayerCard = (prayer: ChurchPrayer) => {
-    const expanded = expandedPrayerId === prayer.id;
+  const renderPrayerDetail = (prayer: ChurchPrayer) => {
     return (
-      <View
-        key={prayer.id}
-        className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
-      >
-        <Pressable onPress={() => setExpandedPrayerId(expanded ? null : prayer.id)}>
-          <View className="flex-row items-start justify-between gap-3">
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                {buildPrayerLabel(prayer.requester, prayer.target, t)}
-              </Text>
-              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {prayer.teamName
-                  ? t('church.teamPrayerScopeShort').replace('{team}', prayer.teamName)
-                  : t('church.churchPrayerScopeShort')}
-              </Text>
-              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {t('church.prayerCreatedBy').replace('{name}', prayer.createdByName)}
-              </Text>
-              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {formatShortDateTime(prayer.updatedAt)}
-              </Text>
-            </View>
-            <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
-              <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                {t('church.prayerContentCount').replace('{count}', String(prayer.contentCount))}
-              </Text>
-            </View>
+      <View className="mt-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1">
+            <Text className="text-base font-semibold text-gray-900 dark:text-white">
+              {buildPrayerLabel(prayer.requester, prayer.target, t)}
+            </Text>
+            <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {prayer.teamName
+                ? t('church.teamPrayerScopeShort').replace('{team}', prayer.teamName)
+                : t('church.churchPrayerScopeShort')}
+            </Text>
+            <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('church.prayerCreatedBy').replace('{name}', prayer.createdByName)}
+            </Text>
+            <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {formatShortDateTime(prayer.updatedAt)}
+            </Text>
           </View>
+          <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
+            <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+              {t('church.prayerContentCount').replace('{count}', String(prayer.contentCount))}
+            </Text>
+          </View>
+        </View>
 
-          {prayer.latestContent ? (
-            <Text className="mt-3 text-sm text-gray-600 dark:text-gray-300" numberOfLines={expanded ? undefined : 3}>
-              {prayer.latestContent}
-            </Text>
-          ) : (
-            <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              {t('church.noPrayerContents')}
-            </Text>
-          )}
-        </Pressable>
+        <View className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800">
+          <Text className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">
+            {t('church.prayerTableLatestContent')}
+          </Text>
+          <Text className="text-sm leading-6 text-gray-700 dark:text-gray-200">
+            {prayer.latestContent || t('church.noPrayerContents')}
+          </Text>
+        </View>
 
         <View className="mt-4 flex-row flex-wrap gap-2">
           <ActionTextButton
@@ -339,6 +339,12 @@ export default function ChurchDetailScreen() {
                         churchId: churchDetail.church.id,
                         prayerId: prayer.id,
                       });
+                      if (expandedPrayerId === prayer.id) {
+                        setExpandedPrayerId(null);
+                      }
+                      if (selectedPrayer?.id === prayer.id) {
+                        setSelectedPrayer(null);
+                      }
                       showToast(t('toast.churchPrayerDeleted'));
                     } catch (prayerError) {
                       showToast(
@@ -362,67 +368,145 @@ export default function ChurchDetailScreen() {
           ) : null}
         </View>
 
-        {expanded ? (
-          <View className="mt-4">
-            <Text className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-              {t('church.prayerContents')}
-            </Text>
-            {prayer.contents.length === 0 ? (
-              <View className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 dark:border-gray-800">
-                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  {t('church.noPrayerContents')}
-                </Text>
-              </View>
-            ) : (
-              prayer.contents.map((content) => (
-                <View
-                  key={content.id}
-                  className="mb-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800"
-                >
-                  <View className="flex-row items-start justify-between gap-3">
-                    <View className="flex-1">
-                      <Text className="text-sm text-gray-700 dark:text-gray-200">{content.content}</Text>
-                      <Text className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                        {content.createdByName} · {formatShortDateTime(content.registeredAt)}
-                      </Text>
-                    </View>
-                    {content.canManage ? (
-                      <ActionTextButton
-                        onPress={() =>
-                          confirmDestructive(t('church.deletePrayerContentConfirm'), async () => {
-                            setProcessingKey(`delete-prayer-content-${content.id}`);
-                            try {
-                              await deleteChurchPrayerContent({
-                                churchId: churchDetail.church.id,
-                                contentId: content.id,
-                              });
-                              showToast(t('toast.churchPrayerContentDeleted'));
-                            } catch (contentError) {
-                              showToast(
-                                contentError instanceof Error
-                                  ? contentError.message
-                                  : t('church.prayerContentDeleteFailed'),
-                              );
-                            } finally {
-                              setProcessingKey(null);
-                            }
-                          })
-                        }
-                        disabled={processingKey === `delete-prayer-content-${content.id}`}
-                        label={t('mypage.deleteConfirm')}
-                        action="negative"
-                        variant="outline"
-                        className="rounded-2xl border-red-200 px-3 py-2 dark:border-red-900"
-                        textClassName="text-sm font-semibold text-red-500"
-                      />
-                    ) : null}
+        <View className="mt-5">
+          <Text className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+            {t('church.prayerContents')}
+          </Text>
+          {prayer.contents.length === 0 ? (
+            <View className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 dark:border-gray-800">
+              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                {t('church.noPrayerContents')}
+              </Text>
+            </View>
+          ) : (
+            prayer.contents.map((content) => (
+              <View
+                key={content.id}
+                className="mb-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800"
+              >
+                <View className="flex-row items-start justify-between gap-3">
+                  <View className="flex-1">
+                    <Text className="text-sm leading-6 text-gray-700 dark:text-gray-200">
+                      {content.content}
+                    </Text>
+                    <Text className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      {content.createdByName} · {formatShortDateTime(content.registeredAt)}
+                    </Text>
                   </View>
+                  {content.canManage ? (
+                    <ActionTextButton
+                      onPress={() =>
+                        confirmDestructive(t('church.deletePrayerContentConfirm'), async () => {
+                          setProcessingKey(`delete-prayer-content-${content.id}`);
+                          try {
+                            await deleteChurchPrayerContent({
+                              churchId: churchDetail.church.id,
+                              contentId: content.id,
+                            });
+                            showToast(t('toast.churchPrayerContentDeleted'));
+                          } catch (contentError) {
+                            showToast(
+                              contentError instanceof Error
+                                ? contentError.message
+                                : t('church.prayerContentDeleteFailed'),
+                            );
+                          } finally {
+                            setProcessingKey(null);
+                          }
+                        })
+                      }
+                      disabled={processingKey === `delete-prayer-content-${content.id}`}
+                      label={t('mypage.deleteConfirm')}
+                      action="negative"
+                      variant="outline"
+                      className="rounded-2xl border-red-200 px-3 py-2 dark:border-red-900"
+                      textClassName="text-sm font-semibold text-red-500"
+                    />
+                  ) : null}
                 </View>
-              ))
-            )}
-          </View>
-        ) : null}
+              </View>
+            ))
+          )}
+        </View>
       </View>
+    );
+  };
+
+  const renderPrayerTable = (prayers: ChurchPrayer[]) => {
+    const expandedPrayer = prayers.find((prayer) => prayer.id === expandedPrayerId) ?? null;
+
+    return (
+      <>
+        <Table>
+          <TableHeader>
+            <TableHead
+              className="items-center border-r border-gray-200 dark:border-gray-700"
+              textClassName="text-center"
+              style={{ flex: 0.85, minWidth: 0 }}
+            >
+              {t('mypage.prayerRequester')}
+            </TableHead>
+            <TableHead
+              className="items-center border-r border-gray-200 dark:border-gray-700"
+              textClassName="text-center"
+              style={{ flex: 0.85, minWidth: 0 }}
+            >
+              {t('mypage.prayerTarget')}
+            </TableHead>
+            <TableHead
+              className="items-start"
+              textClassName="text-left"
+              style={{ flex: 1.6, minWidth: 0 }}
+            >
+              {t('church.prayerTableLatestContent')}
+            </TableHead>
+          </TableHeader>
+          <TableBody>
+            {prayers.map((prayer, index) => (
+              <TableRow
+                key={prayer.id}
+                isLast={index === prayers.length - 1}
+                selected={expandedPrayerId === prayer.id}
+                onPress={() =>
+                  setExpandedPrayerId((current) => (current === prayer.id ? null : prayer.id))
+                }
+              >
+                <TableCell
+                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  style={{ flex: 0.85, minWidth: 0 }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-sm font-semibold leading-5 text-gray-900 dark:text-white"
+                  >
+                    {getPrayerCellText(prayer.requester)}
+                  </Text>
+                </TableCell>
+                <TableCell
+                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  style={{ flex: 0.85, minWidth: 0 }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-sm font-semibold leading-5 text-gray-900 dark:text-white"
+                  >
+                    {getPrayerCellText(prayer.target)}
+                  </Text>
+                </TableCell>
+                <TableCell className="items-start" style={{ flex: 1.6, minWidth: 0 }}>
+                  <Text
+                    numberOfLines={2}
+                    className="text-left text-sm leading-5 text-gray-700 dark:text-gray-200"
+                  >
+                    {prayer.latestContent || t('church.noPrayerContents')}
+                  </Text>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {expandedPrayer ? renderPrayerDetail(expandedPrayer) : null}
+      </>
     );
   };
 
@@ -440,6 +524,7 @@ export default function ChurchDetailScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ width: '100%', maxWidth: widePageMaxWidth, alignSelf: 'center' }}>
         <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <View className="flex-row items-start justify-between gap-3">
             <View className="flex-1">
@@ -930,7 +1015,7 @@ export default function ChurchDetailScreen() {
                   </Text>
                 </View>
               ) : (
-                churchWidePrayers.map(renderPrayerCard)
+                renderPrayerTable(churchWidePrayers)
               )}
             </View>
 
@@ -939,7 +1024,7 @@ export default function ChurchDetailScreen() {
                 <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
                   {t('church.teamPrayerSectionTitle').replace('{team}', group.teamName)}
                 </Text>
-                {group.prayers.map(renderPrayerCard)}
+                {renderPrayerTable(group.prayers)}
               </View>
             ))}
           </>
@@ -1117,6 +1202,7 @@ export default function ChurchDetailScreen() {
             )}
           </>
         ) : null}
+        </View>
       </ScrollView>
 
       <SelectionSheet

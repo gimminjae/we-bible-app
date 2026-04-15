@@ -67,7 +67,12 @@ export function BookChapterDrawer({
   const [category, setCategory] = useState<BibleCategoryKey>("ot")
   const [isCategoryInfoOpen, setIsCategoryInfoOpen] = useState(false)
   const { t } = useI18n()
-  const { scale, moderateScale } = useResponsive()
+  const { scale, moderateScale, width, sheetMaxWidth, dialogMaxWidth, isTablet, getAdaptiveColumns } = useResponsive()
+
+  const chapterGridColumns = useMemo(() => {
+    const availableWidth = Math.min(width, sheetMaxWidth) - scale(40)
+    return getAdaptiveColumns(isTablet ? 72 : 60, scale(8), isTablet ? 8 : 5, availableWidth)
+  }, [getAdaptiveColumns, isTablet, scale, sheetMaxWidth, width])
 
   useEffect(() => {
     if (isOpen && pickerStep === "book") {
@@ -203,7 +208,10 @@ export function BookChapterDrawer({
           ) : (
             <View className="flex-row flex-wrap">
               {Array.from({ length: maxChapter }, (_, i) => i + 1).map((ch) => (
-                <View key={ch} className="w-1/5" style={{ padding: scale(4) }}>
+                <View
+                  key={ch}
+                  style={{ padding: scale(4), width: `${100 / chapterGridColumns}%` }}
+                >
                   <Pressable
                     onPress={() => handleSelectChapter(ch)}
                     className="rounded-lg items-center justify-center active:bg-gray-100 dark:active:bg-gray-800"
@@ -236,7 +244,10 @@ export function BookChapterDrawer({
               accessibilityLabel={t("bibleDrawer.categoryInfoClose")}
             />
 
-            <View className="overflow-hidden rounded-3xl bg-white dark:bg-gray-900">
+            <View
+              className="overflow-hidden rounded-3xl bg-white dark:bg-gray-900"
+              style={{ width: '100%', maxWidth: dialogMaxWidth, alignSelf: 'center' }}
+            >
               <View
                 className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-800"
                 style={{ paddingHorizontal: scale(20), paddingVertical: scale(16) }}
@@ -269,7 +280,7 @@ export function BookChapterDrawer({
                   paddingBottom: scale(26),
                 }}
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: scale(420) }}
+                style={{ maxHeight: isTablet ? 460 : scale(420) }}
               >
                 {CATEGORY_INFO_SECTION_KEYS.map((sectionKey) => (
                   <View key={sectionKey} style={{ marginBottom: scale(20) }}>

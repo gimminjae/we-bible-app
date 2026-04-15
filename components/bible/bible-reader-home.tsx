@@ -34,7 +34,10 @@ export function BibleReaderHome() {
   const bible = useBibleReader();
   const { goToBookChapter } = bible;
   const { t } = useI18n();
-  const { scale, moderateScale } = useResponsive();
+  const { scale, moderateScale, isTablet, readingMaxWidth } = useResponsive();
+  const actionCircleSize = isTablet ? 44 : scale(48);
+  const floatingBottom = isTablet ? scale(20) : scale(24);
+  const floatingGap = isTablet ? scale(10) : scale(12);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,126 +110,128 @@ export function BibleReaderHome() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="flex-1">
-        <BibleHeader
-          bookName={bible.bookName}
-          chapter={bible.chapter}
-          langLabel={bible.langLabel}
-          onOpenBookPicker={bible.openBookPicker}
-          onOpenLangPicker={bible.openLangPicker}
-          onOpenSettings={bible.openSettings}
-        />
+      <View className="flex-1 items-center">
+        <View className="flex-1" style={{ width: '100%', maxWidth: readingMaxWidth }}>
+          <BibleHeader
+            bookName={bible.bookName}
+            chapter={bible.chapter}
+            langLabel={bible.langLabel}
+            onOpenBookPicker={bible.openBookPicker}
+            onOpenLangPicker={bible.openLangPicker}
+            onOpenSettings={bible.openSettings}
+          />
 
-        {bible.isAccountDataBusy ? (
-          <View className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
-            <Text className="text-sm text-amber-800 dark:text-amber-200">
-              {t('common.accountSyncInProgress')}
-            </Text>
-          </View>
-        ) : null}
+          {bible.isAccountDataBusy ? (
+            <View className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
+              <Text className="text-sm text-amber-800 dark:text-amber-200">
+                {t('common.accountSyncInProgress')}
+              </Text>
+            </View>
+          ) : null}
 
-        <BibleContent
-          loading={bible.loading}
-          error={bible.error}
-          verses={bible.verses}
-          dualLang={bible.dualLang}
-          fontScale={bible.fontScale}
-          selectedVerseNumbers={bible.selectedVerseNumbers}
-          favoriteVerseNumbers={bible.favoriteVerseNumbers}
-          memoVerseNumbers={bible.memoVerseNumbers}
-          scrollToTopTrigger={`${bible.bookCode}:${bible.chapter}`}
-          onVersePress={bible.toggleVerseSelection}
-          onSwipePrev={bible.goPrevChapter}
-          onSwipeNext={bible.goNextChapter}
-          onScroll={handleScroll}
-        />
+          <BibleContent
+            loading={bible.loading}
+            error={bible.error}
+            verses={bible.verses}
+            dualLang={bible.dualLang}
+            fontScale={bible.fontScale}
+            selectedVerseNumbers={bible.selectedVerseNumbers}
+            favoriteVerseNumbers={bible.favoriteVerseNumbers}
+            memoVerseNumbers={bible.memoVerseNumbers}
+            scrollToTopTrigger={`${bible.bookCode}:${bible.chapter}`}
+            onVersePress={bible.toggleVerseSelection}
+            onSwipePrev={bible.goPrevChapter}
+            onSwipeNext={bible.goNextChapter}
+            onScroll={handleScroll}
+          />
 
-        <Animated.View
-          pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
-          style={[
-            copyButtonStyle,
-            {
-              position: 'absolute',
-              bottom: scale(24),
-              left: 0,
-              right: 0,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: scale(12),
-            },
-          ]}
-        >
-          <Pressable
-            onPress={
-              bible.allSelectedAreFavorites
-                ? bible.removeSelectedFromFavorites
-                : bible.addSelectedToFavorites
-            }
-            disabled={!bible.canUseAccountDataFeatures}
-            className={`rounded-full items-center justify-center ${
-              bible.canUseAccountDataFeatures
-                ? 'bg-gray-200 dark:bg-gray-700 active:opacity-80'
-                : 'bg-gray-100 dark:bg-gray-800'
-            }`}
-            style={{ width: scale(48), height: scale(48) }}
+          <Animated.View
+            pointerEvents={copyButtonVisible ? 'box-none' : 'none'}
+            style={[
+              copyButtonStyle,
+              {
+                position: 'absolute',
+                bottom: floatingBottom,
+                left: 0,
+                right: 0,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: floatingGap,
+              },
+            ]}
           >
-            <IconSymbol
-              name={bible.allSelectedAreFavorites ? 'heart.fill' : 'heart'}
-              size={moderateScale(24)}
-              color={
-                bible.canUseAccountDataFeatures
-                  ? bible.allSelectedAreFavorites
-                    ? '#ec4899'
-                    : '#6b7280'
-                  : '#9ca3af'
+            <Pressable
+              onPress={
+                bible.allSelectedAreFavorites
+                  ? bible.removeSelectedFromFavorites
+                  : bible.addSelectedToFavorites
               }
-            />
-          </Pressable>
-          <Pressable
-            onPress={bible.openMemoDrawer}
-            disabled={!bible.canUseAccountDataFeatures}
-            className={`rounded-full items-center justify-center ${
-              bible.canUseAccountDataFeatures
-                ? 'bg-amber-100 dark:bg-amber-900/40 active:opacity-80'
-                : 'bg-gray-100 dark:bg-gray-800'
-            }`}
-            style={{ width: scale(48), height: scale(48) }}
-          >
-            <IconSymbol
-              name="note.text"
-              size={moderateScale(24)}
-              color={bible.canUseAccountDataFeatures ? '#b45309' : '#9ca3af'}
-            />
-          </Pressable>
-          <Button
-            onPress={bible.copySelectedVerses}
-            className="h-auto rounded-full bg-primary-500 shadow-lg active:opacity-90"
-            style={{
-              paddingHorizontal: scale(24),
-              paddingVertical: scale(12),
-            }}
-          >
-            <ButtonText
-              style={{ fontSize: moderateScale(16) }}
-              className="text-white font-semibold dark:text-gray-900"
+              disabled={!bible.canUseAccountDataFeatures}
+              className={`rounded-full items-center justify-center ${
+                bible.canUseAccountDataFeatures
+                  ? 'bg-gray-200 dark:bg-gray-700 active:opacity-80'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}
+              style={{ width: actionCircleSize, height: actionCircleSize }}
             >
-              {t('common.copy')}
-            </ButtonText>
-          </Button>
-        </Animated.View>
+              <IconSymbol
+                name={bible.allSelectedAreFavorites ? 'heart.fill' : 'heart'}
+                size={moderateScale(24)}
+                color={
+                  bible.canUseAccountDataFeatures
+                    ? bible.allSelectedAreFavorites
+                      ? '#ec4899'
+                      : '#6b7280'
+                    : '#9ca3af'
+                }
+              />
+            </Pressable>
+            <Pressable
+              onPress={bible.openMemoDrawer}
+              disabled={!bible.canUseAccountDataFeatures}
+              className={`rounded-full items-center justify-center ${
+                bible.canUseAccountDataFeatures
+                  ? 'bg-amber-100 dark:bg-amber-900/40 active:opacity-80'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}
+              style={{ width: actionCircleSize, height: actionCircleSize }}
+            >
+              <IconSymbol
+                name="note.text"
+                size={moderateScale(24)}
+                color={bible.canUseAccountDataFeatures ? '#b45309' : '#9ca3af'}
+              />
+            </Pressable>
+            <Button
+              onPress={bible.copySelectedVerses}
+              className="h-auto rounded-full bg-primary-500 shadow-lg active:opacity-90"
+              style={{
+                paddingHorizontal: isTablet ? scale(18) : scale(24),
+                paddingVertical: isTablet ? scale(10) : scale(12),
+              }}
+            >
+              <ButtonText
+                style={{ fontSize: moderateScale(16) }}
+                className="text-white font-semibold dark:text-gray-900"
+              >
+                {t('common.copy')}
+              </ButtonText>
+            </Button>
+          </Animated.View>
+
+          <ChapterNav
+            visible={navVisible && !copyButtonVisible}
+            onPrev={bible.goPrevChapter}
+            onNext={bible.goNextChapter}
+          />
+        </View>
 
         <MemoDrawer
           isOpen={bible.showMemoDrawer}
           onClose={bible.closeMemoDrawer}
           initialVerseText={bible.memoInitialContent}
           onSave={bible.saveMemo}
-        />
-
-        <ChapterNav
-          visible={navVisible && !copyButtonVisible}
-          onPrev={bible.goPrevChapter}
-          onNext={bible.goNextChapter}
         />
 
         <BookChapterDrawer
