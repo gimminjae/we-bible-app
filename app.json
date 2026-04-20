@@ -61,7 +61,7 @@
       [
         "expo-web-browser",
         {
-          "experimentalLauncherActivity": false
+          "experimentalLauncherActivity": true
         }
       ],
       [
