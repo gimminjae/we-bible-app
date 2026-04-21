@@ -15,7 +15,6 @@ export function createSupabaseClient() {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: Platform.OS === 'web',
-        flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
       },
     });
   }

@@ -34,22 +34,6 @@
       "permissions": [
         "com.google.android.gms.permission.AD_ID"
       ],
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ],
-          "data": [
-            {
-              "scheme": "webibleapp",
-              "host": "auth",
-              "pathPrefix": "/callback"
-            }
-          ]
-        }
-      ],
       "package": "com.minjjai.webibleapp"
     },
     "web": {

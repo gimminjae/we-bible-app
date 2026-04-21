@@ -29,18 +29,12 @@ function parseAuthResultUrl(url: string) {
         hashParams.get('access_token') ?? searchParams.get('access_token'),
       refreshToken:
         hashParams.get('refresh_token') ?? searchParams.get('refresh_token'),
-      errorDescription:
-        hashParams.get('error_description') ??
-        searchParams.get('error_description') ??
-        hashParams.get('error') ??
-        searchParams.get('error'),
     };
   } catch {
     return {
       code: null,
       accessToken: null,
       refreshToken: null,
-      errorDescription: null,
     };
   }
 }
@@ -56,14 +50,12 @@ export default function AuthCallbackScreen() {
       code: urlParams?.code ?? getParamValue(params, 'code'),
       accessToken: urlParams?.accessToken ?? getParamValue(params, 'access_token'),
       refreshToken: urlParams?.refreshToken ?? getParamValue(params, 'refresh_token'),
-      errorDescription:
-        urlParams?.errorDescription ?? getParamValue(params, 'error_description'),
     };
   }, [currentUrl, params]);
 
   useEffect(() => {
     let active = true;
-    const { code, accessToken, refreshToken, errorDescription } = authResult;
+    const { code, accessToken, refreshToken } = authResult;
 
     const completeAuth = async () => {
       if (!isSupabaseConfigured()) {
@@ -74,40 +66,16 @@ export default function AuthCallbackScreen() {
       const supabase = createSupabaseClient();
 
       try {
-        if (__DEV__) {
-          console.log('Auth callback received:', {
-            currentUrl,
-            code,
-            hasAccessToken: Boolean(accessToken),
-            hasRefreshToken: Boolean(refreshToken),
-            errorDescription,
-          });
-        }
-
-        if (errorDescription) {
-          throw new Error(errorDescription);
-        }
-
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            throw error;
-          }
+          await supabase.auth.exchangeCodeForSession(code);
         } else if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
+          await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          if (error) {
-            throw error;
-          }
-        } else {
-          console.warn('Auth callback completed without code or session tokens.', {
-            currentUrl,
-          });
         }
-      } catch (error) {
-        console.warn('Failed to complete auth callback.', error);
+      } catch {
+        // Ignore and let the auth context surface any error state.
       } finally {
         if (active) {
           router.replace('/(tabs)/settings');
@@ -120,7 +88,7 @@ export default function AuthCallbackScreen() {
     return () => {
       active = false;
     };
-  }, [authResult, currentUrl, router]);
+  }, [authResult, router]);
 
   return (
     <View className="flex-1 items-center justify-center bg-white px-6 dark:bg-gray-950">

@@ -68,6 +68,27 @@ function getErrorMessage(error: unknown): string {
   return "AUTH_OPERATION_FAILED"
 }
 
+function parseAuthResultUrl(url: string) {
+  const parsed = new URL(url)
+  const searchParams = new URLSearchParams(parsed.search)
+  const hashParams = new URLSearchParams(
+    parsed.hash.startsWith("#") ? parsed.hash.slice(1) : parsed.hash,
+  )
+
+  return {
+    code: searchParams.get("code"),
+    accessToken:
+      hashParams.get("access_token") ?? searchParams.get("access_token"),
+    refreshToken:
+      hashParams.get("refresh_token") ?? searchParams.get("refresh_token"),
+    errorDescription:
+      hashParams.get("error_description") ??
+      searchParams.get("error_description") ??
+      hashParams.get("error") ??
+      searchParams.get("error"),
+  }
+}
+
 function buildAppleUserMetadata(fullName: NativeAppleFullName | null) {
   const givenName = fullName?.givenName?.trim() ?? ""
   const middleName = fullName?.middleName?.trim() ?? ""
@@ -375,27 +396,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       })
 
-      if (__DEV__) {
-        console.log("OAuth sign-in initiated:", {
-          provider,
-          platform: Platform.OS,
-          redirectTo,
-          oauthUrl: data?.url ?? null,
-          error,
-        })
-      }
-
       if (error || !data?.url) {
         throw error ?? new Error("OAUTH_URL_MISSING")
       }
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
-      if (__DEV__) {
-        console.log("OAuth auth session result:", result)
+      if (result.type !== "success" || !result.url) {
+        throw new Error("OAUTH_CANCELLED")
       }
 
-      if (result.type !== "success") {
-        throw new Error("OAUTH_CANCELLED")
+      const { code, accessToken, refreshToken, errorDescription } =
+        parseAuthResultUrl(result.url)
+      if (errorDescription) {
+        throw new Error(errorDescription)
+      }
+
+      if (code) {
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          throw exchangeError
+        }
+        return
+      }
+
+      if (!accessToken || !refreshToken) {
+        throw new Error("OAUTH_SESSION_MISSING")
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+
+      if (sessionError) {
+        throw sessionError
       }
 
       return
