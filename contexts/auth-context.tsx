@@ -392,7 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         provider,
         options: {
           redirectTo,
-          skipBrowserRedirect: true,
+          // skipBrowserRedirect: true,
         },
       })
 
