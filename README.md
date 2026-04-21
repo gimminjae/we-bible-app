@@ -103,9 +103,11 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 - `webibleapp://auth/callback`
 
 추가로 각 공급자 콘솔과 Supabase Dashboard에서 Provider 활성화 및 Redirect URL 설정이 필요합니다.
+Supabase Auth의 Redirect URLs에는 위 값을 정확히 등록해야 합니다.
+Android는 `scheme`/intent filter 변경이 네이티브 빌드에 반영되어야 하므로 설정 변경 후에는 development build 또는 release build를 다시 만들어야 합니다.
 
 ## 참고
 
 - 네이티브 소셜 로그인 테스트는 Expo Go보다 development build 또는 release build 환경을 권장합니다.
 - iOS Apple 로그인 테스트는 실제 기기에서 확인하는 편이 가장 안전합니다.
-
+- Android OAuth 테스트 전에는 `app.json`의 `scheme`과 `android.intentFilters`가 `webibleapp://auth/callback`과 일치하는지 확인하세요.
