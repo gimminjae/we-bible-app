@@ -11,6 +11,7 @@ import {
 import { useSQLiteContext } from 'expo-sqlite';
 import { Platform, useColorScheme as useRNColorScheme } from 'react-native';
 import {
+  getBibleMeditationNotificationEnabledFromDb,
   DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS,
   getAppLanguageFromDb,
   getAppThemeFromDb,
@@ -18,6 +19,7 @@ import {
   normalizeThemeVerseNotificationSettings,
   setAppLanguageToDb,
   setAppThemeToDb,
+  setBibleMeditationNotificationEnabledToDb,
   setThemeVerseNotificationSettingsToDb,
   type AppTheme,
   type ThemeVerseNotificationSettings,
@@ -36,6 +38,8 @@ type AppSettingsValue = {
   setTheme: (theme: AppTheme) => void;
   appLanguage: AppLanguage;
   setAppLanguage: (lang: AppLanguage) => void;
+  bibleMeditationNotificationEnabled: boolean;
+  setBibleMeditationNotificationEnabled: (enabled: boolean) => Promise<void>;
   themeVerseNotificationSettings: ThemeVerseNotificationSettings;
   setThemeVerseNotificationSettings: (
     settings: ThemeVerseNotificationSettings,
@@ -60,13 +64,21 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     const stored = getStoredAppLanguage();
     return stored ?? 'ko';
   });
+  const [bibleMeditationNotificationEnabled, setBibleMeditationNotificationEnabledState] =
+    useState(false);
   const [themeVerseNotificationSettings, setThemeVerseNotificationSettingsState] =
     useState<ThemeVerseNotificationSettings>(DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS);
 
   const refreshSettings = useCallback(async () => {
-    const [storedTheme, storedAppLanguage, storedThemeVerseNotificationSettings] = await Promise.all([
+    const [
+      storedTheme,
+      storedAppLanguage,
+      storedBibleMeditationNotificationEnabled,
+      storedThemeVerseNotificationSettings,
+    ] = await Promise.all([
       getAppThemeFromDb(db),
       getAppLanguageFromDb(db),
+      getBibleMeditationNotificationEnabledFromDb(db),
       getThemeVerseNotificationSettingsFromDb(db),
     ]);
     if (storedTheme) {
@@ -75,6 +87,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     if (storedAppLanguage) {
       setAppLanguageState(storedAppLanguage);
     }
+    setBibleMeditationNotificationEnabledState(storedBibleMeditationNotificationEnabled);
     setThemeVerseNotificationSettingsState(storedThemeVerseNotificationSettings);
     setIsReady(true);
   }, [db]);
@@ -106,6 +119,14 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     void setAppLanguageToDb(db, next);
   }, [db]);
 
+  const setBibleMeditationNotificationEnabled = useCallback(
+    async (next: boolean) => {
+      await setBibleMeditationNotificationEnabledToDb(db, next);
+      setBibleMeditationNotificationEnabledState(next);
+    },
+    [db],
+  );
+
   const setThemeVerseNotificationSettings = useCallback(
     async (next: ThemeVerseNotificationSettings) => {
       const normalized = normalizeThemeVerseNotificationSettings(next);
@@ -121,6 +142,8 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setTheme,
     appLanguage,
     setAppLanguage,
+    bibleMeditationNotificationEnabled,
+    setBibleMeditationNotificationEnabled,
     themeVerseNotificationSettings,
     setThemeVerseNotificationSettings,
     refreshSettings,

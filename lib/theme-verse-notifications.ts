@@ -1,11 +1,14 @@
 import { padNumber } from '@/lib/date';
 import { getBookName } from '@/services/bible';
 import {
+  getBibleMeditationNotificationEnabledFromDb,
+  getBibleMeditationNotificationScheduleIdsFromDb,
   getAppLanguageFromDb,
   getThemeVerseNotificationPermissionRequestedFromDb,
   getThemeVerseNotificationScheduleIdsFromDb,
   getThemeVerseNotificationSettingsFromDb,
   type AppLanguage,
+  setBibleMeditationNotificationScheduleIdsToDb,
   setThemeVerseNotificationPermissionRequestedToDb,
   setThemeVerseNotificationScheduleIdsToDb,
 } from '@/utils/bible-storage';
@@ -20,6 +23,10 @@ import { Platform } from 'react-native';
 
 const THEME_VERSE_NOTIFICATION_KIND = 'themeVerseReminder';
 const THEME_VERSE_NOTIFICATION_CHANNEL_ID = 'theme-verse-reminder';
+const BIBLE_MEDITATION_NOTIFICATION_KIND = 'bibleMeditationReminder';
+const BIBLE_MEDITATION_NOTIFICATION_CHANNEL_ID = 'bible-meditation-reminder';
+const BIBLE_MEDITATION_NOTIFICATION_HOUR = 21;
+const BIBLE_MEDITATION_NOTIFICATION_MINUTE = 0;
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -61,7 +68,19 @@ async function ensureThemeVerseNotificationChannel(appLanguage: AppLanguage): Pr
   });
 }
 
-async function getScheduledThemeVerseNotificationIdsFromSystem(): Promise<string[]> {
+async function ensureBibleMeditationNotificationChannel(
+  appLanguage: AppLanguage,
+): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  await Notifications.setNotificationChannelAsync(BIBLE_MEDITATION_NOTIFICATION_CHANNEL_ID, {
+    name: appLanguage === 'en' ? 'Bible Meditation Reminder' : '성경 묵상 알림',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: 'default',
+  });
+}
+
+async function getScheduledNotificationIdsFromSystem(kind: string): Promise<string[]> {
   const requests = await Notifications.getAllScheduledNotificationsAsync();
 
   return requests
@@ -73,9 +92,17 @@ async function getScheduledThemeVerseNotificationIdsFromSystem(): Promise<string
           ? request.content.data.notificationKind
           : null;
 
-      return value === THEME_VERSE_NOTIFICATION_KIND;
+      return value === kind;
     })
     .map((request) => request.identifier);
+}
+
+async function getScheduledThemeVerseNotificationIdsFromSystem(): Promise<string[]> {
+  return getScheduledNotificationIdsFromSystem(THEME_VERSE_NOTIFICATION_KIND);
+}
+
+async function getScheduledBibleMeditationNotificationIdsFromSystem(): Promise<string[]> {
+  return getScheduledNotificationIdsFromSystem(BIBLE_MEDITATION_NOTIFICATION_KIND);
 }
 
 export async function getThemeVerseNotificationPermissionGranted(): Promise<boolean> {
@@ -89,7 +116,7 @@ export async function getThemeVerseNotificationPermissionGranted(): Promise<bool
   }
 }
 
-export async function requestThemeVerseNotificationPermissions(): Promise<boolean> {
+export async function requestLocalNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
 
   try {
@@ -107,7 +134,11 @@ export async function requestThemeVerseNotificationPermissions(): Promise<boolea
   }
 }
 
-export async function requestThemeVerseNotificationPermissionsOnFirstLaunch(
+export async function requestThemeVerseNotificationPermissions(): Promise<boolean> {
+  return requestLocalNotificationPermissions();
+}
+
+export async function requestLocalNotificationPermissionsOnFirstLaunch(
   db: SQLiteDatabase,
 ): Promise<boolean> {
   if (Platform.OS === 'web') return false;
@@ -129,13 +160,19 @@ export async function requestThemeVerseNotificationPermissionsOnFirstLaunch(
       return false;
     }
 
-    const granted = await requestThemeVerseNotificationPermissions();
+    const granted = await requestLocalNotificationPermissions();
     await setThemeVerseNotificationPermissionRequestedToDb(db, true);
     return granted;
   } catch {
     await setThemeVerseNotificationPermissionRequestedToDb(db, true);
     return false;
   }
+}
+
+export async function requestThemeVerseNotificationPermissionsOnFirstLaunch(
+  db: SQLiteDatabase,
+): Promise<boolean> {
+  return requestLocalNotificationPermissionsOnFirstLaunch(db);
 }
 
 export async function cancelThemeVerseNotificationSchedule(
@@ -157,6 +194,27 @@ export async function cancelThemeVerseNotificationSchedule(
   );
 
   await setThemeVerseNotificationScheduleIdsToDb(db, []);
+}
+
+export async function cancelBibleMeditationNotificationSchedule(
+  db: SQLiteDatabase,
+): Promise<void> {
+  if (Platform.OS === 'web') return;
+
+  const [storedIds, scheduledIds] = await Promise.all([
+    getBibleMeditationNotificationScheduleIdsFromDb(db),
+    getScheduledBibleMeditationNotificationIdsFromSystem().catch(() => []),
+  ]);
+
+  const ids = [...new Set([...storedIds, ...scheduledIds])];
+
+  await Promise.all(
+    ids.map((identifier) =>
+      Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined),
+    ),
+  );
+
+  await setBibleMeditationNotificationScheduleIdsToDb(db, []);
 }
 
 function buildThemeVerseNotificationBody(
@@ -183,6 +241,17 @@ export type ThemeVerseNotificationSyncReason =
 
 export type ThemeVerseNotificationSyncResult = {
   reason: ThemeVerseNotificationSyncReason;
+  scheduledCount: number;
+};
+
+export type BibleMeditationNotificationSyncReason =
+  | 'disabled'
+  | 'missingPermission'
+  | 'scheduled'
+  | 'unsupported';
+
+export type BibleMeditationNotificationSyncResult = {
+  reason: BibleMeditationNotificationSyncReason;
   scheduledCount: number;
 };
 
@@ -259,4 +328,70 @@ export async function syncThemeVerseNotificationSchedule(
   await setThemeVerseNotificationScheduleIdsToDb(db, identifiers);
 
   return { reason: 'scheduled', scheduledCount: identifiers.length };
+}
+
+function buildBibleMeditationNotificationTitle(appLanguage: AppLanguage): string {
+  return appLanguage === 'en' ? 'Did you read the Bible today?' : '오늘 성경 읽으셨나요?';
+}
+
+function buildBibleMeditationNotificationBody(appLanguage: AppLanguage): string {
+  return appLanguage === 'en'
+    ? 'Feed your soul before you fall asleep tonight.'
+    : '잠에 들기 전 마음의 양식도 채우고 주무세요';
+}
+
+export async function syncBibleMeditationNotificationSchedule(
+  db: SQLiteDatabase,
+  options?: { appLanguage?: AppLanguage | null },
+): Promise<BibleMeditationNotificationSyncResult> {
+  if (Platform.OS === 'web') {
+    return { reason: 'unsupported', scheduledCount: 0 };
+  }
+
+  const [enabled, appLanguage] = await Promise.all([
+    getBibleMeditationNotificationEnabledFromDb(db),
+    options?.appLanguage
+      ? Promise.resolve(options.appLanguage)
+      : getAppLanguageFromDb(db),
+  ]);
+
+  if (!enabled) {
+    await cancelBibleMeditationNotificationSchedule(db);
+    return { reason: 'disabled', scheduledCount: 0 };
+  }
+
+  const hasPermission = await getThemeVerseNotificationPermissionGranted();
+  if (!hasPermission) {
+    await cancelBibleMeditationNotificationSchedule(db);
+    return { reason: 'missingPermission', scheduledCount: 0 };
+  }
+
+  await cancelBibleMeditationNotificationSchedule(db);
+
+  const resolvedLanguage = appLanguage ?? 'ko';
+  await ensureBibleMeditationNotificationChannel(resolvedLanguage);
+
+  const identifier = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: buildBibleMeditationNotificationTitle(resolvedLanguage),
+      body: buildBibleMeditationNotificationBody(resolvedLanguage),
+      sound: 'default',
+      data: {
+        notificationKind: BIBLE_MEDITATION_NOTIFICATION_KIND,
+        route: '/',
+        time: `${padNumber(BIBLE_MEDITATION_NOTIFICATION_HOUR)}:${padNumber(BIBLE_MEDITATION_NOTIFICATION_MINUTE)}`,
+      },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: BIBLE_MEDITATION_NOTIFICATION_HOUR,
+      minute: BIBLE_MEDITATION_NOTIFICATION_MINUTE,
+      channelId:
+        Platform.OS === 'android' ? BIBLE_MEDITATION_NOTIFICATION_CHANNEL_ID : undefined,
+    },
+  });
+
+  await setBibleMeditationNotificationScheduleIdsToDb(db, [identifier]);
+
+  return { reason: 'scheduled', scheduledCount: 1 };
 }

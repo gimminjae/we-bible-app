@@ -167,6 +167,15 @@ const messages = {
       themeVerseNotificationTimeSheetHint:
         "24시간 형식으로 입력해 주세요. 예: 07시 30분",
       themeVerseNotificationTimeSave: "시간 저장",
+      bibleMeditationNotificationTitle: "성경 묵상 알림",
+      bibleMeditationNotificationDescription:
+        "매일 저녁 9시에 성경읽기를 독려해요",
+      bibleMeditationNotificationEnabledLabel: "알림 받기",
+      bibleMeditationNotificationEnabledHint:
+        "매일 밤 9시에 성경읽기 알림을 보내드려요.",
+      bibleMeditationNotificationDisabledHint: "알림이 꺼져 있어요.",
+      bibleMeditationNotificationUpdateFailed:
+        "성경 묵상 알림 설정을 저장하지 못했어요.",
     },
     mypage: {
       title: "마이페이지",
@@ -845,6 +854,15 @@ const messages = {
       themeVerseNotificationTimeSheetHint:
         "Use 24-hour time. Example: 07:30",
       themeVerseNotificationTimeSave: "Save time",
+      bibleMeditationNotificationTitle: "Bible Meditation Reminder",
+      bibleMeditationNotificationDescription:
+        "Encourages Bible reading every evening at 9 PM.",
+      bibleMeditationNotificationEnabledLabel: "Receive reminders",
+      bibleMeditationNotificationEnabledHint:
+        "A Bible reading reminder will be sent every day at 9 PM.",
+      bibleMeditationNotificationDisabledHint: "Notifications are turned off.",
+      bibleMeditationNotificationUpdateFailed:
+        "Failed to save the Bible meditation reminder setting.",
     },
     mypage: {
       title: "My Page",

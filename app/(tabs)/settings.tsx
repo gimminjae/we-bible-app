@@ -28,7 +28,7 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
 import { createDeveloperInquiry } from '@/lib/developer-inquiries';
 import { padNumber } from '@/lib/date';
-import { requestThemeVerseNotificationPermissions } from '@/lib/theme-verse-notifications';
+import { requestLocalNotificationPermissions } from '@/lib/theme-verse-notifications';
 import {
   getUserAccountLabel,
   getUserDisplayName,
@@ -81,6 +81,8 @@ function getDeleteAccountErrorMessage(error: unknown, translate: (key: string) =
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const {
+    bibleMeditationNotificationEnabled,
+    setBibleMeditationNotificationEnabled,
     theme,
     setTheme,
     appLanguage,
@@ -439,7 +441,7 @@ export default function SettingsScreen() {
       if (Platform.OS === 'web') return;
 
       if (nextEnabled) {
-        const granted = await requestThemeVerseNotificationPermissions();
+        const granted = await requestLocalNotificationPermissions();
         if (!granted) {
           showToast(t('settings.themeVerseNotificationPermissionDenied'));
           return;
@@ -463,6 +465,27 @@ export default function SettingsScreen() {
       }
     },
     [db, setThemeVerseNotificationSettings, showToast, t, themeVerseNotificationSettings],
+  );
+
+  const handleBibleMeditationNotificationToggle = useCallback(
+    async (nextEnabled: boolean) => {
+      if (Platform.OS === 'web') return;
+
+      if (nextEnabled) {
+        const granted = await requestLocalNotificationPermissions();
+        if (!granted) {
+          showToast(t('settings.themeVerseNotificationPermissionDenied'));
+          return;
+        }
+      }
+
+      try {
+        await setBibleMeditationNotificationEnabled(nextEnabled);
+      } catch {
+        showToast(t('settings.bibleMeditationNotificationUpdateFailed'));
+      }
+    },
+    [setBibleMeditationNotificationEnabled, showToast, t],
   );
 
   const handleThemeVerseNotificationWeekdayToggle = useCallback(
@@ -892,6 +915,35 @@ export default function SettingsScreen() {
             <Text className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
               {t('settings.themeVerseNotificationFootnote')}
             </Text>
+          </View>
+        ) : null}
+
+        {Platform.OS !== 'web' ? (
+          <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.bibleMeditationNotificationTitle')}
+            </Text>
+            <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {t('settings.bibleMeditationNotificationDescription')}
+            </Text>
+
+            <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {t('settings.bibleMeditationNotificationEnabledLabel')}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {bibleMeditationNotificationEnabled
+                    ? t('settings.bibleMeditationNotificationEnabledHint')
+                    : t('settings.bibleMeditationNotificationDisabledHint')}
+                </Text>
+              </View>
+              <Switch
+                value={bibleMeditationNotificationEnabled}
+                disabled={!isReady}
+                onValueChange={(value) => void handleBibleMeditationNotificationToggle(value)}
+              />
+            </View>
           </View>
         ) : null}
 

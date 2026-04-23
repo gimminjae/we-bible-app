@@ -6,6 +6,8 @@ import { Platform } from 'react-native';
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
 const APP_LANGUAGE_KEY = 'appLanguage';
+const BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY = 'bibleMeditationNotificationEnabled';
+const BIBLE_MEDITATION_NOTIFICATION_IDS_KEY = 'bibleMeditationNotificationIds';
 const THEME_VERSE_NOTIFICATION_SETTINGS_KEY = 'themeVerseNotificationSettings';
 const THEME_VERSE_NOTIFICATION_IDS_KEY = 'themeVerseNotificationIds';
 const THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY =
@@ -214,6 +216,55 @@ export async function getAppLanguageFromDb(db: SQLiteDatabase): Promise<AppLangu
   );
   if (row?.value === 'ko' || row?.value === 'en') return row.value;
   return null;
+}
+
+export async function getBibleMeditationNotificationEnabledFromDb(
+  db: SQLiteDatabase,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
+  );
+
+  return parseBooleanState(row?.value ?? null);
+}
+
+export async function setBibleMeditationNotificationEnabledToDb(
+  db: SQLiteDatabase,
+  enabled: boolean,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
+    enabled ? 'true' : 'false',
+  );
+}
+
+export async function getBibleMeditationNotificationScheduleIdsFromDb(
+  db: SQLiteDatabase,
+): Promise<string[]> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
+  );
+
+  return parseThemeVerseNotificationIds(row?.value ?? null);
+}
+
+export async function setBibleMeditationNotificationScheduleIdsToDb(
+  db: SQLiteDatabase,
+  identifiers: string[],
+): Promise<void> {
+  const normalized = identifiers
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
+    JSON.stringify(normalized),
+  );
 }
 
 export async function getThemeVerseNotificationSettingsFromDb(
