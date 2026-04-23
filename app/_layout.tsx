@@ -11,6 +11,7 @@ import 'react-native-url-polyfill/auto';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { ThemeVerseNotificationSync } from '@/components/theme-verse-notification-sync';
 import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
@@ -98,6 +99,7 @@ export default function RootLayout() {
         <SQLiteProvider databaseName="we-bible.db" onInit={initDb}>
           <AppSettingsProvider>
             <AuthProvider>
+              <ThemeVerseNotificationSync />
               <AuthSyncGate>
                 <RootLayoutContent />
               </AuthSyncGate>

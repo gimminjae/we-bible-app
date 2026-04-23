@@ -12,6 +12,7 @@ import { useAppSettings } from "@/contexts/app-settings"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
+import { syncThemeVerseNotificationSchedule } from "@/lib/theme-verse-notifications"
 import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
 import {
@@ -88,6 +89,7 @@ export default function ThemeVerseDetailScreen() {
       try {
         setIsSubmitting(true)
         await upsertThemeVerse(db, input)
+        await syncThemeVerseNotificationSchedule(db, { appLanguage })
         showToast(t("themeVerse.saveSuccess"), "📖")
         setIsSheetOpen(false)
         const rows = await getAllThemeVerses(db)
@@ -99,7 +101,7 @@ export default function ThemeVerseDetailScreen() {
         setIsSubmitting(false)
       }
     },
-    [db, showToast, t],
+    [appLanguage, db, showToast, t],
   )
 
   const handleDelete = useCallback(() => {
@@ -115,6 +117,7 @@ export default function ThemeVerseDetailScreen() {
           onPress: async () => {
             try {
               await deleteThemeVerseByYear(db, selectedYear)
+              await syncThemeVerseNotificationSchedule(db, { appLanguage })
               showToast(t("themeVerse.deleteSuccess"), "🗑️")
               const rows = await getAllThemeVerses(db)
               setItems(rows)
@@ -125,7 +128,7 @@ export default function ThemeVerseDetailScreen() {
         },
       ],
     )
-  }, [db, isCurrentYear, selectedItem, selectedYear, showToast, t])
+  }, [appLanguage, db, isCurrentYear, selectedItem, selectedYear, showToast, t])
 
   const citation = selectedItem
     ? `${getBookName(selectedItem.bookCode, appLanguage)} ${selectedItem.chapter}:${formatThemeVerseNumbers(selectedItem.verseNumbers)}`
