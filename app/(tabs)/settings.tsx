@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import { AdBanner } from '@/components/ads/ad-banner';
+import { AdNativeCard } from '@/components/ads/ad-native-card';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -83,6 +84,8 @@ export default function SettingsScreen() {
   const {
     bibleMeditationNotificationEnabled,
     setBibleMeditationNotificationEnabled,
+    bibleMeditationNotificationTime,
+    setBibleMeditationNotificationTime,
     theme,
     setTheme,
     appLanguage,
@@ -128,6 +131,9 @@ export default function SettingsScreen() {
   const [developerInquiryContent, setDeveloperInquiryContent] = useState('');
   const [isSubmittingDeveloperInquiry, setIsSubmittingDeveloperInquiry] = useState(false);
   const [notificationTimeSheetVisible, setNotificationTimeSheetVisible] = useState(false);
+  const [notificationTimeSheetMode, setNotificationTimeSheetMode] = useState<
+    'themeVerse' | 'bibleMeditation'
+  >('themeVerse');
   const [notificationHourInput, setNotificationHourInput] = useState('');
   const [notificationMinuteInput, setNotificationMinuteInput] = useState('');
 
@@ -417,6 +423,18 @@ export default function SettingsScreen() {
       `${padNumber(themeVerseNotificationSettings.hour)}:${padNumber(themeVerseNotificationSettings.minute)}`,
     [themeVerseNotificationSettings.hour, themeVerseNotificationSettings.minute],
   );
+  const formattedBibleMeditationNotificationTime = useMemo(
+    () =>
+      `${padNumber(bibleMeditationNotificationTime.hour)}:${padNumber(bibleMeditationNotificationTime.minute)}`,
+    [bibleMeditationNotificationTime.hour, bibleMeditationNotificationTime.minute],
+  );
+  const notificationTimeSheetTitle = useMemo(
+    () =>
+      notificationTimeSheetMode === 'bibleMeditation'
+        ? t('settings.bibleMeditationNotificationTimeSheetTitle')
+        : t('settings.themeVerseNotificationTimeSheetTitle'),
+    [notificationTimeSheetMode, t],
+  );
   const superAdminChurches = useMemo(
     () => myChurches.filter((church) => church.myRole === 'super_admin'),
     [myChurches],
@@ -512,11 +530,19 @@ export default function SettingsScreen() {
     [setThemeVerseNotificationSettings, showToast, t, themeVerseNotificationSettings],
   );
 
-  const handleOpenNotificationTimeSheet = useCallback(() => {
+  const handleOpenThemeVerseNotificationTimeSheet = useCallback(() => {
+    setNotificationTimeSheetMode('themeVerse');
     setNotificationHourInput(String(themeVerseNotificationSettings.hour));
     setNotificationMinuteInput(String(themeVerseNotificationSettings.minute));
     setNotificationTimeSheetVisible(true);
   }, [themeVerseNotificationSettings.hour, themeVerseNotificationSettings.minute]);
+
+  const handleOpenBibleMeditationNotificationTimeSheet = useCallback(() => {
+    setNotificationTimeSheetMode('bibleMeditation');
+    setNotificationHourInput(String(bibleMeditationNotificationTime.hour));
+    setNotificationMinuteInput(String(bibleMeditationNotificationTime.minute));
+    setNotificationTimeSheetVisible(true);
+  }, [bibleMeditationNotificationTime.hour, bibleMeditationNotificationTime.minute]);
 
   const handleSaveNotificationTime = useCallback(async () => {
     const hour = Number(notificationHourInput.trim());
@@ -535,18 +561,28 @@ export default function SettingsScreen() {
     }
 
     try {
-      await setThemeVerseNotificationSettings({
-        ...themeVerseNotificationSettings,
-        hour,
-        minute,
-      });
+      if (notificationTimeSheetMode === 'bibleMeditation') {
+        await setBibleMeditationNotificationTime({ hour, minute });
+      } else {
+        await setThemeVerseNotificationSettings({
+          ...themeVerseNotificationSettings,
+          hour,
+          minute,
+        });
+      }
       setNotificationTimeSheetVisible(false);
     } catch {
-      showToast(t('settings.themeVerseNotificationUpdateFailed'));
+      showToast(
+        notificationTimeSheetMode === 'bibleMeditation'
+          ? t('settings.bibleMeditationNotificationUpdateFailed')
+          : t('settings.themeVerseNotificationUpdateFailed'),
+      );
     }
   }, [
+    notificationTimeSheetMode,
     notificationHourInput,
     notificationMinuteInput,
+    setBibleMeditationNotificationTime,
     setThemeVerseNotificationSettings,
     showToast,
     t,
@@ -893,7 +929,7 @@ export default function SettingsScreen() {
               {t('settings.themeVerseNotificationTimeLabel')}
             </Text>
             <Pressable
-              onPress={handleOpenNotificationTimeSheet}
+              onPress={handleOpenThemeVerseNotificationTimeSheet}
               disabled={!isReady}
               className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
             >
@@ -944,8 +980,33 @@ export default function SettingsScreen() {
                 onValueChange={(value) => void handleBibleMeditationNotificationToggle(value)}
               />
             </View>
+
+            <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.bibleMeditationNotificationTimeLabel')}
+            </Text>
+            <Pressable
+              onPress={handleOpenBibleMeditationNotificationTimeSheet}
+              disabled={!isReady}
+              className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
+            >
+              <View>
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {formattedBibleMeditationNotificationTime}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('settings.bibleMeditationNotificationTimeHint')}
+                </Text>
+              </View>
+              <IconSymbol
+                name="chevron.right"
+                size={moderateScale(18)}
+                color={theme === 'light' ? '#374151' : '#9ca3af'}
+              />
+            </Pressable>
           </View>
         ) : null}
+
+        <AdNativeCard className="mt-6" />
 
         <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -1053,7 +1114,7 @@ export default function SettingsScreen() {
         <View className="flex-1">
           <View className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
             <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-              {t('settings.themeVerseNotificationTimeSheetTitle')}
+              {notificationTimeSheetTitle}
             </Text>
           </View>
           <View className="px-6 py-6">
@@ -1063,7 +1124,7 @@ export default function SettingsScreen() {
             <TextInput
               value={notificationHourInput}
               onChangeText={setNotificationHourInput}
-              placeholder="09"
+              placeholder={notificationTimeSheetMode === 'bibleMeditation' ? '21' : '09'}
               placeholderTextColor="#9ca3af"
               keyboardType="number-pad"
               maxLength={2}

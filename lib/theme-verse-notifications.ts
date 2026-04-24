@@ -2,6 +2,7 @@ import { padNumber } from '@/lib/date';
 import { getBookName } from '@/services/bible';
 import {
   getBibleMeditationNotificationEnabledFromDb,
+  getBibleMeditationNotificationTimeFromDb,
   getBibleMeditationNotificationScheduleIdsFromDb,
   getAppLanguageFromDb,
   getThemeVerseNotificationPermissionRequestedFromDb,
@@ -25,8 +26,6 @@ const THEME_VERSE_NOTIFICATION_KIND = 'themeVerseReminder';
 const THEME_VERSE_NOTIFICATION_CHANNEL_ID = 'theme-verse-reminder';
 const BIBLE_MEDITATION_NOTIFICATION_KIND = 'bibleMeditationReminder';
 const BIBLE_MEDITATION_NOTIFICATION_CHANNEL_ID = 'bible-meditation-reminder';
-const BIBLE_MEDITATION_NOTIFICATION_HOUR = 21;
-const BIBLE_MEDITATION_NOTIFICATION_MINUTE = 0;
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -336,8 +335,8 @@ function buildBibleMeditationNotificationTitle(appLanguage: AppLanguage): string
 
 function buildBibleMeditationNotificationBody(appLanguage: AppLanguage): string {
   return appLanguage === 'en'
-    ? 'Feed your soul before you fall asleep tonight.'
-    : '잠에 들기 전 마음의 양식도 채우고 주무세요';
+    ? 'Feed your soul with the Word of God every day!'
+    : '마음의 양식도 채우는 것도 아주 중요합니다!';
 }
 
 export async function syncBibleMeditationNotificationSchedule(
@@ -348,8 +347,9 @@ export async function syncBibleMeditationNotificationSchedule(
     return { reason: 'unsupported', scheduledCount: 0 };
   }
 
-  const [enabled, appLanguage] = await Promise.all([
+  const [enabled, notificationTime, appLanguage] = await Promise.all([
     getBibleMeditationNotificationEnabledFromDb(db),
+    getBibleMeditationNotificationTimeFromDb(db),
     options?.appLanguage
       ? Promise.resolve(options.appLanguage)
       : getAppLanguageFromDb(db),
@@ -379,13 +379,13 @@ export async function syncBibleMeditationNotificationSchedule(
       data: {
         notificationKind: BIBLE_MEDITATION_NOTIFICATION_KIND,
         route: '/',
-        time: `${padNumber(BIBLE_MEDITATION_NOTIFICATION_HOUR)}:${padNumber(BIBLE_MEDITATION_NOTIFICATION_MINUTE)}`,
+        time: `${padNumber(notificationTime.hour)}:${padNumber(notificationTime.minute)}`,
       },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: BIBLE_MEDITATION_NOTIFICATION_HOUR,
-      minute: BIBLE_MEDITATION_NOTIFICATION_MINUTE,
+      hour: notificationTime.hour,
+      minute: notificationTime.minute,
       channelId:
         Platform.OS === 'android' ? BIBLE_MEDITATION_NOTIFICATION_CHANNEL_ID : undefined,
     },

@@ -169,10 +169,13 @@ const messages = {
       themeVerseNotificationTimeSave: "시간 저장",
       bibleMeditationNotificationTitle: "성경 묵상 알림",
       bibleMeditationNotificationDescription:
-        "매일 저녁 9시에 성경읽기를 독려해요",
+        "기본값은 매일 저녁 9시이며, 원하는 시간으로 변경할 수 있어요.",
       bibleMeditationNotificationEnabledLabel: "알림 받기",
       bibleMeditationNotificationEnabledHint:
-        "매일 밤 9시에 성경읽기 알림을 보내드려요.",
+        "매일 설정한 시간에 성경읽기 알림을 보내드려요.",
+      bibleMeditationNotificationTimeLabel: "알림 시간",
+      bibleMeditationNotificationTimeHint: "매일 이 시간에 알림을 보내드려요.",
+      bibleMeditationNotificationTimeSheetTitle: "성경 묵상 알림 시간 설정",
       bibleMeditationNotificationDisabledHint: "알림이 꺼져 있어요.",
       bibleMeditationNotificationUpdateFailed:
         "성경 묵상 알림 설정을 저장하지 못했어요.",
@@ -856,10 +859,14 @@ const messages = {
       themeVerseNotificationTimeSave: "Save time",
       bibleMeditationNotificationTitle: "Bible Meditation Reminder",
       bibleMeditationNotificationDescription:
-        "Encourages Bible reading every evening at 9 PM.",
+        "Defaults to 9 PM every day, and you can change it to any time you want.",
       bibleMeditationNotificationEnabledLabel: "Receive reminders",
       bibleMeditationNotificationEnabledHint:
-        "A Bible reading reminder will be sent every day at 9 PM.",
+        "A Bible reading reminder will be sent every day at your chosen time.",
+      bibleMeditationNotificationTimeLabel: "Reminder time",
+      bibleMeditationNotificationTimeHint:
+        "The reminder will be sent every day at this time.",
+      bibleMeditationNotificationTimeSheetTitle: "Set Bible meditation reminder time",
       bibleMeditationNotificationDisabledHint: "Notifications are turned off.",
       bibleMeditationNotificationUpdateFailed:
         "Failed to save the Bible meditation reminder setting.",

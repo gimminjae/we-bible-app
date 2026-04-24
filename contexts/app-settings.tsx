@@ -11,17 +11,23 @@ import {
 import { useSQLiteContext } from 'expo-sqlite';
 import { Platform, useColorScheme as useRNColorScheme } from 'react-native';
 import {
+  DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED,
+  DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME,
   getBibleMeditationNotificationEnabledFromDb,
+  getBibleMeditationNotificationTimeFromDb,
   DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS,
   getAppLanguageFromDb,
   getAppThemeFromDb,
   getThemeVerseNotificationSettingsFromDb,
+  normalizeBibleMeditationNotificationTime,
   normalizeThemeVerseNotificationSettings,
   setAppLanguageToDb,
   setAppThemeToDb,
   setBibleMeditationNotificationEnabledToDb,
+  setBibleMeditationNotificationTimeToDb,
   setThemeVerseNotificationSettingsToDb,
   type AppTheme,
+  type BibleMeditationNotificationTime,
   type ThemeVerseNotificationSettings,
 } from '@/utils/bible-storage';
 import {
@@ -40,6 +46,10 @@ type AppSettingsValue = {
   setAppLanguage: (lang: AppLanguage) => void;
   bibleMeditationNotificationEnabled: boolean;
   setBibleMeditationNotificationEnabled: (enabled: boolean) => Promise<void>;
+  bibleMeditationNotificationTime: BibleMeditationNotificationTime;
+  setBibleMeditationNotificationTime: (
+    time: BibleMeditationNotificationTime,
+  ) => Promise<void>;
   themeVerseNotificationSettings: ThemeVerseNotificationSettings;
   setThemeVerseNotificationSettings: (
     settings: ThemeVerseNotificationSettings,
@@ -65,7 +75,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     return stored ?? 'ko';
   });
   const [bibleMeditationNotificationEnabled, setBibleMeditationNotificationEnabledState] =
-    useState(false);
+    useState(DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED);
+  const [bibleMeditationNotificationTime, setBibleMeditationNotificationTimeState] =
+    useState<BibleMeditationNotificationTime>(DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME);
   const [themeVerseNotificationSettings, setThemeVerseNotificationSettingsState] =
     useState<ThemeVerseNotificationSettings>(DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS);
 
@@ -74,11 +86,13 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       storedTheme,
       storedAppLanguage,
       storedBibleMeditationNotificationEnabled,
+      storedBibleMeditationNotificationTime,
       storedThemeVerseNotificationSettings,
     ] = await Promise.all([
       getAppThemeFromDb(db),
       getAppLanguageFromDb(db),
       getBibleMeditationNotificationEnabledFromDb(db),
+      getBibleMeditationNotificationTimeFromDb(db),
       getThemeVerseNotificationSettingsFromDb(db),
     ]);
     if (storedTheme) {
@@ -88,6 +102,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       setAppLanguageState(storedAppLanguage);
     }
     setBibleMeditationNotificationEnabledState(storedBibleMeditationNotificationEnabled);
+    setBibleMeditationNotificationTimeState(storedBibleMeditationNotificationTime);
     setThemeVerseNotificationSettingsState(storedThemeVerseNotificationSettings);
     setIsReady(true);
   }, [db]);
@@ -127,6 +142,15 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     [db],
   );
 
+  const setBibleMeditationNotificationTime = useCallback(
+    async (next: BibleMeditationNotificationTime) => {
+      const normalized = normalizeBibleMeditationNotificationTime(next);
+      await setBibleMeditationNotificationTimeToDb(db, normalized);
+      setBibleMeditationNotificationTimeState(normalized);
+    },
+    [db],
+  );
+
   const setThemeVerseNotificationSettings = useCallback(
     async (next: ThemeVerseNotificationSettings) => {
       const normalized = normalizeThemeVerseNotificationSettings(next);
@@ -144,6 +168,8 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setAppLanguage,
     bibleMeditationNotificationEnabled,
     setBibleMeditationNotificationEnabled,
+    bibleMeditationNotificationTime,
+    setBibleMeditationNotificationTime,
     themeVerseNotificationSettings,
     setThemeVerseNotificationSettings,
     refreshSettings,

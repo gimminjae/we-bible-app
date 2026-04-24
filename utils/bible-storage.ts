@@ -7,6 +7,7 @@ const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
 const APP_LANGUAGE_KEY = 'appLanguage';
 const BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY = 'bibleMeditationNotificationEnabled';
+const BIBLE_MEDITATION_NOTIFICATION_TIME_KEY = 'bibleMeditationNotificationTime';
 const BIBLE_MEDITATION_NOTIFICATION_IDS_KEY = 'bibleMeditationNotificationIds';
 const THEME_VERSE_NOTIFICATION_SETTINGS_KEY = 'themeVerseNotificationSettings';
 const THEME_VERSE_NOTIFICATION_IDS_KEY = 'themeVerseNotificationIds';
@@ -104,6 +105,10 @@ export async function setBibleSearchInfo(
 
 export type AppTheme = 'light' | 'dark';
 export type AppLanguage = 'ko' | 'en';
+export type BibleMeditationNotificationTime = {
+  hour: number;
+  minute: number;
+};
 export const THEME_VERSE_NOTIFICATION_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export type ThemeVerseNotificationWeekday =
   (typeof THEME_VERSE_NOTIFICATION_WEEKDAYS)[number];
@@ -120,6 +125,12 @@ export const DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS: ThemeVerseNotificationSe
   hour: 9,
   minute: 0,
 };
+
+export const DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME: BibleMeditationNotificationTime = {
+  hour: 21,
+  minute: 0,
+};
+export const DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED = true;
 
 function normalizeThemeVerseNotificationWeekdays(
   raw: unknown,
@@ -172,6 +183,28 @@ export function normalizeThemeVerseNotificationSettings(
   };
 }
 
+export function normalizeBibleMeditationNotificationTime(
+  raw: unknown,
+): BibleMeditationNotificationTime {
+  const source =
+    raw && typeof raw === 'object' ? (raw as Partial<BibleMeditationNotificationTime>) : {};
+
+  return {
+    hour: normalizeBoundedInteger(
+      source.hour,
+      DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME.hour,
+      0,
+      23,
+    ),
+    minute: normalizeBoundedInteger(
+      source.minute,
+      DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME.minute,
+      0,
+      59,
+    ),
+  };
+}
+
 function parseThemeVerseNotificationSettings(raw: string | null): ThemeVerseNotificationSettings {
   if (!raw) return DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS;
 
@@ -179,6 +212,16 @@ function parseThemeVerseNotificationSettings(raw: string | null): ThemeVerseNoti
     return normalizeThemeVerseNotificationSettings(JSON.parse(raw));
   } catch {
     return DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS;
+  }
+}
+
+function parseBibleMeditationNotificationTime(raw: string | null): BibleMeditationNotificationTime {
+  if (!raw) return DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME;
+
+  try {
+    return normalizeBibleMeditationNotificationTime(JSON.parse(raw));
+  } catch {
+    return DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME;
   }
 }
 
@@ -226,7 +269,9 @@ export async function getBibleMeditationNotificationEnabledFromDb(
     BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
   );
 
-  return parseBooleanState(row?.value ?? null);
+  return row?.value == null
+    ? DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED
+    : parseBooleanState(row.value);
 }
 
 export async function setBibleMeditationNotificationEnabledToDb(
@@ -237,6 +282,29 @@ export async function setBibleMeditationNotificationEnabledToDb(
     `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
     BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
     enabled ? 'true' : 'false',
+  );
+}
+
+export async function getBibleMeditationNotificationTimeFromDb(
+  db: SQLiteDatabase,
+): Promise<BibleMeditationNotificationTime> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
+  );
+
+  return parseBibleMeditationNotificationTime(row?.value ?? null);
+}
+
+export async function setBibleMeditationNotificationTimeToDb(
+  db: SQLiteDatabase,
+  time: BibleMeditationNotificationTime,
+): Promise<void> {
+  const normalized = normalizeBibleMeditationNotificationTime(time);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
+    JSON.stringify(normalized),
   );
 }
 

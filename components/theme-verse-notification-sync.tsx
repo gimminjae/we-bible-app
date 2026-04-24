@@ -13,6 +13,7 @@ export function ThemeVerseNotificationSync() {
   const {
     appLanguage,
     bibleMeditationNotificationEnabled,
+    bibleMeditationNotificationTime,
     isReady,
     themeVerseNotificationSettings,
   } = useAppSettings();
@@ -60,6 +61,7 @@ export function ThemeVerseNotificationSync() {
   }, [
     appLanguage,
     bibleMeditationNotificationEnabled,
+    bibleMeditationNotificationTime,
     db,
     isReady,
     themeVerseNotificationSettings,
