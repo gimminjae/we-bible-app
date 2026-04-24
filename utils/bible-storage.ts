@@ -6,6 +6,13 @@ import { Platform } from 'react-native';
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
 const APP_LANGUAGE_KEY = 'appLanguage';
+const BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY = 'bibleMeditationNotificationEnabled';
+const BIBLE_MEDITATION_NOTIFICATION_TIME_KEY = 'bibleMeditationNotificationTime';
+const BIBLE_MEDITATION_NOTIFICATION_IDS_KEY = 'bibleMeditationNotificationIds';
+const THEME_VERSE_NOTIFICATION_SETTINGS_KEY = 'themeVerseNotificationSettings';
+const THEME_VERSE_NOTIFICATION_IDS_KEY = 'themeVerseNotificationIds';
+const THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY =
+  'themeVerseNotificationPermissionRequested';
 const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
@@ -98,6 +105,143 @@ export async function setBibleSearchInfo(
 
 export type AppTheme = 'light' | 'dark';
 export type AppLanguage = 'ko' | 'en';
+export type BibleMeditationNotificationTime = {
+  hour: number;
+  minute: number;
+};
+export const THEME_VERSE_NOTIFICATION_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+export type ThemeVerseNotificationWeekday =
+  (typeof THEME_VERSE_NOTIFICATION_WEEKDAYS)[number];
+export type ThemeVerseNotificationSettings = {
+  enabled: boolean;
+  weekdays: ThemeVerseNotificationWeekday[];
+  hour: number;
+  minute: number;
+};
+
+export const DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS: ThemeVerseNotificationSettings = {
+  enabled: true,
+  weekdays: [...THEME_VERSE_NOTIFICATION_WEEKDAYS],
+  hour: 9,
+  minute: 0,
+};
+
+export const DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME: BibleMeditationNotificationTime = {
+  hour: 21,
+  minute: 0,
+};
+export const DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED = true;
+
+function normalizeThemeVerseNotificationWeekdays(
+  raw: unknown,
+): ThemeVerseNotificationWeekday[] {
+  const normalized = (Array.isArray(raw) ? raw : [])
+    .map((value) => Number(value))
+    .filter((value): value is ThemeVerseNotificationWeekday =>
+      THEME_VERSE_NOTIFICATION_WEEKDAYS.includes(value as ThemeVerseNotificationWeekday),
+    )
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .sort((left, right) => left - right);
+
+  return normalized.length > 0
+    ? normalized
+    : [...DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS.weekdays];
+}
+
+function normalizeBoundedInteger(
+  raw: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+export function normalizeThemeVerseNotificationSettings(
+  raw: unknown,
+): ThemeVerseNotificationSettings {
+  const source =
+    raw && typeof raw === 'object' ? (raw as Partial<ThemeVerseNotificationSettings>) : {};
+
+  return {
+    enabled: Boolean(source.enabled),
+    weekdays: normalizeThemeVerseNotificationWeekdays(source.weekdays),
+    hour: normalizeBoundedInteger(
+      source.hour,
+      DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS.hour,
+      0,
+      23,
+    ),
+    minute: normalizeBoundedInteger(
+      source.minute,
+      DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS.minute,
+      0,
+      59,
+    ),
+  };
+}
+
+export function normalizeBibleMeditationNotificationTime(
+  raw: unknown,
+): BibleMeditationNotificationTime {
+  const source =
+    raw && typeof raw === 'object' ? (raw as Partial<BibleMeditationNotificationTime>) : {};
+
+  return {
+    hour: normalizeBoundedInteger(
+      source.hour,
+      DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME.hour,
+      0,
+      23,
+    ),
+    minute: normalizeBoundedInteger(
+      source.minute,
+      DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME.minute,
+      0,
+      59,
+    ),
+  };
+}
+
+function parseThemeVerseNotificationSettings(raw: string | null): ThemeVerseNotificationSettings {
+  if (!raw) return DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS;
+
+  try {
+    return normalizeThemeVerseNotificationSettings(JSON.parse(raw));
+  } catch {
+    return DEFAULT_THEME_VERSE_NOTIFICATION_SETTINGS;
+  }
+}
+
+function parseBibleMeditationNotificationTime(raw: string | null): BibleMeditationNotificationTime {
+  if (!raw) return DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME;
+
+  try {
+    return normalizeBibleMeditationNotificationTime(JSON.parse(raw));
+  } catch {
+    return DEFAULT_BIBLE_MEDITATION_NOTIFICATION_TIME;
+  }
+}
+
+function parseThemeVerseNotificationIds(raw: string | null): string[] {
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return (Array.isArray(parsed) ? parsed : [])
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean)
+      .filter((value, index, array) => array.indexOf(value) === index);
+  } catch {
+    return [];
+  }
+}
+
+function parseBooleanState(raw: string | null): boolean {
+  return raw === 'true';
+}
 
 export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | null> {
   const row = await db.getFirstAsync<{ value: string }>(
@@ -115,6 +259,152 @@ export async function getAppLanguageFromDb(db: SQLiteDatabase): Promise<AppLangu
   );
   if (row?.value === 'ko' || row?.value === 'en') return row.value;
   return null;
+}
+
+export async function getBibleMeditationNotificationEnabledFromDb(
+  db: SQLiteDatabase,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
+  );
+
+  return row?.value == null
+    ? DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED
+    : parseBooleanState(row.value);
+}
+
+export async function setBibleMeditationNotificationEnabledToDb(
+  db: SQLiteDatabase,
+  enabled: boolean,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
+    enabled ? 'true' : 'false',
+  );
+}
+
+export async function getBibleMeditationNotificationTimeFromDb(
+  db: SQLiteDatabase,
+): Promise<BibleMeditationNotificationTime> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
+  );
+
+  return parseBibleMeditationNotificationTime(row?.value ?? null);
+}
+
+export async function setBibleMeditationNotificationTimeToDb(
+  db: SQLiteDatabase,
+  time: BibleMeditationNotificationTime,
+): Promise<void> {
+  const normalized = normalizeBibleMeditationNotificationTime(time);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
+    JSON.stringify(normalized),
+  );
+}
+
+export async function getBibleMeditationNotificationScheduleIdsFromDb(
+  db: SQLiteDatabase,
+): Promise<string[]> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
+  );
+
+  return parseThemeVerseNotificationIds(row?.value ?? null);
+}
+
+export async function setBibleMeditationNotificationScheduleIdsToDb(
+  db: SQLiteDatabase,
+  identifiers: string[],
+): Promise<void> {
+  const normalized = identifiers
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
+    JSON.stringify(normalized),
+  );
+}
+
+export async function getThemeVerseNotificationSettingsFromDb(
+  db: SQLiteDatabase,
+): Promise<ThemeVerseNotificationSettings> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    THEME_VERSE_NOTIFICATION_SETTINGS_KEY,
+  );
+
+  return parseThemeVerseNotificationSettings(row?.value ?? null);
+}
+
+export async function setThemeVerseNotificationSettingsToDb(
+  db: SQLiteDatabase,
+  settings: ThemeVerseNotificationSettings,
+): Promise<void> {
+  const normalized = normalizeThemeVerseNotificationSettings(settings);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    THEME_VERSE_NOTIFICATION_SETTINGS_KEY,
+    JSON.stringify(normalized),
+  );
+}
+
+export async function getThemeVerseNotificationScheduleIdsFromDb(
+  db: SQLiteDatabase,
+): Promise<string[]> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    THEME_VERSE_NOTIFICATION_IDS_KEY,
+  );
+
+  return parseThemeVerseNotificationIds(row?.value ?? null);
+}
+
+export async function setThemeVerseNotificationScheduleIdsToDb(
+  db: SQLiteDatabase,
+  identifiers: string[],
+): Promise<void> {
+  const normalized = identifiers
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    THEME_VERSE_NOTIFICATION_IDS_KEY,
+    JSON.stringify(normalized),
+  );
+}
+
+export async function getThemeVerseNotificationPermissionRequestedFromDb(
+  db: SQLiteDatabase,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY,
+  );
+
+  return parseBooleanState(row?.value ?? null);
+}
+
+export async function setThemeVerseNotificationPermissionRequestedToDb(
+  db: SQLiteDatabase,
+  requested: boolean,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY,
+    requested ? 'true' : 'false',
+  );
 }
 
 export type PendingBibleNavigation = {

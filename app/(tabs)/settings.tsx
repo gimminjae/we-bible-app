@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
 
 import { AdBanner } from '@/components/ads/ad-banner';
+import { AdNativeCard } from '@/components/ads/ad-native-card';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -17,6 +28,8 @@ import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
 import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
 import { createDeveloperInquiry } from '@/lib/developer-inquiries';
+import { padNumber } from '@/lib/date';
+import { requestLocalNotificationPermissions } from '@/lib/theme-verse-notifications';
 import {
   getUserAccountLabel,
   getUserDisplayName,
@@ -24,13 +37,23 @@ import {
   isAppleOAuthConfigured,
   type SocialProvider,
 } from '@/lib/supabase';
+import {
+  THEME_VERSE_NOTIFICATION_WEEKDAYS,
+  type ThemeVerseNotificationWeekday,
+} from '@/utils/bible-storage';
 import { useI18n } from '@/utils/i18n';
 import { useToast } from '@/contexts/toast-context';
+import { getCurrentThemeVerseYear, getThemeVerseByYear } from '@/utils/theme-verse-db';
 
 const LANGUAGE_OPTIONS = [
   { value: 'ko', label: '한국어' },
   { value: 'en', label: 'English' },
 ] as const;
+
+const THEME_VERSE_NOTIFICATION_WEEKDAY_LABELS = {
+  ko: ['일', '월', '화', '수', '목', '금', '토'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+} as const;
 
 function isValidDisplayName(displayName: string) {
   return /^[A-Za-z0-9가-힣._-]{2,20}$/.test(displayName.trim());
@@ -57,7 +80,20 @@ function getDeleteAccountErrorMessage(error: unknown, translate: (key: string) =
 }
 
 export default function SettingsScreen() {
-  const { theme, setTheme, appLanguage, setAppLanguage } = useAppSettings();
+  const db = useSQLiteContext();
+  const {
+    bibleMeditationNotificationEnabled,
+    setBibleMeditationNotificationEnabled,
+    bibleMeditationNotificationTime,
+    setBibleMeditationNotificationTime,
+    theme,
+    setTheme,
+    appLanguage,
+    setAppLanguage,
+    isReady,
+    themeVerseNotificationSettings,
+    setThemeVerseNotificationSettings,
+  } = useAppSettings();
   const { t } = useI18n();
   const { showToast } = useToast();
   const { scale, moderateScale, narrowPageMaxWidth } = useResponsive();
@@ -94,6 +130,12 @@ export default function SettingsScreen() {
   const [developerInquiryTitle, setDeveloperInquiryTitle] = useState('');
   const [developerInquiryContent, setDeveloperInquiryContent] = useState('');
   const [isSubmittingDeveloperInquiry, setIsSubmittingDeveloperInquiry] = useState(false);
+  const [notificationTimeSheetVisible, setNotificationTimeSheetVisible] = useState(false);
+  const [notificationTimeSheetMode, setNotificationTimeSheetMode] = useState<
+    'themeVerse' | 'bibleMeditation'
+  >('themeVerse');
+  const [notificationHourInput, setNotificationHourInput] = useState('');
+  const [notificationMinuteInput, setNotificationMinuteInput] = useState('');
 
   useEffect(() => {
     if (!lastError) return;
@@ -372,6 +414,27 @@ export default function SettingsScreen() {
     () => LANGUAGE_OPTIONS.find((option) => option.value === appLanguage)?.label ?? '한국어',
     [appLanguage],
   );
+  const themeVerseNotificationWeekdayLabels = useMemo(
+    () => THEME_VERSE_NOTIFICATION_WEEKDAY_LABELS[appLanguage],
+    [appLanguage],
+  );
+  const formattedThemeVerseNotificationTime = useMemo(
+    () =>
+      `${padNumber(themeVerseNotificationSettings.hour)}:${padNumber(themeVerseNotificationSettings.minute)}`,
+    [themeVerseNotificationSettings.hour, themeVerseNotificationSettings.minute],
+  );
+  const formattedBibleMeditationNotificationTime = useMemo(
+    () =>
+      `${padNumber(bibleMeditationNotificationTime.hour)}:${padNumber(bibleMeditationNotificationTime.minute)}`,
+    [bibleMeditationNotificationTime.hour, bibleMeditationNotificationTime.minute],
+  );
+  const notificationTimeSheetTitle = useMemo(
+    () =>
+      notificationTimeSheetMode === 'bibleMeditation'
+        ? t('settings.bibleMeditationNotificationTimeSheetTitle')
+        : t('settings.themeVerseNotificationTimeSheetTitle'),
+    [notificationTimeSheetMode, t],
+  );
   const superAdminChurches = useMemo(
     () => myChurches.filter((church) => church.myRole === 'super_admin'),
     [myChurches],
@@ -390,6 +453,141 @@ export default function SettingsScreen() {
         : currentUser
           ? t('settings.socialAccountConnected')
           : null);
+
+  const handleThemeVerseNotificationToggle = useCallback(
+    async (nextEnabled: boolean) => {
+      if (Platform.OS === 'web') return;
+
+      if (nextEnabled) {
+        const granted = await requestLocalNotificationPermissions();
+        if (!granted) {
+          showToast(t('settings.themeVerseNotificationPermissionDenied'));
+          return;
+        }
+      }
+
+      try {
+        await setThemeVerseNotificationSettings({
+          ...themeVerseNotificationSettings,
+          enabled: nextEnabled,
+        });
+
+        if (nextEnabled) {
+          const currentThemeVerse = await getThemeVerseByYear(db, getCurrentThemeVerseYear());
+          if (!currentThemeVerse) {
+            showToast(t('settings.themeVerseNotificationWaitingForVerse'));
+          }
+        }
+      } catch {
+        showToast(t('settings.themeVerseNotificationUpdateFailed'));
+      }
+    },
+    [db, setThemeVerseNotificationSettings, showToast, t, themeVerseNotificationSettings],
+  );
+
+  const handleBibleMeditationNotificationToggle = useCallback(
+    async (nextEnabled: boolean) => {
+      if (Platform.OS === 'web') return;
+
+      if (nextEnabled) {
+        const granted = await requestLocalNotificationPermissions();
+        if (!granted) {
+          showToast(t('settings.themeVerseNotificationPermissionDenied'));
+          return;
+        }
+      }
+
+      try {
+        await setBibleMeditationNotificationEnabled(nextEnabled);
+      } catch {
+        showToast(t('settings.bibleMeditationNotificationUpdateFailed'));
+      }
+    },
+    [setBibleMeditationNotificationEnabled, showToast, t],
+  );
+
+  const handleThemeVerseNotificationWeekdayToggle = useCallback(
+    async (weekday: ThemeVerseNotificationWeekday) => {
+      const exists = themeVerseNotificationSettings.weekdays.includes(weekday);
+      const nextWeekdays = exists
+        ? themeVerseNotificationSettings.weekdays.filter((value) => value !== weekday)
+        : [...themeVerseNotificationSettings.weekdays, weekday].sort((left, right) => left - right);
+
+      if (nextWeekdays.length === 0) {
+        showToast(t('settings.themeVerseNotificationWeekdayRequired'));
+        return;
+      }
+
+      try {
+        await setThemeVerseNotificationSettings({
+          ...themeVerseNotificationSettings,
+          weekdays: nextWeekdays as ThemeVerseNotificationWeekday[],
+        });
+      } catch {
+        showToast(t('settings.themeVerseNotificationUpdateFailed'));
+      }
+    },
+    [setThemeVerseNotificationSettings, showToast, t, themeVerseNotificationSettings],
+  );
+
+  const handleOpenThemeVerseNotificationTimeSheet = useCallback(() => {
+    setNotificationTimeSheetMode('themeVerse');
+    setNotificationHourInput(String(themeVerseNotificationSettings.hour));
+    setNotificationMinuteInput(String(themeVerseNotificationSettings.minute));
+    setNotificationTimeSheetVisible(true);
+  }, [themeVerseNotificationSettings.hour, themeVerseNotificationSettings.minute]);
+
+  const handleOpenBibleMeditationNotificationTimeSheet = useCallback(() => {
+    setNotificationTimeSheetMode('bibleMeditation');
+    setNotificationHourInput(String(bibleMeditationNotificationTime.hour));
+    setNotificationMinuteInput(String(bibleMeditationNotificationTime.minute));
+    setNotificationTimeSheetVisible(true);
+  }, [bibleMeditationNotificationTime.hour, bibleMeditationNotificationTime.minute]);
+
+  const handleSaveNotificationTime = useCallback(async () => {
+    const hour = Number(notificationHourInput.trim());
+    const minute = Number(notificationMinuteInput.trim());
+
+    if (
+      !Number.isInteger(hour) ||
+      !Number.isInteger(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      showToast(t('settings.themeVerseNotificationInvalidTime'));
+      return;
+    }
+
+    try {
+      if (notificationTimeSheetMode === 'bibleMeditation') {
+        await setBibleMeditationNotificationTime({ hour, minute });
+      } else {
+        await setThemeVerseNotificationSettings({
+          ...themeVerseNotificationSettings,
+          hour,
+          minute,
+        });
+      }
+      setNotificationTimeSheetVisible(false);
+    } catch {
+      showToast(
+        notificationTimeSheetMode === 'bibleMeditation'
+          ? t('settings.bibleMeditationNotificationUpdateFailed')
+          : t('settings.themeVerseNotificationUpdateFailed'),
+      );
+    }
+  }, [
+    notificationTimeSheetMode,
+    notificationHourInput,
+    notificationMinuteInput,
+    setBibleMeditationNotificationTime,
+    setThemeVerseNotificationSettings,
+    showToast,
+    t,
+    themeVerseNotificationSettings,
+  ]);
 
   const handleDeleteAccount = useCallback(() => {
     if (!isConfigured || !currentUser) return;
@@ -668,6 +866,148 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        {Platform.OS !== 'web' ? (
+          <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.themeVerseNotificationTitle')}
+            </Text>
+            <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {t('settings.themeVerseNotificationDescription')}
+            </Text>
+
+            <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {t('settings.themeVerseNotificationEnabledLabel')}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {themeVerseNotificationSettings.enabled
+                    ? t('settings.themeVerseNotificationEnabledHint')
+                    : t('settings.themeVerseNotificationDisabledHint')}
+                </Text>
+              </View>
+              <Switch
+                value={themeVerseNotificationSettings.enabled}
+                disabled={!isReady}
+                onValueChange={(value) => void handleThemeVerseNotificationToggle(value)}
+              />
+            </View>
+
+            <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.themeVerseNotificationDaysLabel')}
+            </Text>
+            <View className="mt-2 flex-row flex-wrap" style={{ gap: scale(8) }}>
+              {THEME_VERSE_NOTIFICATION_WEEKDAYS.map((weekday, index) => {
+                const selected = themeVerseNotificationSettings.weekdays.includes(weekday);
+
+                return (
+                  <Pressable
+                    key={`theme-verse-notification-weekday-${weekday}`}
+                    disabled={!isReady}
+                    onPress={() => void handleThemeVerseNotificationWeekdayToggle(weekday)}
+                    className={`rounded-full px-4 py-3 ${
+                      selected
+                        ? 'border-2 border-primary-600 bg-white dark:border-primary-400 dark:bg-gray-950'
+                        : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950'
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm ${
+                        selected
+                          ? 'font-bold text-primary-700 dark:text-primary-300'
+                          : 'font-semibold text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      {themeVerseNotificationWeekdayLabels[index]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.themeVerseNotificationTimeLabel')}
+            </Text>
+            <Pressable
+              onPress={handleOpenThemeVerseNotificationTimeSheet}
+              disabled={!isReady}
+              className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
+            >
+              <View>
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {formattedThemeVerseNotificationTime}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('settings.themeVerseNotificationTimeHint')}
+                </Text>
+              </View>
+              <IconSymbol
+                name="chevron.right"
+                size={moderateScale(18)}
+                color={theme === 'light' ? '#374151' : '#9ca3af'}
+              />
+            </Pressable>
+
+            <Text className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
+              {t('settings.themeVerseNotificationFootnote')}
+            </Text>
+          </View>
+        ) : null}
+
+        {Platform.OS !== 'web' ? (
+          <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.bibleMeditationNotificationTitle')}
+            </Text>
+            <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {t('settings.bibleMeditationNotificationDescription')}
+            </Text>
+
+            <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {t('settings.bibleMeditationNotificationEnabledLabel')}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {bibleMeditationNotificationEnabled
+                    ? t('settings.bibleMeditationNotificationEnabledHint')
+                    : t('settings.bibleMeditationNotificationDisabledHint')}
+                </Text>
+              </View>
+              <Switch
+                value={bibleMeditationNotificationEnabled}
+                disabled={!isReady}
+                onValueChange={(value) => void handleBibleMeditationNotificationToggle(value)}
+              />
+            </View>
+
+            <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('settings.bibleMeditationNotificationTimeLabel')}
+            </Text>
+            <Pressable
+              onPress={handleOpenBibleMeditationNotificationTimeSheet}
+              disabled={!isReady}
+              className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
+            >
+              <View>
+                <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                  {formattedBibleMeditationNotificationTime}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t('settings.bibleMeditationNotificationTimeHint')}
+                </Text>
+              </View>
+              <IconSymbol
+                name="chevron.right"
+                size={moderateScale(18)}
+                color={theme === 'light' ? '#374151' : '#9ca3af'}
+              />
+            </Pressable>
+          </View>
+        ) : null}
+
+        <AdNativeCard className="mt-6" />
+
         <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {t('settings.developerInquiry')}
@@ -761,6 +1101,63 @@ export default function SettingsScreen() {
               }`}
             >
               <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.displayNameSave')}</ButtonText>
+            </Button>
+          </View>
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={notificationTimeSheetVisible}
+        onClose={() => setNotificationTimeSheetVisible(false)}
+        heightFraction={0.45}
+      >
+        <View className="flex-1">
+          <View className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+            <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+              {notificationTimeSheetTitle}
+            </Text>
+          </View>
+          <View className="px-6 py-6">
+            <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+              {t('settings.themeVerseNotificationTimeHourLabel')}
+            </Text>
+            <TextInput
+              value={notificationHourInput}
+              onChangeText={setNotificationHourInput}
+              placeholder={notificationTimeSheetMode === 'bibleMeditation' ? '21' : '09'}
+              placeholderTextColor="#9ca3af"
+              keyboardType="number-pad"
+              maxLength={2}
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+            />
+
+            <Text className="mb-2 mt-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+              {t('settings.themeVerseNotificationTimeMinuteLabel')}
+            </Text>
+            <TextInput
+              value={notificationMinuteInput}
+              onChangeText={setNotificationMinuteInput}
+              placeholder="00"
+              placeholderTextColor="#9ca3af"
+              keyboardType="number-pad"
+              maxLength={2}
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
+            />
+
+            <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+              {t('settings.themeVerseNotificationTimeSheetHint')}
+            </Text>
+
+            <Button
+              onPress={() => void handleSaveNotificationTime()}
+              disabled={!isReady}
+              className={`mt-5 h-auto rounded-2xl px-4 py-4 ${
+                !isReady ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
+              }`}
+            >
+              <ButtonText className="font-semibold text-white dark:text-gray-900">
+                {t('settings.themeVerseNotificationTimeSave')}
+              </ButtonText>
             </Button>
           </View>
         </View>

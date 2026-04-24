@@ -143,6 +143,42 @@ const messages = {
       passwordChangeSuccessTitle: "비밀번호 변경 완료",
       passwordChangeReloginMessage:
         "비밀번호가 변경되었습니다. 다시 로그인해 주세요.",
+      themeVerseNotificationTitle: "푯대말씀 알림",
+      themeVerseNotificationDescription:
+        "설정한 요일과 시간에 현재 연도의 푯대말씀을 로컬 알림으로 보내드려요.",
+      themeVerseNotificationEnabledLabel: "알림 받기",
+      themeVerseNotificationEnabledHint: "선택한 요일과 시간에 알림을 보내드려요.",
+      themeVerseNotificationDisabledHint: "알림이 꺼져 있어요.",
+      themeVerseNotificationDaysLabel: "반복 요일",
+      themeVerseNotificationTimeLabel: "알림 시간",
+      themeVerseNotificationTimeHint: "매주 선택한 요일의 이 시간에 보내드려요.",
+      themeVerseNotificationFootnote:
+        "현재 연도의 푯대말씀이 있어야 알림이 실제로 발송돼요. 말씀이 없으면 예약만 보관하고 알림은 보내지 않아요.",
+      themeVerseNotificationPermissionDenied:
+        "알림 권한이 필요해요. 기기 설정에서 알림을 허용해 주세요.",
+      themeVerseNotificationWeekdayRequired: "반복 요일은 최소 한 개 이상 선택해 주세요.",
+      themeVerseNotificationInvalidTime: "시간은 0~23시, 분은 0~59분으로 입력해 주세요.",
+      themeVerseNotificationUpdateFailed: "푯대말씀 알림 설정을 저장하지 못했어요.",
+      themeVerseNotificationWaitingForVerse:
+        "현재 연도의 푯대말씀을 설정하면 알림이 시작돼요.",
+      themeVerseNotificationTimeSheetTitle: "알림 시간 설정",
+      themeVerseNotificationTimeHourLabel: "시",
+      themeVerseNotificationTimeMinuteLabel: "분",
+      themeVerseNotificationTimeSheetHint:
+        "24시간 형식으로 입력해 주세요. 예: 07시 30분",
+      themeVerseNotificationTimeSave: "시간 저장",
+      bibleMeditationNotificationTitle: "성경 묵상 알림",
+      bibleMeditationNotificationDescription:
+        "기본값은 매일 저녁 9시이며, 원하는 시간으로 변경할 수 있어요.",
+      bibleMeditationNotificationEnabledLabel: "알림 받기",
+      bibleMeditationNotificationEnabledHint:
+        "매일 설정한 시간에 성경읽기 알림을 보내드려요.",
+      bibleMeditationNotificationTimeLabel: "알림 시간",
+      bibleMeditationNotificationTimeHint: "매일 이 시간에 알림을 보내드려요.",
+      bibleMeditationNotificationTimeSheetTitle: "성경 묵상 알림 시간 설정",
+      bibleMeditationNotificationDisabledHint: "알림이 꺼져 있어요.",
+      bibleMeditationNotificationUpdateFailed:
+        "성경 묵상 알림 설정을 저장하지 못했어요.",
     },
     mypage: {
       title: "마이페이지",
@@ -792,6 +828,48 @@ const messages = {
       passwordChangeSuccessTitle: "Password changed",
       passwordChangeReloginMessage:
         "Your password has been changed. Please sign in again.",
+      themeVerseNotificationTitle: "Theme Verse Reminder",
+      themeVerseNotificationDescription:
+        "Send the current year's theme verse as a local notification on your chosen days and time.",
+      themeVerseNotificationEnabledLabel: "Receive reminders",
+      themeVerseNotificationEnabledHint:
+        "Notifications will be sent on the selected days and time.",
+      themeVerseNotificationDisabledHint: "Notifications are turned off.",
+      themeVerseNotificationDaysLabel: "Repeat days",
+      themeVerseNotificationTimeLabel: "Reminder time",
+      themeVerseNotificationTimeHint:
+        "The reminder will be sent at this time on the selected weekdays.",
+      themeVerseNotificationFootnote:
+        "A theme verse for the current year must exist before notifications are actually scheduled. If there is no verse yet, your settings are kept but nothing is sent.",
+      themeVerseNotificationPermissionDenied:
+        "Notification permission is required. Please allow notifications in system settings.",
+      themeVerseNotificationWeekdayRequired:
+        "Please select at least one repeat day.",
+      themeVerseNotificationInvalidTime:
+        "Enter an hour between 0 and 23 and a minute between 0 and 59.",
+      themeVerseNotificationUpdateFailed:
+        "Failed to save the theme verse reminder settings.",
+      themeVerseNotificationWaitingForVerse:
+        "Reminders will start after you set a theme verse for the current year.",
+      themeVerseNotificationTimeSheetTitle: "Set reminder time",
+      themeVerseNotificationTimeHourLabel: "Hour",
+      themeVerseNotificationTimeMinuteLabel: "Minute",
+      themeVerseNotificationTimeSheetHint:
+        "Use 24-hour time. Example: 07:30",
+      themeVerseNotificationTimeSave: "Save time",
+      bibleMeditationNotificationTitle: "Bible Meditation Reminder",
+      bibleMeditationNotificationDescription:
+        "Defaults to 9 PM every day, and you can change it to any time you want.",
+      bibleMeditationNotificationEnabledLabel: "Receive reminders",
+      bibleMeditationNotificationEnabledHint:
+        "A Bible reading reminder will be sent every day at your chosen time.",
+      bibleMeditationNotificationTimeLabel: "Reminder time",
+      bibleMeditationNotificationTimeHint:
+        "The reminder will be sent every day at this time.",
+      bibleMeditationNotificationTimeSheetTitle: "Set Bible meditation reminder time",
+      bibleMeditationNotificationDisabledHint: "Notifications are turned off.",
+      bibleMeditationNotificationUpdateFailed:
+        "Failed to save the Bible meditation reminder setting.",
     },
     mypage: {
       title: "My Page",
