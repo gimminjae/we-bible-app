@@ -2,7 +2,7 @@
   "expo": {
     "name": "we-bible-app",
     "slug": "we-bible-app",
-    "version": "1.01",
+    "version": "1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "webibleapp",
@@ -13,9 +13,7 @@
       "bundleIdentifier": "com.minjjai.webibleapp",
       "usesAppleSignIn": true,
       "entitlements": {
-        "com.apple.developer.applesignin": [
-          "Default"
-        ]
+        "com.apple.developer.applesignin": ["Default"]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -31,9 +29,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "com.google.android.gms.permission.AD_ID"
-      ],
+      "permissions": ["com.google.android.gms.permission.AD_ID"],
       "package": "com.minjjai.webibleapp"
     },
     "web": {
