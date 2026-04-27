@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchDetail } from '@/hooks/use-churches';
+import { useLoading } from '@/hooks/use-loading';
 import { useResponsive } from '@/hooks/use-responsive';
 import { formatShortDateTime } from '@/lib/date';
 import { buildPrayerLabel } from '@/lib/prayer';
@@ -93,6 +94,19 @@ function getPrayerCellText(value: string) {
   return value.trim() || '-';
 }
 
+function getPrayerCreatedSortKey(prayer: ChurchPrayer) {
+  return prayer.createdAt || '';
+}
+
+const CHURCH_PRAYER_COLUMN_WIDTHS = {
+  requester: 96,
+  relation: 84,
+  target: 96,
+  latestContent: 220,
+  updatedAt: 116,
+  createdAt: 116,
+} as const
+
 export default function ChurchDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const churchId = params.id ?? '';
@@ -133,6 +147,9 @@ export default function ChurchDetailScreen() {
   const [editPrayerVisible, setEditPrayerVisible] = useState(false);
   const [appendPrayerVisible, setAppendPrayerVisible] = useState(false);
   const [editChurchInfoVisible, setEditChurchInfoVisible] = useState(false);
+  const createPrayerLoading = useLoading();
+  const editPrayerLoading = useLoading();
+  const appendPrayerLoading = useLoading();
 
   const churchWidePrayers = useMemo(
     () => churchDetail?.prayers.filter((prayer) => prayer.teamId == null) ?? [],
@@ -287,6 +304,11 @@ export default function ChurchDetailScreen() {
             <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {t('church.prayerCreatedBy').replace('{name}', prayer.createdByName)}
             </Text>
+            {prayer.relation ? (
+              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {t('prayerDrawer.relationLabel')}: {prayer.relation}
+              </Text>
+            ) : null}
             <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {formatShortDateTime(prayer.updatedAt)}
             </Text>
@@ -433,72 +455,141 @@ export default function ChurchDetailScreen() {
   };
 
   const renderPrayerTable = (prayers: ChurchPrayer[]) => {
-    const expandedPrayer = prayers.find((prayer) => prayer.id === expandedPrayerId) ?? null;
+    const sortedPrayers = [...prayers].sort((left, right) => {
+      const createdDiff = getPrayerCreatedSortKey(right).localeCompare(getPrayerCreatedSortKey(left));
+      if (createdDiff !== 0) return createdDiff;
+      return right.updatedAt.localeCompare(left.updatedAt);
+    });
+    const expandedPrayer = sortedPrayers.find((prayer) => prayer.id === expandedPrayerId) ?? null;
+    const tableMinWidth =
+      CHURCH_PRAYER_COLUMN_WIDTHS.requester +
+      CHURCH_PRAYER_COLUMN_WIDTHS.relation +
+      CHURCH_PRAYER_COLUMN_WIDTHS.target +
+      CHURCH_PRAYER_COLUMN_WIDTHS.latestContent +
+      CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt +
+      CHURCH_PRAYER_COLUMN_WIDTHS.createdAt
 
     return (
       <>
-        <Table>
+        <Table minWidth={tableMinWidth}>
           <TableHeader>
             <TableHead
-              className="items-center border-r border-gray-200 dark:border-gray-700"
+              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
               textClassName="text-center"
-              style={{ flex: 0.85, minWidth: 0 }}
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.requester }}
             >
               {t('mypage.prayerRequester')}
             </TableHead>
             <TableHead
-              className="items-center border-r border-gray-200 dark:border-gray-700"
+              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
               textClassName="text-center"
-              style={{ flex: 0.85, minWidth: 0 }}
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
             >
               {t('mypage.prayerTarget')}
             </TableHead>
             <TableHead
-              className="items-start"
+              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+              textClassName="text-center"
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
+            >
+              {t('prayerDrawer.relationLabel')}
+            </TableHead>
+            <TableHead
+              className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
               textClassName="text-left"
-              style={{ flex: 1.6, minWidth: 0 }}
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.latestContent }}
             >
               {t('church.prayerTableLatestContent')}
             </TableHead>
+            <TableHead
+              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+              textClassName="text-center"
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt }}
+            >
+              {t('church.prayerTableUpdatedAt')}
+            </TableHead>
+            <TableHead
+              className="items-center px-2"
+              textClassName="text-center"
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.createdAt }}
+            >
+              {t('church.prayerTableCreatedAt')}
+            </TableHead>
           </TableHeader>
           <TableBody>
-            {prayers.map((prayer, index) => (
+            {sortedPrayers.map((prayer, index) => (
               <TableRow
                 key={prayer.id}
-                isLast={index === prayers.length - 1}
+                isLast={index === sortedPrayers.length - 1}
                 selected={expandedPrayerId === prayer.id}
                 onPress={() =>
                   setExpandedPrayerId((current) => (current === prayer.id ? null : prayer.id))
                 }
               >
                 <TableCell
-                  className="items-center border-r border-gray-200 dark:border-gray-700"
-                  style={{ flex: 0.85, minWidth: 0 }}
+                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.requester }}
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-center text-sm font-semibold leading-5 text-gray-900 dark:text-white"
+                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
                   >
                     {getPrayerCellText(prayer.requester)}
                   </Text>
                 </TableCell>
                 <TableCell
-                  className="items-center border-r border-gray-200 dark:border-gray-700"
-                  style={{ flex: 0.85, minWidth: 0 }}
+                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
                 >
                   <Text
                     numberOfLines={1}
-                    className="text-center text-sm font-semibold leading-5 text-gray-900 dark:text-white"
+                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
                   >
                     {getPrayerCellText(prayer.target)}
                   </Text>
                 </TableCell>
-                <TableCell className="items-start" style={{ flex: 1.6, minWidth: 0 }}>
+                <TableCell
+                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
+                  >
+                    {getPrayerCellText(prayer.relation)}
+                  </Text>
+                </TableCell>
+                <TableCell
+                  className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.latestContent }}
+                >
                   <Text
                     numberOfLines={2}
-                    className="text-left text-sm leading-5 text-gray-700 dark:text-gray-200"
+                    className="text-left text-xs leading-4 text-gray-700 dark:text-gray-200"
                   >
                     {prayer.latestContent || t('church.noPrayerContents')}
+                  </Text>
+                </TableCell>
+                <TableCell
+                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
+                  >
+                    {formatShortDateTime(prayer.updatedAt)}
+                  </Text>
+                </TableCell>
+                <TableCell
+                  className="items-center px-2 py-2"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.createdAt }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
+                  >
+                    {formatShortDateTime(prayer.createdAt)}
                   </Text>
                 </TableCell>
               </TableRow>
@@ -1220,26 +1311,26 @@ export default function ChurchDetailScreen() {
         onClose={() => setCreatePrayerVisible(false)}
         audienceOptions={prayerAudienceOptions}
         initialAudienceValue={prayerAudienceOptions[0]?.value ?? ''}
-        isSubmitting={processingKey === 'create-prayer'}
+        isSubmitting={createPrayerLoading.isLoading}
         onSubmit={async (input) => {
-          setProcessingKey('create-prayer');
-          try {
-            await createChurchPrayer({
-              churchId: churchDetail.church.id,
-              teamId: input.teamId,
-              requester: input.requester,
-              target: input.target,
-              content: input.content,
-            });
-            setCreatePrayerVisible(false);
-            showToast(t('toast.churchPrayerCreated'));
-          } catch (prayerError) {
-            showToast(
-              prayerError instanceof Error ? prayerError.message : t('church.prayerCreateFailed'),
-            );
-          } finally {
-            setProcessingKey(null);
-          }
+          await createPrayerLoading.runWithLoading(async () => {
+            try {
+              await createChurchPrayer({
+                churchId: churchDetail.church.id,
+                teamId: input.teamId,
+                requester: input.requester,
+                relation: input.relation,
+                target: input.target,
+                content: input.content,
+              });
+              setCreatePrayerVisible(false);
+              showToast(t('toast.churchPrayerCreated'));
+            } catch (prayerError) {
+              showToast(
+                prayerError instanceof Error ? prayerError.message : t('church.prayerCreateFailed'),
+              );
+            }
+          });
         }}
       />
 
@@ -1251,34 +1342,34 @@ export default function ChurchDetailScreen() {
           setSelectedPrayer(null);
         }}
         prayer={selectedPrayer}
-        isSubmitting={processingKey === 'edit-prayer'}
+        isSubmitting={editPrayerLoading.isLoading}
         onSubmit={async (input) => {
           if (!selectedPrayer) return;
-          setProcessingKey('edit-prayer');
-          try {
-            await updateChurchPrayer({
-              churchId: churchDetail.church.id,
-              prayerId: selectedPrayer.id,
-              requester: input.requester,
-              target: input.target,
-            });
-            if (input.content.trim()) {
-              await addChurchPrayerContent({
+          await editPrayerLoading.runWithLoading(async () => {
+            try {
+              await updateChurchPrayer({
                 churchId: churchDetail.church.id,
                 prayerId: selectedPrayer.id,
-                content: input.content,
+                requester: input.requester,
+                relation: input.relation,
+                target: input.target,
               });
+              if (input.content.trim()) {
+                await addChurchPrayerContent({
+                  churchId: churchDetail.church.id,
+                  prayerId: selectedPrayer.id,
+                  content: input.content,
+                });
+              }
+              setEditPrayerVisible(false);
+              setSelectedPrayer(null);
+              showToast(t('toast.churchPrayerUpdated'));
+            } catch (prayerError) {
+              showToast(
+                prayerError instanceof Error ? prayerError.message : t('church.prayerUpdateFailed'),
+              );
             }
-            setEditPrayerVisible(false);
-            setSelectedPrayer(null);
-            showToast(t('toast.churchPrayerUpdated'));
-          } catch (prayerError) {
-            showToast(
-              prayerError instanceof Error ? prayerError.message : t('church.prayerUpdateFailed'),
-            );
-          } finally {
-            setProcessingKey(null);
-          }
+          });
         }}
       />
 
@@ -1290,28 +1381,27 @@ export default function ChurchDetailScreen() {
           setSelectedPrayer(null);
         }}
         prayer={selectedPrayer}
-        isSubmitting={processingKey === 'append-prayer'}
+        isSubmitting={appendPrayerLoading.isLoading}
         onSubmit={async (input) => {
           if (!selectedPrayer) return;
-          setProcessingKey('append-prayer');
-          try {
-            await addChurchPrayerContent({
-              churchId: churchDetail.church.id,
-              prayerId: selectedPrayer.id,
-              content: input.content,
-            });
-            setAppendPrayerVisible(false);
-            setSelectedPrayer(null);
-            showToast(t('toast.churchPrayerContentAdded'));
-          } catch (prayerError) {
-            showToast(
-              prayerError instanceof Error
-                ? prayerError.message
-                : t('church.prayerContentAddFailed'),
-            );
-          } finally {
-            setProcessingKey(null);
-          }
+          await appendPrayerLoading.runWithLoading(async () => {
+            try {
+              await addChurchPrayerContent({
+                churchId: churchDetail.church.id,
+                prayerId: selectedPrayer.id,
+                content: input.content,
+              });
+              setAppendPrayerVisible(false);
+              setSelectedPrayer(null);
+              showToast(t('toast.churchPrayerContentAdded'));
+            } catch (prayerError) {
+              showToast(
+                prayerError instanceof Error
+                  ? prayerError.message
+                  : t('church.prayerContentAddFailed'),
+              );
+            }
+          });
         }}
       />
 

@@ -225,6 +225,7 @@ export function useChurchActions() {
         churchId: string;
         teamId?: string | null;
         requester: string;
+        relation: string;
         target: string;
         content: string;
       }) {
@@ -233,6 +234,7 @@ export function useChurchActions() {
           teamId: args.teamId ?? null,
           currentUserId: requireUserId(dataUserId),
           requester: args.requester,
+          relation: args.relation,
           target: args.target,
           content: args.content,
         });
@@ -243,11 +245,13 @@ export function useChurchActions() {
         churchId: string;
         prayerId: string;
         requester: string;
+        relation: string;
         target: string;
       }) {
         await updateChurchPrayerRequest({
           prayerId: args.prayerId,
           requester: args.requester,
+          relation: args.relation,
           target: args.target,
         });
         await invalidateChurchQueries(args.churchId);

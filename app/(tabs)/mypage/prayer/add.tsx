@@ -1,6 +1,7 @@
-import { Button, ButtonText } from '@/components/ui/button';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
+import { useLoading } from '@/hooks/use-loading';
 import { useI18n } from '@/utils/i18n';
 import { addPrayer } from '@/utils/prayer-db';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -22,22 +23,26 @@ export default function AddPrayerScreen() {
   const { t } = useI18n();
   const { showToast } = useToast();
   const [requester, setRequester] = useState('');
+  const [relation, setRelation] = useState('');
   const [target, setTarget] = useState('');
   const [content, setContent] = useState('');
+  const { isLoading, runWithLoading } = useLoading();
 
   const handleSave = useCallback(async () => {
     if (!content.trim()) return;
-    const id = await addPrayer(db, requester, target, content);
-    if (id) {
-      showToast(t('toast.prayerAdded'), '🙏');
-      router.replace({
-        pathname: '/(tabs)/mypage/prayer/[id]',
-        params: { id: String(id) },
-      });
-    } else {
-      router.back();
-    }
-  }, [db, requester, target, content, router, showToast, t]);
+    await runWithLoading(async () => {
+      const id = await addPrayer(db, requester, relation, target, content);
+      if (id) {
+        showToast(t('toast.prayerAdded'), '🙏');
+        router.replace({
+          pathname: '/(tabs)/mypage/prayer/[id]',
+          params: { id: String(id) },
+        });
+      } else {
+        router.back();
+      }
+    });
+  }, [content, db, relation, requester, router, runWithLoading, showToast, t, target]);
 
   return (
     <SafeAreaView
@@ -56,9 +61,10 @@ export default function AddPrayerScreen() {
         </View>
         <Button
           onPress={handleSave}
-          disabled={!content.trim()}
+          disabled={!content.trim() || isLoading}
           className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90 disabled:opacity-50"
         >
+          {isLoading ? <ButtonSpinner color="#ffffff" /> : null}
           <ButtonText className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
         </Button>
       </View>
@@ -81,6 +87,18 @@ export default function AddPrayerScreen() {
             onChangeText={setRequester}
             placeholder={t('prayerDrawer.requesterPlaceholder')}
             placeholderTextColor="#9ca3af"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+          />
+
+          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            {t('prayerDrawer.relationLabel')}
+          </Text>
+          <TextInput
+            value={relation}
+            onChangeText={setRelation}
+            placeholder={t('prayerDrawer.relationPlaceholder')}
+            placeholderTextColor="#9ca3af"
+            maxLength={50}
             className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
           />
 

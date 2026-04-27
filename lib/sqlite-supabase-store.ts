@@ -88,8 +88,10 @@ type PersistedPrayerContent = {
 type PersistedPrayerRecord = {
   clientId: string;
   requester: string;
+  relation: string;
   target: string;
   createdAt: string;
+  updatedAt: string;
   contents: PersistedPrayerContent[];
 };
 
@@ -186,8 +188,10 @@ type LocalPrayerRow = {
   id: number;
   client_id: string | null;
   requester: string | null;
+  relation: string | null;
   target: string | null;
   created_at: string | null;
+  updated_at: string | null;
 };
 
 type LocalPrayerContentRow = {
@@ -219,6 +223,7 @@ type RemotePrayerRow = {
   id: number;
   client_id: string | null;
   requester: string | null;
+  relation: string | null;
   target: string | null;
   created_at: string | null;
 };
@@ -473,6 +478,8 @@ function createInitialSnapshot(overrides?: Partial<PersistedStateSnapshot>): Per
     prayers: overrides?.prayers
       ? overrides.prayers.map((item) => ({
           ...item,
+          relation: item.relation ?? '',
+          updatedAt: item.updatedAt ?? item.createdAt ?? '',
           contents: item.contents.map((content) => ({ ...content })),
         }))
       : [],
@@ -633,7 +640,7 @@ async function readLocalPlans(db: SQLiteDatabase): Promise<PersistedPlanRecord[]
 async function readLocalPrayers(db: SQLiteDatabase): Promise<PersistedPrayerRecord[]> {
   const [prayerRows, contentRows] = await Promise.all([
     db.getAllAsync<LocalPrayerRow>(
-      `SELECT id, client_id, requester, target, created_at FROM ${PRAYERS_TABLE} ORDER BY created_at DESC, id DESC`,
+      `SELECT id, client_id, requester, relation, target, created_at, updated_at FROM ${PRAYERS_TABLE} ORDER BY updated_at DESC, created_at DESC, id DESC`,
     ),
     db.getAllAsync<LocalPrayerContentRow>(
       `SELECT id, client_id, prayer_id, content, registered_at FROM ${PRAYER_CONTENTS_TABLE} ORDER BY registered_at DESC, id DESC`,
@@ -655,8 +662,10 @@ async function readLocalPrayers(db: SQLiteDatabase): Promise<PersistedPrayerReco
   return prayerRows.map((row) => ({
     clientId: row.client_id?.trim() || `prayer-${row.id}`,
     requester: row.requester ?? '',
+    relation: row.relation ?? '',
     target: row.target ?? '',
     createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? row.created_at ?? '',
     contents: [...(contentMap.get(row.id) ?? [])].sort((left, right) =>
       right.registeredAt.localeCompare(left.registeredAt),
     ),
@@ -884,6 +893,7 @@ async function replacePrayers(userId: string, prayers: PersistedPrayerRecord[]):
         user_id: userId,
         client_id: prayer.clientId,
         requester: prayer.requester,
+        relation: (prayer.relation ?? '').slice(0, 50),
         target: prayer.target,
         created_at: prayer.createdAt,
       })
@@ -1072,7 +1082,7 @@ export async function loadPersistedStateFromSupabase(
       .order('id', { ascending: false }),
     supabase
       .from(USER_PRAYERS_TABLE)
-      .select('id, client_id, requester, target, created_at')
+      .select('id, client_id, requester, relation, target, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false }),
@@ -1203,8 +1213,13 @@ export async function loadPersistedStateFromSupabase(
     prayers: prayerRows.map((row) => ({
       clientId: row.client_id?.trim() || `prayer-${row.id}`,
       requester: row.requester ?? '',
+      relation: row.relation ?? '',
       target: row.target ?? '',
       createdAt: row.created_at ?? '',
+      updatedAt:
+        [...(prayerContentMap.get(row.id) ?? [])]
+          .sort((left, right) => right.registeredAt.localeCompare(left.registeredAt))[0]
+          ?.registeredAt ?? row.created_at ?? '',
       contents: [...(prayerContentMap.get(row.id) ?? [])].sort((left, right) =>
         right.registeredAt.localeCompare(left.registeredAt),
       ),
@@ -1331,11 +1346,13 @@ async function replaceLocalPersistedState(
 
     for (const prayer of state.prayers) {
       const result = await db.runAsync(
-        `INSERT INTO ${PRAYERS_TABLE} (client_id, requester, target, created_at) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO ${PRAYERS_TABLE} (client_id, requester, relation, target, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
         prayer.clientId,
         prayer.requester,
+        prayer.relation ?? '',
         prayer.target,
         prayer.createdAt,
+        prayer.updatedAt ?? prayer.createdAt,
       );
       const prayerId = Number(result.lastInsertRowId);
       if (!prayerId) continue;
