@@ -150,6 +150,12 @@ export default function PrayerDetailScreen() {
                 {prayer.requester || '-'}
               </Text>
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">
+                {t('prayerDrawer.relationLabel')}
+              </Text>
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {prayer.relation || '-'}
+              </Text>
+              <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">
                 {t('mypage.prayerTarget')}
               </Text>
               <Text className="text-base font-semibold text-gray-900 dark:text-white">

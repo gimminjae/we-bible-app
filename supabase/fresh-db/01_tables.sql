@@ -135,6 +135,7 @@ create table if not exists public.church_prayers (
   church_id bigint not null references public.churches (id) on delete cascade,
   team_id bigint references public.teams (id) on delete cascade,
   requester text not null default '',
+  relation varchar(50) not null default '',
   target text not null default '',
   created_by_user_id uuid not null references auth.users (id) on delete cascade,
   created_at text not null default '',
@@ -154,6 +155,7 @@ create table if not exists public.prayers (
   user_id uuid not null references auth.users (id) on delete cascade,
   client_id text,
   requester text not null default '',
+  relation varchar(50) not null default '',
   target text not null default '',
   created_at text not null default ''
 );
