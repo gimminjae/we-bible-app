@@ -2,6 +2,7 @@ import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useResponsive } from "@/hooks/use-responsive"
+import { formatShortDateTime } from "@/lib/date"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
 import { useFocusEffect } from "@react-navigation/native"
@@ -15,12 +16,28 @@ function getDisplayName(name: string): string {
   return name?.trim() || "-"
 }
 
+const PERSONAL_PRAYER_COLUMN_WIDTHS = {
+  requester: 96,
+  relation: 84,
+  target: 96,
+  latestContent: 220,
+  updatedAt: 116,
+  createdAt: 116,
+} as const
+
 export default function PrayerListScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { t } = useI18n()
   const { scale, moderateScale, pageMaxWidth } = useResponsive()
   const [items, setItems] = useState<PrayListItem[]>([])
+  const tableMinWidth =
+    PERSONAL_PRAYER_COLUMN_WIDTHS.requester +
+    PERSONAL_PRAYER_COLUMN_WIDTHS.relation +
+    PERSONAL_PRAYER_COLUMN_WIDTHS.target +
+    PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent +
+    PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt +
+    PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt
 
   const load = useCallback(() => {
     let active = true
@@ -89,28 +106,49 @@ export default function PrayerListScreen() {
               {t("mypage.emptyPrayers")}
             </Text>
           ) : (
-            <Table>
+            <Table minWidth={tableMinWidth}>
               <TableHeader>
                 <TableHead
-                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
                   textClassName="text-center"
-                  style={{ flex: 0.85, minWidth: 0 }}
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.requester }}
                 >
                   {t("mypage.prayerRequester")}
                 </TableHead>
                 <TableHead
-                  className="items-center border-r border-gray-200 dark:border-gray-700"
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
                   textClassName="text-center"
-                  style={{ flex: 0.85, minWidth: 0 }}
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
+                >
+                  {t("prayerDrawer.relationLabel")}
+                </TableHead>
+                <TableHead
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-center"
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
                 >
                   {t("mypage.prayerTarget")}
                 </TableHead>
                 <TableHead
-                  className="items-start"
+                  className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
                   textClassName="text-left"
-                  style={{ flex: 1.6, minWidth: 0 }}
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
                 >
                   {t("mypage.prayerTableLatestContent")}
+                </TableHead>
+                <TableHead
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-center"
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
+                >
+                  {t("mypage.prayerTableUpdatedAt")}
+                </TableHead>
+                <TableHead
+                  className="items-center px-2"
+                  textClassName="text-center"
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
+                >
+                  {t("mypage.prayerTableCreatedAt")}
                 </TableHead>
               </TableHeader>
               <TableBody>
@@ -126,39 +164,78 @@ export default function PrayerListScreen() {
                     }
                   >
                     <TableCell
-                      className="items-center border-r border-gray-200 dark:border-gray-700"
-                      style={{ flex: 0.85, minWidth: 0 }}
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.requester }}
                     >
                       <Text
                         numberOfLines={1}
                         className="text-center font-medium text-primary-600 dark:text-primary-400"
-                        style={{ fontSize: moderateScale(14), lineHeight: moderateScale(20) }}
+                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
                       >
                         {getDisplayName(item.requester)}
                       </Text>
                     </TableCell>
                     <TableCell
-                      className="items-center border-r border-gray-200 dark:border-gray-700"
-                      style={{ flex: 0.85, minWidth: 0 }}
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
                     >
                       <Text
                         numberOfLines={1}
                         className="text-center font-medium text-primary-600 dark:text-primary-400"
-                        style={{ fontSize: moderateScale(14), lineHeight: moderateScale(20) }}
+                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
+                      >
+                        {getDisplayName(item.relation)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center font-medium text-primary-600 dark:text-primary-400"
+                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
                       >
                         {getDisplayName(item.target)}
                       </Text>
                     </TableCell>
-                    <TableCell className="items-start" style={{ flex: 1.6, minWidth: 0 }}>
+                    <TableCell
+                      className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
+                    >
                       <Text
                         numberOfLines={2}
                         className="text-left text-gray-900 dark:text-white"
                         style={{
-                          fontSize: moderateScale(15),
-                          lineHeight: moderateScale(22),
+                          fontSize: moderateScale(13),
+                          lineHeight: moderateScale(18),
                         }}
                       >
                         {item.latestContent || "-"}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-gray-700 dark:text-gray-200"
+                        style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
+                      >
+                        {formatShortDateTime(item.updatedAt)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center px-2 py-2"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-gray-700 dark:text-gray-200"
+                        style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
+                      >
+                        {formatShortDateTime(item.createdAt)}
                       </Text>
                     </TableCell>
                   </TableRow>

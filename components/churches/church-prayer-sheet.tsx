@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
-import { Button, ButtonText } from '@/components/ui/button';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
 import type { ChurchPrayer } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
@@ -18,6 +18,7 @@ type ChurchPrayerSheetProps = {
   onSubmit: (input: {
     teamId: string | null;
     requester: string;
+    relation: string;
     target: string;
     content: string;
   }) => void | Promise<void>;
@@ -46,6 +47,7 @@ export function ChurchPrayerSheet({
   const { t } = useI18n();
   const [audienceValue, setAudienceValue] = useState(initialAudienceValue);
   const [requester, setRequester] = useState(prayer?.requester ?? '');
+  const [relation, setRelation] = useState(prayer?.relation ?? '');
   const [target, setTarget] = useState(prayer?.target ?? '');
   const [content, setContent] = useState('');
   const [audienceSheetVisible, setAudienceSheetVisible] = useState(false);
@@ -54,6 +56,7 @@ export function ChurchPrayerSheet({
     if (!visible) return;
     setAudienceValue(initialAudienceValue);
     setRequester(prayer?.requester ?? '');
+    setRelation(prayer?.relation ?? '');
     setTarget(prayer?.target ?? '');
     setContent('');
   }, [initialAudienceValue, prayer, visible]);
@@ -135,6 +138,20 @@ export function ChurchPrayerSheet({
 
                 <View className="mb-5">
                   <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {t('prayerDrawer.relationLabel')}
+                  </Text>
+                  <TextInput
+                    value={relation}
+                    onChangeText={setRelation}
+                    placeholder={t('prayerDrawer.relationPlaceholder')}
+                    placeholderTextColor="#9ca3af"
+                    maxLength={50}
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+                  />
+                </View>
+
+                <View className="mb-5">
+                  <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                     {t('prayerDrawer.targetLabel')}
                   </Text>
                   <TextInput
@@ -184,6 +201,7 @@ export function ChurchPrayerSheet({
                   void onSubmit({
                     teamId: audienceValue || null,
                     requester,
+                    relation,
                     target,
                     content,
                   })
@@ -193,6 +211,7 @@ export function ChurchPrayerSheet({
                   saveDisabled ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
                 }`}
               >
+                {isSubmitting ? <ButtonSpinner color="#ffffff" /> : null}
                 <ButtonText className="font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
               </Button>
             </View>

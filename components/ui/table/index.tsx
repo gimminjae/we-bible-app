@@ -20,7 +20,7 @@ const Table = React.forwardRef<React.ElementRef<typeof View>, TableProps>(
     const content = (
       <View
         className={contentClassName}
-        style={minWidth ? ({ minWidth } satisfies ViewStyle) : { width: '100%' }}
+        style={minWidth ? ({ width: minWidth } satisfies ViewStyle) : { width: '100%' }}
       >
         {children}
       </View>
@@ -38,7 +38,7 @@ const Table = React.forwardRef<React.ElementRef<typeof View>, TableProps>(
             horizontal
             nestedScrollEnabled
             bounces={false}
-            showsHorizontalScrollIndicator={false}
+            showsHorizontalScrollIndicator
           >
             {content}
           </ScrollView>

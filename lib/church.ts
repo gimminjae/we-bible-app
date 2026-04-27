@@ -71,6 +71,7 @@ export type ChurchPrayer = {
   teamName: string | null;
   scope: ChurchPrayerScope;
   requester: string;
+  relation: string;
   target: string;
   createdByUserId: string;
   createdByName: string;
@@ -264,6 +265,7 @@ type ChurchPrayerRow = {
   church_id: number;
   team_id: number | null;
   requester: string | null;
+  relation: string | null;
   target: string | null;
   created_by_user_id: string;
   created_at: string | null;
@@ -454,13 +456,14 @@ function summarizeChurchPrayer(args: {
     teamName: prayerRow.team_id == null ? null : teamMap.get(prayerRow.team_id)?.name ?? null,
     scope: prayerRow.team_id == null ? "church" : "team",
     requester: prayerRow.requester?.trim() ?? "",
+    relation: prayerRow.relation?.trim() ?? "",
     target: prayerRow.target?.trim() ?? "",
     createdByUserId: prayerRow.created_by_user_id,
     createdByName:
       profileMap.get(prayerRow.created_by_user_id)?.displayName ??
       `${prayerRow.created_by_user_id.slice(0, 8)}...`,
     createdAt: prayerRow.created_at ?? "",
-    updatedAt: prayerRow.updated_at ?? prayerRow.created_at ?? "",
+    updatedAt: contents[0]?.registeredAt ?? prayerRow.created_at ?? "",
     latestContent: contents[0]?.content ?? "",
     contentCount: contents.length,
     contents,
@@ -849,7 +852,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
       .order("requested_at", { ascending: false }),
     supabase
       .from("church_prayers")
-      .select("id, church_id, team_id, requester, target, created_by_user_id, created_at, updated_at")
+      .select("id, church_id, team_id, requester, relation, target, created_by_user_id, created_at, updated_at")
       .eq("church_id", numericChurchId)
       .order("updated_at", { ascending: false })
       .order("id", { ascending: false }),
@@ -1193,6 +1196,7 @@ export async function createChurchPrayer(args: {
   teamId?: string | null;
   currentUserId: string;
   requester: string;
+  relation: string;
   target: string;
   content: string;
 }) {
@@ -1205,6 +1209,7 @@ export async function createChurchPrayer(args: {
       church_id: Number(args.churchId),
       team_id: args.teamId ? Number(args.teamId) : null,
       requester: args.requester.trim(),
+      relation: args.relation.trim().slice(0, 50),
       target: args.target.trim(),
       created_by_user_id: args.currentUserId,
       created_at: timestamp,
@@ -1235,6 +1240,7 @@ export async function createChurchPrayer(args: {
 export async function updateChurchPrayer(args: {
   prayerId: string;
   requester: string;
+  relation: string;
   target: string;
 }) {
   const supabase = createSupabaseClient();
@@ -1242,6 +1248,7 @@ export async function updateChurchPrayer(args: {
     .from("church_prayers")
     .update({
       requester: args.requester.trim(),
+      relation: args.relation.trim().slice(0, 50),
       target: args.target.trim(),
       updated_at: formatDateTime(new Date()),
     })

@@ -1,9 +1,11 @@
-import { Button, ButtonText } from '@/components/ui/button';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/toast-context';
+import { useLoading } from '@/hooks/use-loading';
 import { useI18n } from '@/utils/i18n';
 import {
   addPrayerContent,
+  persistPrayers,
   getPrayerById,
   updatePrayer,
   updatePrayerContent,
@@ -33,9 +35,11 @@ export default function EditPrayerScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const prayerId = useMemo(() => Number(params.id || 0), [params.id]);
   const [requester, setRequester] = useState('');
+  const [relation, setRelation] = useState('');
   const [target, setTarget] = useState('');
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [deletedIds, setDeletedIds] = useState<number[]>([]);
+  const { isLoading, runWithLoading } = useLoading();
 
   useEffect(() => {
     let active = true;
@@ -43,6 +47,7 @@ export default function EditPrayerScreen() {
     getPrayerById(db, prayerId).then((row) => {
       if (!active || !row) return;
       setRequester(row.requester);
+      setRelation(row.relation);
       setTarget(row.target);
       setContents(
         row.contents.map((c) => ({
@@ -82,20 +87,23 @@ export default function EditPrayerScreen() {
 
   const handleSave = useCallback(async () => {
     if (!prayerId) return;
-    await updatePrayer(db, prayerId, requester, target);
-    for (const id of deletedIds) {
-      await deletePrayerContent(db, id);
-    }
-    for (const item of contents) {
-      if (item.id) {
-        await updatePrayerContent(db, item.id, item.content);
-      } else if (item.content.trim()) {
-        await addPrayerContent(db, prayerId, item.content);
+    await runWithLoading(async () => {
+      await updatePrayer(db, prayerId, requester, relation, target, { skipPersist: true });
+      for (const id of deletedIds) {
+        await deletePrayerContent(db, id, { skipPersist: true });
       }
-    }
-    showToast(t('toast.prayerUpdated'), '🙏');
-    router.back();
-  }, [db, prayerId, requester, target, contents, deletedIds, router, showToast, t]);
+      for (const item of contents) {
+        if (item.id) {
+          await updatePrayerContent(db, item.id, item.content, { skipPersist: true });
+        } else if (item.content.trim()) {
+          await addPrayerContent(db, prayerId, item.content, { skipPersist: true });
+        }
+      }
+      await persistPrayers(db);
+      showToast(t('toast.prayerUpdated'), '🙏');
+      router.back();
+    });
+  }, [contents, db, deletedIds, prayerId, relation, requester, router, runWithLoading, showToast, t, target]);
 
   return (
     <SafeAreaView
@@ -114,8 +122,10 @@ export default function EditPrayerScreen() {
         </View>
         <Button
           onPress={handleSave}
+          disabled={isLoading}
           className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
         >
+          {isLoading ? <ButtonSpinner color="#ffffff" /> : null}
           <ButtonText className="text-sm font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
         </Button>
       </View>
@@ -138,6 +148,18 @@ export default function EditPrayerScreen() {
             onChangeText={setRequester}
             placeholder={t('prayerDrawer.requesterPlaceholder')}
             placeholderTextColor="#9ca3af"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+          />
+
+          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            {t('prayerDrawer.relationLabel')}
+          </Text>
+          <TextInput
+            value={relation}
+            onChangeText={setRelation}
+            placeholder={t('prayerDrawer.relationPlaceholder')}
+            placeholderTextColor="#9ca3af"
+            maxLength={50}
             className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
           />
 
