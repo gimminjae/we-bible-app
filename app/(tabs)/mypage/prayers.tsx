@@ -118,16 +118,16 @@ export default function PrayerListScreen() {
                 <TableHead
                   className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
                   textClassName="text-center"
-                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
                 >
-                  {t("prayerDrawer.relationLabel")}
+                  {t("mypage.prayerTarget")}
                 </TableHead>
                 <TableHead
                   className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
                   textClassName="text-center"
-                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
+                  style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
                 >
-                  {t("mypage.prayerTarget")}
+                  {t("prayerDrawer.relationLabel")}
                 </TableHead>
                 <TableHead
                   className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
@@ -177,18 +177,6 @@ export default function PrayerListScreen() {
                     </TableCell>
                     <TableCell
                       className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        className="text-center font-medium text-primary-600 dark:text-primary-400"
-                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
-                      >
-                        {getDisplayName(item.relation)}
-                      </Text>
-                    </TableCell>
-                    <TableCell
-                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
                       style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
                     >
                       <Text
@@ -197,6 +185,18 @@ export default function PrayerListScreen() {
                         style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
                       >
                         {getDisplayName(item.target)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center font-medium text-primary-600 dark:text-primary-400"
+                        style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
+                      >
+                        {getDisplayName(item.relation)}
                       </Text>
                     </TableCell>
                     <TableCell

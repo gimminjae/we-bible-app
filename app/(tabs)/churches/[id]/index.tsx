@@ -483,16 +483,16 @@ export default function ChurchDetailScreen() {
             <TableHead
               className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
               textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
             >
-              {t('prayerDrawer.relationLabel')}
+              {t('mypage.prayerTarget')}
             </TableHead>
             <TableHead
               className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
               textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
+              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
             >
-              {t('mypage.prayerTarget')}
+              {t('prayerDrawer.relationLabel')}
             </TableHead>
             <TableHead
               className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
@@ -539,17 +539,6 @@ export default function ChurchDetailScreen() {
                 </TableCell>
                 <TableCell
                   className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
-                >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
-                  >
-                    {getPrayerCellText(prayer.relation)}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
                 >
                   <Text
@@ -557,6 +546,17 @@ export default function ChurchDetailScreen() {
                     className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
                   >
                     {getPrayerCellText(prayer.target)}
+                  </Text>
+                </TableCell>
+                <TableCell
+                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
+                  >
+                    {getPrayerCellText(prayer.relation)}
                   </Text>
                 </TableCell>
                 <TableCell
