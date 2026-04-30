@@ -42,6 +42,11 @@ type PickerState =
     }
   | null;
 
+type PrayerRequesterGroup = {
+  requester: string;
+  prayers: ChurchPrayer[];
+};
+
 function getChurchActionErrorMessage(
   error: unknown,
   translate: (key: string) => string,
@@ -98,8 +103,45 @@ function getPrayerCreatedSortKey(prayer: ChurchPrayer) {
   return prayer.createdAt || '';
 }
 
+function normalizePrayerSearchText(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+function matchesPrayerSearch(prayer: ChurchPrayer, keyword: string) {
+  if (!keyword) return true;
+
+  return [prayer.requester, prayer.target].some((value) =>
+    normalizePrayerSearchText(value).includes(keyword),
+  );
+}
+
+function groupPrayersByRequester(prayers: ChurchPrayer[]): PrayerRequesterGroup[] {
+  const sortedPrayers = [...prayers].sort((left, right) => {
+    const createdDiff = getPrayerCreatedSortKey(right).localeCompare(getPrayerCreatedSortKey(left));
+    if (createdDiff !== 0) return createdDiff;
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
+  const groups = new Map<string, PrayerRequesterGroup>();
+
+  for (const prayer of sortedPrayers) {
+    const requester = getPrayerCellText(prayer.requester);
+    const existing = groups.get(requester);
+
+    if (existing) {
+      existing.prayers.push(prayer);
+      continue;
+    }
+
+    groups.set(requester, {
+      requester,
+      prayers: [prayer],
+    });
+  }
+
+  return [...groups.values()];
+}
+
 const CHURCH_PRAYER_COLUMN_WIDTHS = {
-  requester: 96,
   relation: 84,
   target: 96,
   latestContent: 220,
@@ -142,6 +184,7 @@ export default function ChurchDetailScreen() {
   const [selectedTeamLeaderIds, setSelectedTeamLeaderIds] = useState<Record<string, string>>({});
   const [expandedPrayerId, setExpandedPrayerId] = useState<string | null>(null);
   const [selectedPrayer, setSelectedPrayer] = useState<ChurchPrayer | null>(null);
+  const [prayerSearchText, setPrayerSearchText] = useState('');
   const [pickerState, setPickerState] = useState<PickerState>(null);
   const [createPrayerVisible, setCreatePrayerVisible] = useState(false);
   const [editPrayerVisible, setEditPrayerVisible] = useState(false);
@@ -175,6 +218,30 @@ export default function ChurchDetailScreen() {
 
     return [...groups.values()].sort((left, right) => left.teamName.localeCompare(right.teamName, 'ko'));
   }, [churchDetail]);
+  const normalizedPrayerSearchText = useMemo(
+    () => normalizePrayerSearchText(prayerSearchText),
+    [prayerSearchText],
+  );
+  const filteredChurchWidePrayers = useMemo(
+    () => churchWidePrayers.filter((prayer) => matchesPrayerSearch(prayer, normalizedPrayerSearchText)),
+    [churchWidePrayers, normalizedPrayerSearchText],
+  );
+  const filteredTeamPrayerGroups = useMemo(
+    () =>
+      teamPrayerGroups
+        .map((group) => ({
+          ...group,
+          prayers: group.prayers.filter((prayer) =>
+            matchesPrayerSearch(prayer, normalizedPrayerSearchText),
+          ),
+        }))
+        .filter((group) => group.prayers.length > 0),
+    [teamPrayerGroups, normalizedPrayerSearchText],
+  );
+  const isPrayerSearching = normalizedPrayerSearchText.length > 0;
+  const hasSharedPrayers = churchDetail?.prayers.length > 0;
+  const hasFilteredSharedPrayers =
+    filteredChurchWidePrayers.length > 0 || filteredTeamPrayerGroups.length > 0;
 
   const prayerAudienceOptions = useMemo<ChurchPrayerAudienceOption[]>(() => {
     if (!churchDetail?.church.myRole) return [];
@@ -455,14 +522,9 @@ export default function ChurchDetailScreen() {
   };
 
   const renderPrayerTable = (prayers: ChurchPrayer[]) => {
-    const sortedPrayers = [...prayers].sort((left, right) => {
-      const createdDiff = getPrayerCreatedSortKey(right).localeCompare(getPrayerCreatedSortKey(left));
-      if (createdDiff !== 0) return createdDiff;
-      return right.updatedAt.localeCompare(left.updatedAt);
-    });
-    const expandedPrayer = sortedPrayers.find((prayer) => prayer.id === expandedPrayerId) ?? null;
+    const prayerRequesterGroups = groupPrayersByRequester(prayers);
+    const expandedPrayer = prayers.find((prayer) => prayer.id === expandedPrayerId) ?? null;
     const tableMinWidth =
-      CHURCH_PRAYER_COLUMN_WIDTHS.requester +
       CHURCH_PRAYER_COLUMN_WIDTHS.relation +
       CHURCH_PRAYER_COLUMN_WIDTHS.target +
       CHURCH_PRAYER_COLUMN_WIDTHS.latestContent +
@@ -471,131 +533,121 @@ export default function ChurchDetailScreen() {
 
     return (
       <>
-        <Table minWidth={tableMinWidth}>
-          <TableHeader>
-            <TableHead
-              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-              textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.requester }}
-            >
-              {t('mypage.prayerRequester')}
-            </TableHead>
-            <TableHead
-              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-              textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
-            >
-              {t('mypage.prayerTarget')}
-            </TableHead>
-            <TableHead
-              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-              textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
-            >
-              {t('prayerDrawer.relationLabel')}
-            </TableHead>
-            <TableHead
-              className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
-              textClassName="text-left"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.latestContent }}
-            >
-              {t('church.prayerTableLatestContent')}
-            </TableHead>
-            <TableHead
-              className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-              textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt }}
-            >
-              {t('church.prayerTableUpdatedAt')}
-            </TableHead>
-            <TableHead
-              className="items-center px-2"
-              textClassName="text-center"
-              style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.createdAt }}
-            >
-              {t('church.prayerTableCreatedAt')}
-            </TableHead>
-          </TableHeader>
-          <TableBody>
-            {sortedPrayers.map((prayer, index) => (
-              <TableRow
-                key={prayer.id}
-                isLast={index === sortedPrayers.length - 1}
-                selected={expandedPrayerId === prayer.id}
-                onPress={() =>
-                  setExpandedPrayerId((current) => (current === prayer.id ? null : prayer.id))
-                }
-              >
-                <TableCell
-                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                  style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.requester }}
-                >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
-                  >
-                    {getPrayerCellText(prayer.requester)}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+        {prayerRequesterGroups.map((group) => (
+          <View key={group.requester} className="mb-4">
+            <Text className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">
+              {group.requester}
+            </Text>
+
+            <Table minWidth={tableMinWidth}>
+              <TableHeader>
+                <TableHead
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-center"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
-                  >
-                    {getPrayerCellText(prayer.target)}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  {t('mypage.prayerTarget')}
+                </TableHead>
+                <TableHead
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-center"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
-                  >
-                    {getPrayerCellText(prayer.relation)}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  {t('prayerDrawer.relationLabel')}
+                </TableHead>
+                <TableHead
+                  className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-left"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.latestContent }}
                 >
-                  <Text
-                    numberOfLines={2}
-                    className="text-left text-xs leading-4 text-gray-700 dark:text-gray-200"
-                  >
-                    {prayer.latestContent || t('church.noPrayerContents')}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                  {t('church.prayerTableLatestContent')}
+                </TableHead>
+                <TableHead
+                  className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+                  textClassName="text-center"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
-                  >
-                    {formatShortDateTime(prayer.updatedAt)}
-                  </Text>
-                </TableCell>
-                <TableCell
-                  className="items-center px-2 py-2"
+                  {t('church.prayerTableUpdatedAt')}
+                </TableHead>
+                <TableHead
+                  className="items-center px-2"
+                  textClassName="text-center"
                   style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.createdAt }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
+                  {t('church.prayerTableCreatedAt')}
+                </TableHead>
+              </TableHeader>
+              <TableBody>
+                {group.prayers.map((prayer, index) => (
+                  <TableRow
+                    key={prayer.id}
+                    isLast={index === group.prayers.length - 1}
+                    selected={expandedPrayerId === prayer.id}
+                    onPress={() =>
+                      setExpandedPrayerId((current) => (current === prayer.id ? null : prayer.id))
+                    }
                   >
-                    {formatShortDateTime(prayer.createdAt)}
-                  </Text>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.target }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
+                      >
+                        {getPrayerCellText(prayer.target)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.relation }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-xs font-semibold leading-4 text-gray-900 dark:text-white"
+                      >
+                        {getPrayerCellText(prayer.relation)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.latestContent }}
+                    >
+                      <Text
+                        numberOfLines={2}
+                        className="text-left text-xs leading-4 text-gray-700 dark:text-gray-200"
+                      >
+                        {prayer.latestContent || t('church.noPrayerContents')}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                      style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.updatedAt }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
+                      >
+                        {formatShortDateTime(prayer.updatedAt)}
+                      </Text>
+                    </TableCell>
+                    <TableCell
+                      className="items-center px-2 py-2"
+                      style={{ width: CHURCH_PRAYER_COLUMN_WIDTHS.createdAt }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="text-center text-[11px] leading-4 text-gray-700 dark:text-gray-200"
+                      >
+                        {formatShortDateTime(prayer.createdAt)}
+                      </Text>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </View>
+        ))}
         {expandedPrayer ? renderPrayerDetail(expandedPrayer) : null}
       </>
     );
@@ -1095,29 +1147,55 @@ export default function ChurchDetailScreen() {
               />
             ) : null}
 
-            <View className="mb-5">
-              <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
-                {t('church.churchPrayerSection')}
-              </Text>
-              {churchWidePrayers.length === 0 ? (
-                <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
-                  <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    {t('church.emptySharedPrayers')}
-                  </Text>
-                </View>
-              ) : (
-                renderPrayerTable(churchWidePrayers)
-              )}
-            </View>
+            <TextInput
+              value={prayerSearchText}
+              onChangeText={setPrayerSearchText}
+              placeholder={t('mypage.prayerSearchPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+            />
 
-            {teamPrayerGroups.map((group) => (
-              <View key={group.teamId} className="mb-5">
-                <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
-                  {t('church.teamPrayerSectionTitle').replace('{team}', group.teamName)}
+            {!hasSharedPrayers ? (
+              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('church.emptySharedPrayers')}
                 </Text>
-                {renderPrayerTable(group.prayers)}
               </View>
-            ))}
+            ) : !hasFilteredSharedPrayers ? (
+              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('mypage.emptyPrayerSearchResults')}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {!isPrayerSearching || filteredChurchWidePrayers.length > 0 ? (
+                  <View className="mb-5">
+                    <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                      {t('church.churchPrayerSection')}
+                    </Text>
+                    {filteredChurchWidePrayers.length === 0 ? (
+                      <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
+                        <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.emptySharedPrayers')}
+                        </Text>
+                      </View>
+                    ) : (
+                      renderPrayerTable(filteredChurchWidePrayers)
+                    )}
+                  </View>
+                ) : null}
+
+                {filteredTeamPrayerGroups.map((group) => (
+                  <View key={group.teamId} className="mb-5">
+                    <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                      {t('church.teamPrayerSectionTitle').replace('{team}', group.teamName)}
+                    </Text>
+                    {renderPrayerTable(group.prayers)}
+                  </View>
+                ))}
+              </>
+            )}
           </>
         ) : null}
         {activeTab === 'teams' ? (
