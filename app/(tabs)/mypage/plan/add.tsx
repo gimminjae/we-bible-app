@@ -1,305 +1,73 @@
-import { Button, ButtonText } from '@/components/ui/button';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useAppSettings } from '@/contexts/app-settings';
-import { useToast } from '@/contexts/toast-context';
-import { useResponsive } from '@/hooks/use-responsive';
-import { getBookName } from '@/services/bible';
-import { useI18n } from '@/utils/i18n';
-import {
-  BIBLE_CATEGORY_KEYS,
-  CATEGORY_BOOK_CODES,
-  type BibleCategoryKey,
-} from '@/utils/bible-categories';
-import {
-  addPlan,
-  BIBLE_BOOKS,
-  calcTotalReadCount,
-} from '@/utils/plan-db';
-import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function todayStr(): string {
-  const d = new Date();
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+import { PlanForm } from '@/components/plans/plan-form';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { useToast } from '@/contexts/toast-context';
+import { useBiblePlanTemplate } from '@/hooks/use-plan-templates';
+import { addPlan } from '@/utils/plan-db';
+import { useI18n } from '@/utils/i18n';
 
 export default function AddPlanScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
-  const { appLanguage } = useAppSettings();
   const { showToast } = useToast();
-  const { dialogMaxWidth } = useResponsive();
-  const [planName, setPlanName] = useState('');
-  const [startDate, setStartDate] = useState(todayStr());
-  const [endDate, setEndDate] = useState('');
-  const [selectedBookCodes, setSelectedBookCodes] = useState<Set<string>>(new Set());
-  const [category, setCategory] = useState<BibleCategoryKey>('ot');
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [dateField, setDateField] = useState<'start' | 'end'>('start');
-
-  const totalChapters = useMemo(
-    () => calcTotalReadCount(Array.from(selectedBookCodes)),
-    [selectedBookCodes]
+  const params = useLocalSearchParams<{ templateId?: string }>();
+  const templateId = useMemo(
+    () => (typeof params.templateId === 'string' ? params.templateId : ''),
+    [params.templateId],
   );
+  const { template, isLoading } = useBiblePlanTemplate(templateId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const toggleBook = useCallback((code: string) => {
-    setSelectedBookCodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      return next;
-    });
-  }, []);
-
-  const booksToShow = useMemo(() => {
-    const allowedCodes = new Set(CATEGORY_BOOK_CODES[category]);
-    return BIBLE_BOOKS.filter((b) => allowedCodes.has(b.bookCode));
-  }, [category]);
-
-  const toggleSelectAllByCategory = useCallback(() => {
-    setSelectedBookCodes((prev) => {
-      const next = new Set(prev);
-      const allSelected = booksToShow.every((b) => next.has(b.bookCode));
-      if (allSelected) {
-        booksToShow.forEach((b) => next.delete(b.bookCode));
-      } else {
-        booksToShow.forEach((b) => next.add(b.bookCode));
-      }
-      return next;
-    });
-  }, [booksToShow]);
-
-  const handleSave = useCallback(async () => {
-    const codes = Array.from(selectedBookCodes);
-    if (codes.length === 0) return;
-    if (!endDate.trim()) return;
-    if (endDate <= startDate) return;
-    const name = planName.trim() || t('mypage.planDetailTitle');
-    const id = await addPlan(db, name, startDate, endDate, codes);
-    if (id) {
-      showToast(t('toast.planAdded'), '📖');
-      router.replace({
-        pathname: '/(tabs)/mypage/plan/[id]',
-        params: { id: String(id) },
-      });
-    } else {
-      router.back();
-    }
-  }, [db, planName, startDate, endDate, selectedBookCodes, router, showToast, t]);
-
-  const isDateRangeInvalid = endDate.trim().length > 0 && endDate <= startDate;
-  const canSave = selectedBookCodes.size > 0 && endDate.trim().length > 0 && !isDateRangeInvalid;
-
-  const selectedDay = dateField === 'start' ? startDate : endDate;
-  const categoryLabel =
-    category === 'ot'
-      ? t('bibleDrawer.oldTestament')
-      : category === 'nt'
-        ? t('bibleDrawer.newTestament')
-        : t(`bibleDrawer.category.${category}`);
-
-  const handleOpenCalendar = useCallback((field: 'start' | 'end') => {
-    setDateField(field);
-    setCalendarOpen(true);
-  }, []);
-
-  const handleSelectDay = useCallback(({ dateString }: { dateString: string }) => {
-    if (dateField === 'start') setStartDate(dateString);
-    else setEndDate(dateString);
-    setCalendarOpen(false);
-  }, [dateField]);
+  if (templateId && isLoading) {
+    return <LoadingScreen message={t('planTemplate.loadingTemplates')} />;
+  }
 
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <IconSymbol
-            name="chevron.right"
-            size={18}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: '180deg' }] }}
-          />
-          <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
-            {t('common.back')}
-          </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-            {t('planDrawer.addTitle')}
-          </Text>
-        </View>
-        <Button onPress={handleSave} disabled={!canSave} action="primary" size="sm">
-          <ButtonText>{t('planDrawer.save')}</ButtonText>
-        </Button>
-      </View>
+      <ScreenHeader title={t('planDrawer.addTitle')} onBack={() => router.back()} />
 
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-          {t('planDrawer.planNameLabel')}
-        </Text>
-        <TextInput
-          value={planName}
-          onChangeText={setPlanName}
-          placeholder={t('planDrawer.planNamePlaceholder')}
-          placeholderTextColor="#9ca3af"
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-        />
-
-        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-          {t('planDrawer.startDateLabel')}
-        </Text>
-        <Button
-          onPress={() => handleOpenCalendar('start')}
-          action="secondary"
-          variant="outline"
-          className="mb-4 h-auto justify-start rounded-lg border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-        >
-          <ButtonText className="text-base font-normal text-gray-900 dark:text-white">{startDate}</ButtonText>
-        </Button>
-
-        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-          {t('planDrawer.endDateLabel')}
-        </Text>
-        <Button
-          onPress={() => handleOpenCalendar('end')}
-          action="secondary"
-          variant="outline"
-          className="mb-2 h-auto justify-start rounded-lg border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-        >
-          <ButtonText
-            className={`text-base font-normal ${endDate ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
-          >
-            {endDate || 'YYYY-MM-DD'}
-          </ButtonText>
-        </Button>
-        {isDateRangeInvalid ? (
-          <Text className="text-red-500 text-xs mb-3">{t('planDrawer.invalidDateRange')}</Text>
-        ) : (
-          <View className="mb-3" />
-        )}
-
-        <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">
-            {t('planDrawer.selectBooksLabel')} ({selectedBookCodes.size}권, 총 {totalChapters}장)
-          </Text>
-        </View>
-        <View className="flex-row flex-wrap items-center gap-2 mb-2">
-          {BIBLE_CATEGORY_KEYS.map((categoryKey) => {
-            const selected = category === categoryKey;
-            const label =
-              categoryKey === 'ot'
-                ? t('bibleDrawer.oldTestament')
-                : categoryKey === 'nt'
-                  ? t('bibleDrawer.newTestament')
-                  : t(`bibleDrawer.category.${categoryKey}`);
-            return (
-              <Button
-                key={categoryKey}
-                onPress={() => setCategory(categoryKey)}
-                action={selected ? 'primary' : 'secondary'}
-                size="sm"
-                className={`rounded-xl ${
-                  selected ? 'bg-primary-500' : 'border-0 bg-gray-200 dark:bg-gray-800'
-                }`}
-              >
-                <ButtonText
-                  className={`text-sm font-semibold ${selected ? 'text-white dark:text-gray-900' : 'text-gray-700 dark:text-gray-300'}`}
-                >
-                  {label}
-                </ButtonText>
-              </Button>
+      <PlanForm
+        initialValues={
+          template
+            ? {
+                planName: template.templateName,
+                planDescription: template.templateExplanation,
+                selectedBookCodes: template.selectedBookCodes,
+              }
+            : undefined
+        }
+        submitLabel={t('planDrawer.save')}
+        isSubmitting={isSubmitting}
+        onSubmit={async (values) => {
+          setIsSubmitting(true);
+          try {
+            const id = await addPlan(
+              db,
+              values.planName,
+              values.planDescription,
+              values.startDate,
+              values.endDate,
+              values.selectedBookCodes,
             );
-          })}
-        </View>
-
-        <View className="mb-2">
-          <Button
-            onPress={toggleSelectAllByCategory}
-            action="secondary"
-            variant="outline"
-            className="h-auto self-start rounded-lg border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-900"
-          >
-            <ButtonText className="text-sm font-medium text-gray-900 dark:text-white">
-              {`${categoryLabel} ${t('planDrawer.selectAll')}`}
-            </ButtonText>
-          </Button>
-        </View>
-
-        <View className="flex-row flex-wrap gap-2">
-          {booksToShow.map((book) => {
-            const isSelected = selectedBookCodes.has(book.bookCode);
-            return (
-              <Button
-                key={book.bookCode}
-                onPress={() => toggleBook(book.bookCode)}
-                action={isSelected ? 'primary' : 'secondary'}
-                size="sm"
-                variant="outline"
-                className="rounded-lg"
-              >
-                <ButtonText>
-                  {getBookName(book.bookCode, appLanguage)} ({book.maxChapter})
-                </ButtonText>
-              </Button>
-            );
-          })}
-        </View>
-      </ScrollView>
-
-      <Modal
-        visible={calendarOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCalendarOpen(false)}
-      >
-        <Pressable
-          className="flex-1 bg-black/40 justify-center px-5"
-          onPress={() => setCalendarOpen(false)}
-        >
-          <Pressable
-            className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden"
-            style={{ width: '100%', maxWidth: dialogMaxWidth, maxHeight: '90%', alignSelf: 'center' }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View className="px-4 pt-4 pb-2">
-              <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                {dateField === 'start' ? t('planDrawer.startDateLabel') : t('planDrawer.endDateLabel')}
-              </Text>
-            </View>
-            <Calendar
-              style={{ alignSelf: 'stretch' }}
-              current={selectedDay || startDate}
-              onDayPress={handleSelectDay}
-              markedDates={{
-                ...(startDate ? { [startDate]: { selected: true } } : {}),
-                ...(endDate ? { [endDate]: { selected: true } } : {}),
-              }}
-              theme={{
-                selectedDayBackgroundColor: '#3b82f6',
-                todayTextColor: '#2563eb',
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+            showToast(t('toast.planAdded'), '📖');
+            router.replace({
+              pathname: '/(tabs)/mypage/plan/[id]',
+              params: { id: String(id) },
+            });
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

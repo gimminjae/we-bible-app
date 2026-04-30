@@ -98,6 +98,7 @@ type PersistedPrayerRecord = {
 type PersistedPlanRecord = {
   clientId: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   totalReadCount: number;
@@ -171,6 +172,7 @@ type LocalPlanRow = {
   id: number;
   client_id: string | null;
   plan_name: string | null;
+  plan_description: string | null;
   start_date: string | null;
   end_date: string | null;
   total_read_count: number | null;
@@ -206,6 +208,7 @@ type RemotePlanRow = {
   id: number;
   client_id: string | null;
   plan_name: string | null;
+  plan_description: string | null;
   start_date: string | null;
   end_date: string | null;
   total_read_count: number | null;
@@ -439,6 +442,7 @@ function normalizeThemeVerseNumbers(raw: unknown, fallbackVerse?: unknown): numb
 function buildPlanSnapshot(input: {
   clientId: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   goalStatus: GoalStatus;
@@ -450,6 +454,7 @@ function buildPlanSnapshot(input: {
   return {
     clientId: input.clientId,
     planName: input.planName,
+    planDescription: input.planDescription,
     startDate: input.startDate,
     endDate: input.endDate,
     goalStatus: input.goalStatus,
@@ -615,7 +620,7 @@ async function readLocalMemos(db: SQLiteDatabase): Promise<PersistedMemoRecord[]
 
 async function readLocalPlans(db: SQLiteDatabase): Promise<PersistedPlanRecord[]> {
   const rows = await db.getAllAsync<LocalPlanRow>(
-    `SELECT id, client_id, plan_name, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at FROM ${PLANS_TABLE} ORDER BY created_at DESC, id DESC`,
+    `SELECT id, client_id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at FROM ${PLANS_TABLE} ORDER BY created_at DESC, id DESC`,
   );
 
   return rows.map((row) => {
@@ -627,6 +632,7 @@ async function readLocalPlans(db: SQLiteDatabase): Promise<PersistedPlanRecord[]
     return buildPlanSnapshot({
       clientId: row.client_id?.trim() || `plan-${row.id}`,
       planName: row.plan_name ?? '',
+      planDescription: row.plan_description ?? '',
       startDate: row.start_date ?? '',
       endDate: row.end_date ?? '',
       goalStatus,
@@ -839,6 +845,7 @@ async function replacePlans(userId: string, plans: PersistedPlanRecord[]): Promi
     user_id: userId,
     client_id: plan.clientId,
     plan_name: plan.planName,
+    plan_description: plan.planDescription,
     start_date: plan.startDate,
     end_date: plan.endDate,
     total_read_count: plan.totalReadCount,
@@ -1074,7 +1081,7 @@ export async function loadPersistedStateFromSupabase(
     supabase
       .from(USER_PLANS_TABLE)
       .select(
-        'id, client_id, plan_name, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
+        'id, client_id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
       )
       .eq('user_id', userId)
       .is('church_id', null)
@@ -1202,6 +1209,7 @@ export async function loadPersistedStateFromSupabase(
       return buildPlanSnapshot({
         clientId: row.client_id?.trim() || `plan-${row.id}`,
         planName: row.plan_name ?? '',
+        planDescription: row.plan_description ?? '',
         startDate: row.start_date ?? '',
         endDate: row.end_date ?? '',
         goalStatus,
@@ -1324,12 +1332,13 @@ async function replaceLocalPersistedState(
       const computed = recalcPlanFields(plan.goalStatus, plan.selectedBookCodes, plan.endDate);
       await db.runAsync(
         `INSERT INTO ${PLANS_TABLE} (
-          client_id, plan_name, start_date, end_date,
+          client_id, plan_name, plan_description, start_date, end_date,
           total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day,
           goal_status, selected_book_codes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         plan.clientId,
         plan.planName,
+        plan.planDescription,
         plan.startDate,
         plan.endDate,
         computed.totalReadCount,

@@ -87,6 +87,7 @@ export type ChurchPrayer = {
 export type SharedPlanSummary = {
   id: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   churchId: string;
@@ -238,6 +239,7 @@ type SharedPlanRow = {
   id: number;
   user_id: string | null;
   plan_name: string | null;
+  plan_description: string | null;
   start_date: string | null;
   end_date: string | null;
   goal_status?: unknown;
@@ -371,6 +373,7 @@ function createProgressPlanRecord(
   return updatePlanComputedFields({
     id: String(planRow.id),
     planName: planRow.plan_name ?? "",
+    planDescription: planRow.plan_description?.trim() ?? "",
     startDate: planRow.start_date ?? "",
     endDate: planRow.end_date ?? "",
     totalReadCount,
@@ -407,6 +410,7 @@ function summarizeSharedPlan(args: {
   return {
     id: String(planRow.id),
     planName: planRow.plan_name ?? "",
+    planDescription: planRow.plan_description?.trim() ?? "",
     startDate: planRow.start_date ?? "",
     endDate: planRow.end_date ?? "",
     churchId: String(planRow.church_id),
@@ -679,7 +683,7 @@ export async function fetchMySharedPlans(currentUserId: string): Promise<MyShare
       .in("id", churchIds),
     supabase
       .from("plans")
-      .select("id, user_id, plan_name, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
+      .select("id, user_id, plan_name, plan_description, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
       .in("church_id", churchIds)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false }),
@@ -840,7 +844,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
       .order("created_at", { ascending: true }),
     supabase
       .from("plans")
-      .select("id, user_id, plan_name, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
+      .select("id, user_id, plan_name, plan_description, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
       .eq("church_id", numericChurchId)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false }),
@@ -1297,6 +1301,7 @@ export async function createSharedPlan(args: {
   teamId?: string | null;
   currentUserId: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   selectedBookCodes: string[];
@@ -1305,6 +1310,7 @@ export async function createSharedPlan(args: {
   const plan = updatePlanComputedFields({
     id: "",
     planName: args.planName,
+    planDescription: args.planDescription,
     startDate: args.startDate,
     endDate: args.endDate,
     goalStatus: createEmptyGoalStatus(),
@@ -1328,6 +1334,7 @@ export async function createSharedPlan(args: {
     .insert({
       user_id: args.currentUserId,
       plan_name: plan.planName,
+      plan_description: plan.planDescription,
       start_date: plan.startDate,
       end_date: plan.endDate,
       total_read_count: plan.totalReadCount,
@@ -1352,6 +1359,7 @@ export async function createSharedPlan(args: {
 export async function updateSharedPlan(args: {
   planId: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   selectedBookCodes: string[];
@@ -1368,6 +1376,7 @@ export async function updateSharedPlan(args: {
     .from("plans")
     .update({
       plan_name: args.planName,
+      plan_description: args.planDescription,
       start_date: args.startDate,
       end_date: args.endDate,
       total_read_count: totalReadCount,
@@ -1400,7 +1409,7 @@ export async function fetchSharedPlanDetail(
   const supabase = createSupabaseClient();
   const { data: planData, error: planError } = await supabase
     .from("plans")
-    .select("id, user_id, plan_name, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
+    .select("id, user_id, plan_name, plan_description, start_date, end_date, selected_book_codes, created_at, updated_at, church_id, team_id")
     .eq("id", numericPlanId)
     .maybeSingle();
 

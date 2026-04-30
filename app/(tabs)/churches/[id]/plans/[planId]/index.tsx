@@ -114,6 +114,17 @@ export default function ChurchPlanDetailScreen() {
           </Text>
         </View>
 
+        {sharedPlanDetail.summary.planDescription ? (
+          <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <Text className="text-sm text-gray-500 dark:text-gray-400">
+              {t('planDrawer.planDescriptionLabel')}
+            </Text>
+            <Text className="mt-2 text-base leading-7 text-gray-900 dark:text-white">
+              {sharedPlanDetail.summary.planDescription}
+            </Text>
+          </View>
+        ) : null}
+
         <View className="mb-4 flex-row gap-3">
           <View className="flex-1 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
             <Text className="text-sm text-gray-500 dark:text-gray-400">

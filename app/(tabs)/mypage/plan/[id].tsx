@@ -215,6 +215,17 @@ export default function PlanDetailScreen() {
           </Text>
         </View>
 
+        {plan.planDescription ? (
+          <View className="mb-4 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+            <Text className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('planDrawer.planDescriptionLabel')}
+            </Text>
+            <Text className="text-base leading-7 text-gray-900 dark:text-white">
+              {plan.planDescription}
+            </Text>
+          </View>
+        ) : null}
+
         {/* 목표 */}
         <View className="mb-4 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
