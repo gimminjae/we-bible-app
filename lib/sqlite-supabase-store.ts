@@ -87,6 +87,7 @@ type PersistedPrayerContent = {
 
 type PersistedPrayerRecord = {
   clientId: string;
+  isMyPrayer: boolean;
   requester: string;
   relation: string;
   target: string;
@@ -189,6 +190,7 @@ type LocalPlanRow = {
 type LocalPrayerRow = {
   id: number;
   client_id: string | null;
+  is_my_prayer: number | null;
   requester: string | null;
   relation: string | null;
   target: string | null;
@@ -225,6 +227,7 @@ type RemotePlanRow = {
 type RemotePrayerRow = {
   id: number;
   client_id: string | null;
+  is_my_prayer: boolean | null;
   requester: string | null;
   relation: string | null;
   target: string | null;
@@ -483,6 +486,8 @@ function createInitialSnapshot(overrides?: Partial<PersistedStateSnapshot>): Per
     prayers: overrides?.prayers
       ? overrides.prayers.map((item) => ({
           ...item,
+          isMyPrayer: item.isMyPrayer ?? false,
+          requester: item.isMyPrayer ? '' : item.requester ?? '',
           relation: item.relation ?? '',
           updatedAt: item.updatedAt ?? item.createdAt ?? '',
           contents: item.contents.map((content) => ({ ...content })),
@@ -646,7 +651,7 @@ async function readLocalPlans(db: SQLiteDatabase): Promise<PersistedPlanRecord[]
 async function readLocalPrayers(db: SQLiteDatabase): Promise<PersistedPrayerRecord[]> {
   const [prayerRows, contentRows] = await Promise.all([
     db.getAllAsync<LocalPrayerRow>(
-      `SELECT id, client_id, requester, relation, target, created_at, updated_at FROM ${PRAYERS_TABLE} ORDER BY updated_at DESC, created_at DESC, id DESC`,
+      `SELECT id, client_id, is_my_prayer, requester, relation, target, created_at, updated_at FROM ${PRAYERS_TABLE} ORDER BY updated_at DESC, created_at DESC, id DESC`,
     ),
     db.getAllAsync<LocalPrayerContentRow>(
       `SELECT id, client_id, prayer_id, content, registered_at FROM ${PRAYER_CONTENTS_TABLE} ORDER BY registered_at DESC, id DESC`,
@@ -667,7 +672,8 @@ async function readLocalPrayers(db: SQLiteDatabase): Promise<PersistedPrayerReco
 
   return prayerRows.map((row) => ({
     clientId: row.client_id?.trim() || `prayer-${row.id}`,
-    requester: row.requester ?? '',
+    isMyPrayer: row.is_my_prayer === 1,
+    requester: row.is_my_prayer === 1 ? '' : row.requester ?? '',
     relation: row.relation ?? '',
     target: row.target ?? '',
     createdAt: row.created_at ?? '',
@@ -899,7 +905,8 @@ async function replacePrayers(userId: string, prayers: PersistedPrayerRecord[]):
       .insert({
         user_id: userId,
         client_id: prayer.clientId,
-        requester: prayer.requester,
+        is_my_prayer: prayer.isMyPrayer,
+        requester: prayer.isMyPrayer ? '' : prayer.requester,
         relation: (prayer.relation ?? '').slice(0, 50),
         target: prayer.target,
         created_at: prayer.createdAt,
@@ -934,7 +941,7 @@ async function replaceGrass(userId: string, state: PersistedStateSnapshot): Prom
   const { error: deleteError } = await supabase.from(USER_GRASS_TABLE).delete().eq('user_id', userId);
   if (deleteError) throwSupabaseError(deleteError);
 
-  const payload: Array<{ user_id: string; date: string; data: unknown }> = Object.values(state.grassData).map(
+  const payload: { user_id: string; date: string; data: unknown }[] = Object.values(state.grassData).map(
     (day) => ({
       user_id: userId,
       date: day.date,
@@ -1089,7 +1096,7 @@ export async function loadPersistedStateFromSupabase(
       .order('id', { ascending: false }),
     supabase
       .from(USER_PRAYERS_TABLE)
-      .select('id, client_id, requester, relation, target, created_at')
+      .select('id, client_id, is_my_prayer, requester, relation, target, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false }),
@@ -1220,7 +1227,8 @@ export async function loadPersistedStateFromSupabase(
     }),
     prayers: prayerRows.map((row) => ({
       clientId: row.client_id?.trim() || `prayer-${row.id}`,
-      requester: row.requester ?? '',
+      isMyPrayer: row.is_my_prayer ?? false,
+      requester: row.is_my_prayer ? '' : row.requester ?? '',
       relation: row.relation ?? '',
       target: row.target ?? '',
       createdAt: row.created_at ?? '',

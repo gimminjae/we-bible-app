@@ -143,11 +143,18 @@ export default function PrayerDetailScreen() {
         ) : (
           <>
             <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+              {prayer.isMyPrayer ? (
+                <View className="mb-3 self-start rounded-full bg-primary-50 px-3 py-1 dark:bg-primary-900/30">
+                  <Text className="text-xs font-semibold text-primary-600 dark:text-primary-300">
+                    {t('mypage.myPrayerSectionTitle')}
+                  </Text>
+                </View>
+              ) : null}
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                 {t('mypage.prayerRequester')}
               </Text>
               <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                {prayer.requester || '-'}
+                {prayer.isMyPrayer ? t('mypage.myPrayerRequesterValue') : prayer.requester || '-'}
               </Text>
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">
                 {t('prayerDrawer.relationLabel')}

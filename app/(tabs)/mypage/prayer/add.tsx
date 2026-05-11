@@ -10,6 +10,7 @@ import { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -26,12 +27,23 @@ export default function AddPrayerScreen() {
   const [relation, setRelation] = useState('');
   const [target, setTarget] = useState('');
   const [content, setContent] = useState('');
+  const [isMyPrayer, setIsMyPrayer] = useState(false);
   const { isLoading, runWithLoading } = useLoading();
+
+  const handleToggleMyPrayer = useCallback(() => {
+    setIsMyPrayer((prev) => {
+      const next = !prev;
+      if (next) {
+        setRequester('');
+      }
+      return next;
+    });
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!content.trim()) return;
     await runWithLoading(async () => {
-      const id = await addPrayer(db, requester, relation, target, content);
+      const id = await addPrayer(db, requester, relation, target, content, { isMyPrayer });
       if (id) {
         showToast(t('toast.prayerAdded'), '🙏');
         router.replace({
@@ -42,7 +54,7 @@ export default function AddPrayerScreen() {
         router.back();
       }
     });
-  }, [content, db, relation, requester, router, runWithLoading, showToast, t, target]);
+  }, [content, db, isMyPrayer, relation, requester, router, runWithLoading, showToast, t, target]);
 
   return (
     <SafeAreaView
@@ -79,16 +91,42 @@ export default function AddPrayerScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            {t('prayerDrawer.requesterLabel')}
-          </Text>
-          <TextInput
-            value={requester}
-            onChangeText={setRequester}
-            placeholder={t('prayerDrawer.requesterPlaceholder')}
-            placeholderTextColor="#9ca3af"
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-          />
+          <Pressable
+            onPress={handleToggleMyPrayer}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isMyPrayer }}
+            className="mb-4 flex-row items-start rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
+            style={{ gap: 12 }}
+          >
+            <IconSymbol
+              name={isMyPrayer ? 'checkmark.square.fill' : 'square'}
+              size={20}
+              color={isMyPrayer ? '#0ea5e9' : '#9ca3af'}
+            />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-gray-900 dark:text-white">
+                {t('mypage.myPrayerToggleLabel')}
+              </Text>
+              {/* <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {t('mypage.myPrayerToggleDescription')}
+              </Text> */}
+            </View>
+          </Pressable>
+
+          {!isMyPrayer ? (
+            <>
+              <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                {t('prayerDrawer.requesterLabel')}
+              </Text>
+              <TextInput
+                value={requester}
+                onChangeText={setRequester}
+                placeholder={t('prayerDrawer.requesterPlaceholder')}
+                placeholderTextColor="#9ca3af"
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+              />
+            </>
+          ) : null}
 
           <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
             {t('prayerDrawer.relationLabel')}

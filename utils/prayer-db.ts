@@ -13,6 +13,7 @@ export type PrayContent = {
 
 export type PrayRecord = {
   id: number;
+  isMyPrayer: boolean;
   requester: string;
   relation: string;
   target: string;
@@ -22,6 +23,7 @@ export type PrayRecord = {
 /** 목록용: 최근 기도 내용 1건 포함 */
 export type PrayListItem = {
   id: number;
+  isMyPrayer: boolean;
   requester: string;
   relation: string;
   target: string;
@@ -42,11 +44,21 @@ function normalizeRelation(relation: string): string {
   return relation.trim().slice(0, 50);
 }
 
+function normalizeRequester(requester: string, isMyPrayer: boolean): string {
+  if (isMyPrayer) return '';
+  return requester.trim();
+}
+
+function toSqliteBoolean(value: number | null | undefined): boolean {
+  return value === 1;
+}
+
 export async function initPrayersTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${PRAYERS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id TEXT DEFAULT '',
+      is_my_prayer INTEGER NOT NULL DEFAULT 0,
       requester TEXT DEFAULT '',
       relation TEXT DEFAULT '',
       target TEXT DEFAULT '',
@@ -65,6 +77,9 @@ export async function initPrayersTable(db: SQLiteDatabase): Promise<void> {
   const prayerInfo = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${PRAYERS_TABLE})`);
   if (!prayerInfo.some((r) => r.name === 'client_id')) {
     await db.runAsync(`ALTER TABLE ${PRAYERS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
+  }
+  if (!prayerInfo.some((r) => r.name === 'is_my_prayer')) {
+    await db.runAsync(`ALTER TABLE ${PRAYERS_TABLE} ADD COLUMN is_my_prayer INTEGER NOT NULL DEFAULT 0`);
   }
   if (!prayerInfo.some((r) => r.name === 'relation')) {
     await db.runAsync(`ALTER TABLE ${PRAYERS_TABLE} ADD COLUMN relation TEXT DEFAULT ''`);
@@ -86,14 +101,17 @@ export async function addPrayer(
   requester: string,
   relation: string,
   target: string,
-  initialContent: string
+  initialContent: string,
+  options?: { isMyPrayer?: boolean }
 ): Promise<number> {
   const createdAt = nowString();
   const prayerClientId = createId();
+  const isMyPrayer = options?.isMyPrayer ?? false;
   const result = await db.runAsync(
-    `INSERT INTO ${PRAYERS_TABLE} (client_id, requester, relation, target, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO ${PRAYERS_TABLE} (client_id, is_my_prayer, requester, relation, target, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     prayerClientId,
-    requester.trim(),
+    isMyPrayer ? 1 : 0,
+    normalizeRequester(requester, isMyPrayer),
     normalizeRelation(relation),
     target.trim(),
     createdAt,
@@ -116,13 +134,14 @@ export async function addPrayer(
 export async function getAllPrayers(db: SQLiteDatabase): Promise<PrayListItem[]> {
   const prayers = await db.getAllAsync<{
     id: number;
+    is_my_prayer: number | null;
     requester: string;
     relation: string;
     target: string;
     created_at: string;
     updated_at: string;
   }>(
-    `SELECT id, requester, relation, target, created_at, updated_at FROM ${PRAYERS_TABLE}`
+    `SELECT id, is_my_prayer, requester, relation, target, created_at, updated_at FROM ${PRAYERS_TABLE}`
   );
 
   const items: PrayListItem[] = [];
@@ -132,10 +151,12 @@ export async function getAllPrayers(db: SQLiteDatabase): Promise<PrayListItem[]>
       p.id
     );
     const createdAt = p.created_at ?? '';
-    const updatedAt = latest?.registered_at ?? createdAt;
+    const isMyPrayer = toSqliteBoolean(p.is_my_prayer);
+    const updatedAt = p.updated_at ?? latest?.registered_at ?? createdAt;
     items.push({
       id: p.id,
-      requester: p.requester ?? '',
+      isMyPrayer,
+      requester: normalizeRequester(p.requester ?? '', isMyPrayer),
       relation: p.relation ?? '',
       target: p.target ?? '',
       latestContent: latest?.content ?? '',
@@ -154,10 +175,11 @@ export async function getAllPrayers(db: SQLiteDatabase): Promise<PrayListItem[]>
 export async function getPrayerById(db: SQLiteDatabase, id: number): Promise<PrayRecord | null> {
   const row = await db.getFirstAsync<{
     id: number;
+    is_my_prayer: number | null;
     requester: string;
     relation: string;
     target: string;
-  }>(`SELECT id, requester, relation, target FROM ${PRAYERS_TABLE} WHERE id = ?`, id);
+  }>(`SELECT id, is_my_prayer, requester, relation, target FROM ${PRAYERS_TABLE} WHERE id = ?`, id);
   if (!row) return null;
 
   const contentRows = await db.getAllAsync<{
@@ -171,7 +193,8 @@ export async function getPrayerById(db: SQLiteDatabase, id: number): Promise<Pra
 
   return {
     id: row.id,
-    requester: row.requester ?? '',
+    isMyPrayer: toSqliteBoolean(row.is_my_prayer),
+    requester: normalizeRequester(row.requester ?? '', toSqliteBoolean(row.is_my_prayer)),
     relation: row.relation ?? '',
     target: row.target ?? '',
     contents: contentRows.map((r) => ({
@@ -188,11 +211,13 @@ export async function updatePrayer(
   requester: string,
   relation: string,
   target: string,
-  options?: { skipPersist?: boolean }
+  options?: { isMyPrayer?: boolean; skipPersist?: boolean }
 ): Promise<void> {
+  const isMyPrayer = options?.isMyPrayer ?? false;
   await db.runAsync(
-    `UPDATE ${PRAYERS_TABLE} SET requester = ?, relation = ?, target = ?, updated_at = ? WHERE id = ?`,
-    requester.trim(),
+    `UPDATE ${PRAYERS_TABLE} SET is_my_prayer = ?, requester = ?, relation = ?, target = ?, updated_at = ? WHERE id = ?`,
+    isMyPrayer ? 1 : 0,
+    normalizeRequester(requester, isMyPrayer),
     normalizeRelation(relation),
     target.trim(),
     nowString(),
