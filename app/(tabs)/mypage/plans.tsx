@@ -62,7 +62,7 @@ export default function PlanListScreen() {
         onBack={() => router.back()}
         right={
           <Button
-            onPress={() => router.push("/(tabs)/mypage/plan/add")}
+            onPress={() => router.push("/(tabs)/mypage/plan/templates")}
             className="h-auto rounded-xl bg-primary-500 px-4 py-3"
           >
             <ButtonText className="font-semibold text-white dark:text-gray-900">
@@ -123,6 +123,14 @@ export default function PlanListScreen() {
                           ? `${t("bibleDrawer.newTestament")} ${summary.newTestament}`
                           : ""}
                       </Text>
+                      {item.planDescription ? (
+                        <Text
+                          className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                          numberOfLines={2}
+                        >
+                          {item.planDescription}
+                        </Text>
+                      ) : null}
                     </View>
                     <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
                       <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
@@ -180,6 +188,14 @@ export default function PlanListScreen() {
                     <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                       {plan.churchName}
                     </Text>
+                    {plan.planDescription ? (
+                      <Text
+                        className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                        numberOfLines={2}
+                      >
+                        {plan.planDescription}
+                      </Text>
+                    ) : null}
                     <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {plan.teamName
                         ? t("church.teamPlanScope").replace(

@@ -283,6 +283,7 @@ export function useChurchActions() {
         churchId: string;
         teamId?: string | null;
         planName: string;
+        planDescription: string;
         startDate: string;
         endDate: string;
         selectedBookCodes: string[];
@@ -292,6 +293,7 @@ export function useChurchActions() {
           teamId: args.teamId ?? null,
           currentUserId: requireUserId(dataUserId),
           planName: args.planName,
+          planDescription: args.planDescription,
           startDate: args.startDate,
           endDate: args.endDate,
           selectedBookCodes: args.selectedBookCodes,
@@ -303,6 +305,7 @@ export function useChurchActions() {
         churchId: string;
         planId: string;
         planName: string;
+        planDescription: string;
         startDate: string;
         endDate: string;
         selectedBookCodes: string[];

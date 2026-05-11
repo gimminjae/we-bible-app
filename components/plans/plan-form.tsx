@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -16,13 +16,16 @@ import { useI18n } from '@/utils/i18n';
 
 type PlanFormValues = {
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   selectedBookCodes: string[];
 };
 
+type PlanFormInitialValues = Partial<PlanFormValues>;
+
 type PlanFormProps = {
-  initialValues?: PlanFormValues;
+  initialValues?: PlanFormInitialValues;
   submitLabel: string;
   isSubmitting?: boolean;
   onSubmit: (values: PlanFormValues) => void | Promise<void>;
@@ -38,7 +41,16 @@ export function PlanForm({
   const { t } = useI18n();
   const { dialogMaxWidth } = useResponsive();
   const defaultDates = useMemo(() => createDefaultPlanDates(), []);
+  const initialSelectedBookCodesKey = useMemo(
+    () => (initialValues?.selectedBookCodes ?? []).join(','),
+    [initialValues?.selectedBookCodes],
+  );
+  const initialSelectedBookCodes = useMemo(
+    () => (initialSelectedBookCodesKey ? initialSelectedBookCodesKey.split(',') : []),
+    [initialSelectedBookCodesKey],
+  );
   const [planName, setPlanName] = useState(initialValues?.planName ?? '');
+  const [planDescription, setPlanDescription] = useState(initialValues?.planDescription ?? '');
   const [startDate, setStartDate] = useState(initialValues?.startDate ?? defaultDates.startDate);
   const [endDate, setEndDate] = useState(initialValues?.endDate ?? defaultDates.endDate);
   const [selectedBookCodes, setSelectedBookCodes] = useState<Set<string>>(
@@ -47,6 +59,23 @@ export function PlanForm({
   const [category, setCategory] = useState<BibleCategoryKey>('ot');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [dateField, setDateField] = useState<'start' | 'end'>('start');
+
+  useEffect(() => {
+    setPlanName(initialValues?.planName ?? '');
+    setPlanDescription(initialValues?.planDescription ?? '');
+    setStartDate(initialValues?.startDate ?? defaultDates.startDate);
+    setEndDate(initialValues?.endDate ?? defaultDates.endDate);
+    setSelectedBookCodes(new Set(initialSelectedBookCodes));
+  }, [
+    defaultDates.endDate,
+    defaultDates.startDate,
+    initialSelectedBookCodes,
+    initialSelectedBookCodesKey,
+    initialValues?.endDate,
+    initialValues?.planDescription,
+    initialValues?.planName,
+    initialValues?.startDate,
+  ]);
 
   const booksToShow = useMemo(() => {
     const allowedCodes = new Set(CATEGORY_BOOK_CODES[category]);
@@ -95,6 +124,19 @@ export function PlanForm({
           placeholder={t('planDrawer.planNamePlaceholder')}
           placeholderTextColor="#9ca3af"
           className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+        />
+
+        <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
+          {t('planDrawer.planDescriptionLabel')}
+        </Text>
+        <TextInput
+          value={planDescription}
+          onChangeText={setPlanDescription}
+          placeholder={t('planDrawer.planDescriptionPlaceholder')}
+          placeholderTextColor="#9ca3af"
+          multiline
+          textAlignVertical="top"
+          className="mb-4 min-h-[112px] rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
         />
 
         <Text className="mb-1.5 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -210,6 +252,7 @@ export function PlanForm({
           onPress={() =>
             void onSubmit({
               planName: planName.trim() || t('mypage.planDetailTitle'),
+              planDescription: planDescription.trim(),
               startDate,
               endDate,
               selectedBookCodes: [...selectedBookCodes],

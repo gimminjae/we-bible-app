@@ -9,6 +9,7 @@ export type PlanScope = 'personal' | 'church' | 'team';
 export type PlanRecord = {
   id: string;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   totalReadCount: number;
@@ -92,6 +93,7 @@ export function recalcPlanFields(goalStatus: GoalStatus, selectedBookCodes: stri
 export function createInitialPlan(
   id: string,
   planName: string,
+  planDescription: string,
   startDate: string,
   endDate: string,
   selectedBookCodes: string[],
@@ -106,6 +108,7 @@ export function createInitialPlan(
   return {
     id,
     planName,
+    planDescription,
     startDate,
     endDate,
     goalStatus,

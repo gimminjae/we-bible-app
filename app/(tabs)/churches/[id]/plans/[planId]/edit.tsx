@@ -42,6 +42,7 @@ export default function EditChurchPlanScreen() {
       <PlanForm
         initialValues={{
           planName: sharedPlanDetail.summary.planName,
+          planDescription: sharedPlanDetail.summary.planDescription,
           startDate: sharedPlanDetail.summary.startDate,
           endDate: sharedPlanDetail.summary.endDate,
           selectedBookCodes: sharedPlanDetail.summary.selectedBookCodes,
@@ -55,6 +56,7 @@ export default function EditChurchPlanScreen() {
               churchId,
               planId,
               planName: values.planName,
+              planDescription: values.planDescription,
               startDate: values.startDate,
               endDate: values.endDate,
               selectedBookCodes: values.selectedBookCodes,

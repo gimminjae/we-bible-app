@@ -1093,7 +1093,7 @@ export default function ChurchDetailScreen() {
             {churchDetail.church.isSuperAdmin ? (
               <ActionTextButton
                 onPress={() =>
-                  router.push(`/churches/${churchDetail.church.id}/plans/add` as never)
+                  router.push(`/churches/${churchDetail.church.id}/plans/templates` as never)
                 }
                 label={t('church.createChurchPlan')}
                 className="mb-4 rounded-2xl bg-primary-500 px-4 py-4"
@@ -1124,6 +1124,14 @@ export default function ChurchDetailScreen() {
                       <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
                       </Text>
+                      {plan.planDescription ? (
+                        <Text
+                          className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                          numberOfLines={2}
+                        >
+                          {plan.planDescription}
+                        </Text>
+                      ) : null}
                     </View>
                     <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
                       <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
@@ -1277,7 +1285,7 @@ export default function ChurchDetailScreen() {
                         <ActionTextButton
                           onPress={() =>
                             router.push(
-                              `/churches/${churchDetail.church.id}/plans/add?teamId=${team.id}` as never,
+                              `/churches/${churchDetail.church.id}/plans/templates?teamId=${team.id}` as never,
                             )
                           }
                           label={t('church.createTeamPlan')}
@@ -1354,6 +1362,14 @@ export default function ChurchDetailScreen() {
                                 <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                   {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
                                 </Text>
+                                {plan.planDescription ? (
+                                  <Text
+                                    className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                                    numberOfLines={2}
+                                  >
+                                    {plan.planDescription}
+                                  </Text>
+                                ) : null}
                               </View>
                               <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
                                 <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">

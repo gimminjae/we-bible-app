@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,17 +7,23 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchDetail } from '@/hooks/use-churches';
+import { useBiblePlanTemplate } from '@/hooks/use-plan-templates';
 import { useI18n } from '@/utils/i18n';
 
 export default function AddChurchPlanScreen() {
-  const params = useLocalSearchParams<{ id?: string; teamId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; teamId?: string; templateId?: string }>();
   const churchId = params.id ?? '';
   const teamId = params.teamId ?? null;
+  const templateId = useMemo(
+    () => (typeof params.templateId === 'string' ? params.templateId : ''),
+    [params.templateId],
+  );
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
   const { createSharedPlan } = useChurchActions();
   const { churchDetail, isLoading, error } = useChurchDetail(churchId);
+  const { template, isLoading: isTemplateLoading } = useBiblePlanTemplate(templateId);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (error) {
@@ -26,6 +32,10 @@ export default function AddChurchPlanScreen() {
 
   if (isLoading || !churchDetail) {
     return <LoadingScreen message="Loading church..." />;
+  }
+
+  if (templateId && isTemplateLoading) {
+    return <LoadingScreen message={t('planTemplate.loadingTemplates')} />;
   }
 
   const team = churchDetail.teams.find((item) => item.id === teamId) ?? null;
@@ -52,6 +62,15 @@ export default function AddChurchPlanScreen() {
       />
 
       <PlanForm
+        initialValues={
+          template
+            ? {
+                planName: template.templateName,
+                planDescription: template.templateExplanation,
+                selectedBookCodes: template.selectedBookCodes,
+              }
+            : undefined
+        }
         submitLabel={t('planDrawer.save')}
         isSubmitting={isSubmitting}
         onSubmit={async (values) => {
@@ -61,6 +80,7 @@ export default function AddChurchPlanScreen() {
               churchId: churchDetail.church.id,
               teamId,
               planName: values.planName,
+              planDescription: values.planDescription,
               startDate: values.startDate,
               endDate: values.endDate,
               selectedBookCodes: values.selectedBookCodes,

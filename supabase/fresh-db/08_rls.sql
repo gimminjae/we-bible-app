@@ -8,6 +8,7 @@ alter table public.favorite_verses enable row level security;
 alter table public.memos enable row level security;
 alter table public.memo_verses enable row level security;
 alter table public.plans enable row level security;
+alter table public.bible_plan_template enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.churches enable row level security;
 alter table public.teams enable row level security;
@@ -117,6 +118,12 @@ create policy "plans_delete_access"
       )
     )
   );
+
+drop policy if exists "bible_plan_template_read_public" on public.bible_plan_template;
+create policy "bible_plan_template_read_public"
+  on public.bible_plan_template
+  for select
+  using (true);
 
 drop policy if exists "user_profiles_read_authenticated" on public.user_profiles;
 drop policy if exists "user_profiles_read_same_church_or_self" on public.user_profiles;
