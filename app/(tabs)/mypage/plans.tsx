@@ -8,9 +8,11 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { Button, ButtonText } from "@/components/ui/button"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { ScreenHeader } from "@/components/ui/screen-header"
+import { useAuth } from "@/contexts/auth-context"
 import { useMySharedPlans } from "@/hooks/use-churches"
 import { formatShortDate } from "@/lib/date"
 import { getPlanGoalSummary } from "@/lib/plan"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import { getAllPlans, type PlanListItem } from "@/utils/plan-db"
 
@@ -18,6 +20,7 @@ export default function PlanListScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { t } = useI18n()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const [items, setItems] = useState<PlanListItem[]>([])
   const [isLoadingLocal, setIsLoadingLocal] = useState(true)
   const {
@@ -26,21 +29,44 @@ export default function PlanListScreen() {
     error: sharedPlansError,
   } = useMySharedPlans()
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
+
   const loadLocalPlans = useCallback(() => {
     let active = true
     setIsLoadingLocal(true)
-    getAllPlans(db)
-      .then((rows) => {
+
+    const loadPlans = async () => {
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["plans"])
+          if (!active) return
+        }
+
+        const rows = await getAllPlans(db)
         if (!active) return
         setItems(rows)
-      })
-      .finally(() => {
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
         if (active) setIsLoadingLocal(false)
-      })
+      }
+    }
+
+    void loadPlans()
+
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(loadLocalPlans)
 
@@ -62,7 +88,7 @@ export default function PlanListScreen() {
         onBack={() => router.back()}
         right={
           <Button
-            onPress={() => router.push("/(tabs)/mypage/plan/add")}
+            onPress={() => router.push("/(tabs)/mypage/plan/templates")}
             className="h-auto rounded-xl bg-primary-500 px-4 py-3"
           >
             <ButtonText className="font-semibold text-white dark:text-gray-900">
@@ -123,6 +149,14 @@ export default function PlanListScreen() {
                           ? `${t("bibleDrawer.newTestament")} ${summary.newTestament}`
                           : ""}
                       </Text>
+                      {item.planDescription ? (
+                        <Text
+                          className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                          numberOfLines={2}
+                        >
+                          {item.planDescription}
+                        </Text>
+                      ) : null}
                     </View>
                     <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
                       <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
@@ -180,6 +214,14 @@ export default function PlanListScreen() {
                     <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                       {plan.churchName}
                     </Text>
+                    {plan.planDescription ? (
+                      <Text
+                        className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                        numberOfLines={2}
+                      >
+                        {plan.planDescription}
+                      </Text>
+                    ) : null}
                     <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {plan.teamName
                         ? t("church.teamPlanScope").replace(

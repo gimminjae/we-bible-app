@@ -7,11 +7,14 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { ThemeVerseSheet } from "@/components/mypage/theme-verse-sheet"
 import { Button, ButtonText } from "@/components/ui/button"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { ScreenHeader } from "@/components/ui/screen-header"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { syncThemeVerseNotificationSchedule } from "@/lib/theme-verse-notifications"
 import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
@@ -36,23 +39,56 @@ export default function ThemeVerseDetailScreen() {
   const { appLanguage } = useAppSettings()
   const { showToast } = useToast()
   const { scale, moderateScale } = useResponsive()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
 
   const currentYear = getCurrentThemeVerseYear()
   const [items, setItems] = useState<ThemeVerseRecord[]>([])
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
 
   const load = useCallback(() => {
     let active = true
-    getAllThemeVerses(db).then((rows) => {
-      if (!active) return
-      setItems(rows)
-    })
+
+    const loadThemeVerses = async () => {
+      setIsLoading(true)
+
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["themeVerses"])
+          if (!active) return
+        }
+
+        const rows = await getAllThemeVerses(db)
+        if (!active) return
+        setItems(rows)
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadThemeVerses()
+
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(load)
 
@@ -133,6 +169,10 @@ export default function ThemeVerseDetailScreen() {
   const citation = selectedItem
     ? `${getBookName(selectedItem.bookCode, appLanguage)} ${selectedItem.chapter}:${formatThemeVerseNumbers(selectedItem.verseNumbers)}`
     : ""
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading theme verse..." />
+  }
 
   return (
     <SafeAreaView

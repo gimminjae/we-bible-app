@@ -1,8 +1,11 @@
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useAuth } from "@/contexts/auth-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
 import { useFocusEffect } from "@react-navigation/native"
@@ -46,8 +49,10 @@ export default function PrayerListScreen() {
   const router = useRouter()
   const { t } = useI18n()
   const { scale, moderateScale, pageMaxWidth } = useResponsive()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const [items, setItems] = useState<PrayListItem[]>([])
   const [searchText, setSearchText] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
   const tableMinWidth =
     PERSONAL_PRAYER_COLUMN_WIDTHS.relation +
     PERSONAL_PRAYER_COLUMN_WIDTHS.target +
@@ -55,18 +60,47 @@ export default function PrayerListScreen() {
     PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt +
     PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
+
   const load = useCallback(() => {
     let active = true
 
-    getAllPrayers(db).then((rows) => {
-      if (!active) return
-      setItems(rows)
-    })
+    const loadPrayers = async () => {
+      setIsLoading(true)
+
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["prayers"])
+          if (!active) return
+        }
+
+        const rows = await getAllPrayers(db)
+        if (!active) return
+        setItems(rows)
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadPrayers()
 
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(load)
 
@@ -75,10 +109,17 @@ export default function PrayerListScreen() {
     return items.filter((item) => matchesPrayerSearch(item, keyword))
   }, [items, searchText])
 
+  const myPrayerItems = useMemo(
+    () => filteredItems.filter((item) => item.isMyPrayer),
+    [filteredItems]
+  )
+
   const prayerGroups = useMemo<PrayerGroup[]>(() => {
     const groups = new Map<string, PrayerGroup>()
 
     for (const item of filteredItems) {
+      if (item.isMyPrayer) continue
+
       const requester = getDisplayName(item.requester)
       const existing = groups.get(requester)
 
@@ -96,9 +137,138 @@ export default function PrayerListScreen() {
     return [...groups.values()]
   }, [filteredItems])
 
+  const hasVisibleItems = myPrayerItems.length > 0 || prayerGroups.length > 0
+
   const handleAddPress = useCallback(() => {
     router.push("/(tabs)/mypage/prayer/add")
   }, [router])
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading prayers..." />
+  }
+
+  function renderPrayerTable(sectionItems: PrayListItem[]) {
+    return (
+      <Table minWidth={tableMinWidth}>
+        <TableHeader>
+          <TableHead
+            className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+            textClassName="text-center"
+            style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
+          >
+            {t("mypage.prayerTarget")}
+          </TableHead>
+          <TableHead
+            className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+            textClassName="text-center"
+            style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
+          >
+            {t("prayerDrawer.relationLabel")}
+          </TableHead>
+          <TableHead
+            className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
+            textClassName="text-left"
+            style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
+          >
+            {t("mypage.prayerTableLatestContent")}
+          </TableHead>
+          <TableHead
+            className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
+            textClassName="text-center"
+            style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
+          >
+            {t("mypage.prayerTableUpdatedAt")}
+          </TableHead>
+          <TableHead
+            className="items-center px-2"
+            textClassName="text-center"
+            style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
+          >
+            {t("mypage.prayerTableCreatedAt")}
+          </TableHead>
+        </TableHeader>
+
+        <TableBody>
+          {sectionItems.map((item, index) => (
+            <TableRow
+              key={item.id}
+              isLast={index === sectionItems.length - 1}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/mypage/prayer/[id]",
+                  params: { id: String(item.id) },
+                })
+              }
+            >
+              <TableCell
+                className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
+              >
+                <Text
+                  numberOfLines={1}
+                  className="text-center font-medium text-primary-600 dark:text-primary-400"
+                  style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
+                >
+                  {getDisplayName(item.target)}
+                </Text>
+              </TableCell>
+              <TableCell
+                className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
+              >
+                <Text
+                  numberOfLines={1}
+                  className="text-center font-medium text-primary-600 dark:text-primary-400"
+                  style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
+                >
+                  {getDisplayName(item.relation)}
+                </Text>
+              </TableCell>
+              <TableCell
+                className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
+              >
+                <Text
+                  numberOfLines={2}
+                  className="text-left text-gray-900 dark:text-white"
+                  style={{
+                    fontSize: moderateScale(13),
+                    lineHeight: moderateScale(18),
+                  }}
+                >
+                  {item.latestContent || "-"}
+                </Text>
+              </TableCell>
+              <TableCell
+                className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
+                style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
+              >
+                <Text
+                  numberOfLines={1}
+                  className="text-center text-gray-700 dark:text-gray-200"
+                  style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
+                >
+                  {formatShortDateTime(item.updatedAt)}
+                </Text>
+              </TableCell>
+              <TableCell
+                className="items-center px-2 py-2"
+                style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
+              >
+                <Text
+                  numberOfLines={1}
+                  className="text-center text-gray-700 dark:text-gray-200"
+                  style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
+                >
+                  {formatShortDateTime(item.createdAt)}
+                </Text>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
+  }
 
   return (
     <SafeAreaView
@@ -161,140 +331,36 @@ export default function PrayerListScreen() {
             <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>
               {t("mypage.emptyPrayers")}
             </Text>
-          ) : prayerGroups.length === 0 ? (
+          ) : !hasVisibleItems ? (
             <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(8) }}>
               {t("mypage.emptyPrayerSearchResults")}
             </Text>
           ) : (
-            prayerGroups.map((group) => (
-              <View key={group.requester} style={{ marginBottom: scale(20) }}>
-                <Text
-                  className="mb-2 font-semibold text-gray-900 dark:text-white"
-                  style={{ fontSize: moderateScale(16) }}
-                >
-                  {group.requester}
-                </Text>
+            <>
+              {myPrayerItems.length > 0 ? (
+                <View style={{ marginBottom: scale(20) }}>
+                  <Text
+                    className="mb-2 font-semibold text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(16) }}
+                  >
+                    {t("mypage.myPrayerSectionTitle")}
+                  </Text>
+                  {renderPrayerTable(myPrayerItems)}
+                </View>
+              ) : null}
 
-                <Table minWidth={tableMinWidth}>
-                  <TableHeader>
-                    <TableHead
-                      className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-                      textClassName="text-center"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
-                    >
-                      {t("mypage.prayerTarget")}
-                    </TableHead>
-                    <TableHead
-                      className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-                      textClassName="text-center"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
-                    >
-                      {t("prayerDrawer.relationLabel")}
-                    </TableHead>
-                    <TableHead
-                      className="items-start border-r border-gray-200 px-2 dark:border-gray-700"
-                      textClassName="text-left"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
-                    >
-                      {t("mypage.prayerTableLatestContent")}
-                    </TableHead>
-                    <TableHead
-                      className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
-                      textClassName="text-center"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
-                    >
-                      {t("mypage.prayerTableUpdatedAt")}
-                    </TableHead>
-                    <TableHead
-                      className="items-center px-2"
-                      textClassName="text-center"
-                      style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
-                    >
-                      {t("mypage.prayerTableCreatedAt")}
-                    </TableHead>
-                  </TableHeader>
-
-                  <TableBody>
-                    {group.items.map((item, index) => (
-                      <TableRow
-                        key={item.id}
-                        isLast={index === group.items.length - 1}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/(tabs)/mypage/prayer/[id]",
-                            params: { id: String(item.id) },
-                          })
-                        }
-                      >
-                        <TableCell
-                          className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                          style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.target }}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            className="text-center font-medium text-primary-600 dark:text-primary-400"
-                            style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
-                          >
-                            {getDisplayName(item.target)}
-                          </Text>
-                        </TableCell>
-                        <TableCell
-                          className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                          style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.relation }}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            className="text-center font-medium text-primary-600 dark:text-primary-400"
-                            style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
-                          >
-                            {getDisplayName(item.relation)}
-                          </Text>
-                        </TableCell>
-                        <TableCell
-                          className="items-start border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                          style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.latestContent }}
-                        >
-                          <Text
-                            numberOfLines={2}
-                            className="text-left text-gray-900 dark:text-white"
-                            style={{
-                              fontSize: moderateScale(13),
-                              lineHeight: moderateScale(18),
-                            }}
-                          >
-                            {item.latestContent || "-"}
-                          </Text>
-                        </TableCell>
-                        <TableCell
-                          className="items-center border-r border-gray-200 px-2 py-2 dark:border-gray-700"
-                          style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt }}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            className="text-center text-gray-700 dark:text-gray-200"
-                            style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
-                          >
-                            {formatShortDateTime(item.updatedAt)}
-                          </Text>
-                        </TableCell>
-                        <TableCell
-                          className="items-center px-2 py-2"
-                          style={{ width: PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt }}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            className="text-center text-gray-700 dark:text-gray-200"
-                            style={{ fontSize: moderateScale(11), lineHeight: moderateScale(16) }}
-                          >
-                            {formatShortDateTime(item.createdAt)}
-                          </Text>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </View>
-            ))
+              {prayerGroups.map((group) => (
+                <View key={group.requester} style={{ marginBottom: scale(20) }}>
+                  <Text
+                    className="mb-2 font-semibold text-gray-900 dark:text-white"
+                    style={{ fontSize: moderateScale(16) }}
+                  >
+                    {group.requester}
+                  </Text>
+                  {renderPrayerTable(group.items)}
+                </View>
+              ))}
+            </>
           )}
         </View>
       </ScrollView>

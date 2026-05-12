@@ -18,7 +18,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -120,14 +120,6 @@ export function BibleReaderHome() {
             onOpenLangPicker={bible.openLangPicker}
             onOpenSettings={bible.openSettings}
           />
-
-          {bible.isAccountDataBusy ? (
-            <View className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
-              <Text className="text-sm text-amber-800 dark:text-amber-200">
-                {t('common.accountSyncInProgress')}
-              </Text>
-            </View>
-          ) : null}
 
           <BibleContent
             loading={bible.loading}

@@ -1,6 +1,9 @@
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import {
   deletePrayer,
   deletePrayerContent,
@@ -29,24 +32,58 @@ export default function PrayerDetailScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const params = useLocalSearchParams<{ id?: string }>();
   const prayerId = useMemo(() => Number(params.id || 0), [params.id]);
   const [prayer, setPrayer] = useState<PrayRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   const load = useCallback(() => {
     let active = true;
     if (!prayerId) {
       setPrayer(null);
+      setIsLoading(false);
       return;
     }
-    getPrayerById(db, prayerId).then((row) => {
-      if (!active) return;
-      setPrayer(row);
-    });
+
+    const loadPrayer = async () => {
+      setIsLoading(true);
+
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['prayers']);
+          if (!active) return;
+        }
+
+        const row = await getPrayerById(db, prayerId);
+        if (!active) return;
+        setPrayer(row);
+      } catch {
+        if (active) {
+          setPrayer(null);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadPrayer();
+
     return () => {
       active = false;
     };
-  }, [db, prayerId]);
+  }, [currentUser, db, isAccountDataPending, isConfigured, prayerId]);
 
   useFocusEffect(load);
 
@@ -99,6 +136,10 @@ export default function PrayerDetailScreen() {
     });
   }, [router, prayerId]);
 
+  if (isLoading) {
+    return <LoadingScreen message="Loading prayer..." />;
+  }
+
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
@@ -143,11 +184,18 @@ export default function PrayerDetailScreen() {
         ) : (
           <>
             <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+              {prayer.isMyPrayer ? (
+                <View className="mb-3 self-start rounded-full bg-primary-50 px-3 py-1 dark:bg-primary-900/30">
+                  <Text className="text-xs font-semibold text-primary-600 dark:text-primary-300">
+                    {t('mypage.myPrayerSectionTitle')}
+                  </Text>
+                </View>
+              ) : null}
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                 {t('mypage.prayerRequester')}
               </Text>
               <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                {prayer.requester || '-'}
+                {prayer.isMyPrayer ? t('mypage.myPrayerRequesterValue') : prayer.requester || '-'}
               </Text>
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">
                 {t('prayerDrawer.relationLabel')}

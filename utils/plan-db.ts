@@ -14,6 +14,7 @@ export type GoalStatus = number[][];
 export type PlanRecord = {
   id: number;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   totalReadCount: number;
@@ -30,6 +31,7 @@ export type PlanRecord = {
 export type PlanListItem = {
   id: number;
   planName: string;
+  planDescription: string;
   startDate: string;
   endDate: string;
   totalReadCount: number;
@@ -137,6 +139,7 @@ export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id TEXT DEFAULT '',
       plan_name TEXT NOT NULL DEFAULT '',
+      plan_description TEXT NOT NULL DEFAULT '',
       start_date TEXT NOT NULL DEFAULT '',
       end_date TEXT NOT NULL DEFAULT '',
       total_read_count INTEGER NOT NULL DEFAULT 0,
@@ -154,11 +157,17 @@ export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
   if (!info.some((r) => r.name === 'client_id')) {
     await db.runAsync(`ALTER TABLE ${PLANS_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
   }
+  if (!info.some((r) => r.name === 'plan_description')) {
+    await db.runAsync(
+      `ALTER TABLE ${PLANS_TABLE} ADD COLUMN plan_description TEXT NOT NULL DEFAULT ''`
+    );
+  }
 }
 
 export async function addPlan(
   db: SQLiteDatabase,
   planName: string,
+  planDescription: string,
   startDate: string,
   endDate: string,
   selectedBookCodes: string[]
@@ -170,12 +179,13 @@ export async function addPlan(
 
   const result = await db.runAsync(
     `INSERT INTO ${PLANS_TABLE} (
-      client_id, plan_name, start_date, end_date,
+      client_id, plan_name, plan_description, start_date, end_date,
       total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day,
       goal_status, selected_book_codes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     clientId,
     planName.trim(),
+    planDescription.trim(),
     startDate,
     endDate,
     computed.totalReadCount,
@@ -196,6 +206,7 @@ export async function getAllPlans(db: SQLiteDatabase): Promise<PlanListItem[]> {
   const rows = await db.getAllAsync<{
     id: number;
     plan_name: string;
+    plan_description: string;
     start_date: string;
     end_date: string;
     total_read_count: number;
@@ -204,13 +215,14 @@ export async function getAllPlans(db: SQLiteDatabase): Promise<PlanListItem[]> {
     rest_day: number;
     selected_book_codes: string;
   }>(
-    `SELECT id, plan_name, start_date, end_date, total_read_count, current_read_count, goal_percent, rest_day, selected_book_codes
+    `SELECT id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, rest_day, selected_book_codes
      FROM ${PLANS_TABLE} ORDER BY id DESC`
   );
 
   return rows.map((r) => ({
     id: r.id,
     planName: r.plan_name ?? '',
+    planDescription: r.plan_description ?? '',
     startDate: r.start_date ?? '',
     endDate: r.end_date ?? '',
     totalReadCount: r.total_read_count ?? 0,
@@ -225,6 +237,7 @@ export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanR
   const row = await db.getFirstAsync<{
     id: number;
     plan_name: string;
+    plan_description: string;
     start_date: string;
     end_date: string;
     total_read_count: number;
@@ -251,6 +264,7 @@ export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanR
   return {
     id: row.id,
     planName: row.plan_name ?? '',
+    planDescription: row.plan_description ?? '',
     startDate: row.start_date ?? '',
     endDate,
     totalReadCount: row.total_read_count ?? 0,
@@ -277,6 +291,7 @@ export async function updatePlanInfo(
   db: SQLiteDatabase,
   id: number,
   planName: string,
+  planDescription: string,
   startDate: string,
   endDate: string,
   selectedBookCodes: string[]
@@ -290,13 +305,14 @@ export async function updatePlanInfo(
 
   await db.runAsync(
     `UPDATE ${PLANS_TABLE} SET
-      plan_name = ?, start_date = ?, end_date = ?,
+      plan_name = ?, plan_description = ?, start_date = ?, end_date = ?,
       selected_book_codes = ?,
       total_read_count = ?, current_read_count = ?,
       goal_percent = ?, read_count_per_day = ?, rest_day = ?,
       updated_at = ?
     WHERE id = ?`,
     planName.trim(),
+    planDescription.trim(),
     startDate,
     endDate,
     JSON.stringify(selectedBookCodes),

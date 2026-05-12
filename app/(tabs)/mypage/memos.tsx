@@ -1,8 +1,11 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useResponsive } from '@/hooks/use-responsive';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
 import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
@@ -39,19 +42,52 @@ export default function MemoListScreen() {
   const { t } = useI18n();
   const { showToast } = useToast();
   const { scale, moderateScale } = useResponsive();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const [items, setItems] = useState<MemoRecord[]>([]);
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   const load = useCallback(() => {
     let active = true;
-    getAllMemos(db).then((rows) => {
-      if (!active) return;
-      setItems(rows);
-    });
+
+    const loadMemos = async () => {
+      setIsLoading(true);
+
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['memos']);
+          if (!active) return;
+        }
+
+        const rows = await getAllMemos(db);
+        if (!active) return;
+        setItems(rows);
+      } catch {
+        if (active) {
+          setItems([]);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadMemos();
+
     return () => {
       active = false;
     };
-  }, [db]);
+  }, [currentUser, db, isAccountDataPending, isConfigured]);
 
   useFocusEffect(load);
 
@@ -80,6 +116,10 @@ export default function MemoListScreen() {
     },
     [showToast, t]
   );
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading memos..." />;
+  }
 
   return (
     <SafeAreaView

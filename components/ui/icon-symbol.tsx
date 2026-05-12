@@ -30,6 +30,8 @@ const MAPPING = {
   'exclamationmark.circle': 'error-outline',
   'exclamationmark.circle.fill': 'info',
   'doc.on.doc': 'content-copy',
+  'square': 'check-box-outline-blank',
+  'checkmark.square.fill': 'check-box',
   'trash.fill': 'delete',
   'hands.sparkles': 'volunteer-activism',
   'calendar': 'event',

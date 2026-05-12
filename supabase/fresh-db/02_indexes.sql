@@ -45,6 +45,9 @@ create index if not exists plans_church_id_idx
 create index if not exists plans_team_id_idx
   on public.plans (team_id, id desc);
 
+create index if not exists bible_plan_template_language_code_idx
+  on public.bible_plan_template (language_code, id);
+
 create index if not exists plan_progresses_user_id_idx
   on public.plan_progresses (user_id, updated_at desc);
 
