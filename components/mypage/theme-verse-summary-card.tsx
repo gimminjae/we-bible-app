@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ImageBackground, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ImageBackground, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -12,6 +12,7 @@ import { formatThemeVerseNumbers, type ThemeVerseRecord } from '@/utils/theme-ve
 type ThemeVerseSummaryCardProps = {
   year: number;
   themeVerse: ThemeVerseRecord | null;
+  isLoading?: boolean;
   onPress: () => void;
 };
 
@@ -22,6 +23,7 @@ function replaceToken(template: string, token: string, value: string) {
 export function ThemeVerseSummaryCard({
   year,
   themeVerse,
+  isLoading = false,
   onPress,
 }: ThemeVerseSummaryCardProps) {
   const { t } = useI18n();
@@ -37,6 +39,7 @@ export function ThemeVerseSummaryCard({
     <>
       <Pressable
         onPress={onPress}
+        disabled={isLoading}
         accessibilityRole="button"
         accessibilityLabel={t('themeVerse.openDetail')}
         className="mb-4 rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
@@ -53,7 +56,24 @@ export function ThemeVerseSummaryCard({
             >
               {replaceToken(t('themeVerse.summaryLabel'), 'year', String(year))}
             </Text>
-            {themeVerse ? (
+            {isLoading ? (
+              <View
+                className="mt-3 flex-row items-center"
+                style={{ gap: scale(12), minHeight: moderateScale(58) }}
+              >
+                <ActivityIndicator color="#2563eb" />
+                <View className="flex-1">
+                  <View
+                    className="h-3 rounded-full bg-primary-100 dark:bg-primary-950/40"
+                    style={{ width: '72%' }}
+                  />
+                  <View
+                    className="mt-3 h-3 rounded-full bg-gray-200 dark:bg-gray-800"
+                    style={{ width: '48%' }}
+                  />
+                </View>
+              </View>
+            ) : themeVerse ? (
               <>
                 <Text
                   className="mt-2 text-gray-900 dark:text-white"

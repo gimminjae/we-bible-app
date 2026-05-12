@@ -1,8 +1,11 @@
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useAuth } from "@/contexts/auth-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
 import { useFocusEffect } from "@react-navigation/native"
@@ -46,8 +49,10 @@ export default function PrayerListScreen() {
   const router = useRouter()
   const { t } = useI18n()
   const { scale, moderateScale, pageMaxWidth } = useResponsive()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const [items, setItems] = useState<PrayListItem[]>([])
   const [searchText, setSearchText] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
   const tableMinWidth =
     PERSONAL_PRAYER_COLUMN_WIDTHS.relation +
     PERSONAL_PRAYER_COLUMN_WIDTHS.target +
@@ -55,18 +60,47 @@ export default function PrayerListScreen() {
     PERSONAL_PRAYER_COLUMN_WIDTHS.updatedAt +
     PERSONAL_PRAYER_COLUMN_WIDTHS.createdAt
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
+
   const load = useCallback(() => {
     let active = true
 
-    getAllPrayers(db).then((rows) => {
-      if (!active) return
-      setItems(rows)
-    })
+    const loadPrayers = async () => {
+      setIsLoading(true)
+
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["prayers"])
+          if (!active) return
+        }
+
+        const rows = await getAllPrayers(db)
+        if (!active) return
+        setItems(rows)
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadPrayers()
 
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(load)
 
@@ -108,6 +142,10 @@ export default function PrayerListScreen() {
   const handleAddPress = useCallback(() => {
     router.push("/(tabs)/mypage/prayer/add")
   }, [router])
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading prayers..." />
+  }
 
   function renderPrayerTable(sectionItems: PrayListItem[]) {
     return (

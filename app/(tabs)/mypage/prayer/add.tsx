@@ -1,12 +1,15 @@
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useLoading } from '@/hooks/use-loading';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import { addPrayer } from '@/utils/prayer-db';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,12 +26,51 @@ export default function AddPrayerScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const [requester, setRequester] = useState('');
   const [relation, setRelation] = useState('');
   const [target, setTarget] = useState('');
   const [content, setContent] = useState('');
   const [isMyPrayer, setIsMyPrayer] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const { isLoading, runWithLoading } = useLoading();
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
+
+  useEffect(() => {
+    let active = true;
+
+    const initialize = async () => {
+      setIsInitializing(true);
+
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['prayers']);
+        }
+      } finally {
+        if (active) {
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    void initialize().catch(() => {
+      if (active) {
+        setIsInitializing(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser, db, isAccountDataPending, isConfigured]);
 
   const handleToggleMyPrayer = useCallback(() => {
     setIsMyPrayer((prev) => {
@@ -55,6 +97,10 @@ export default function AddPrayerScreen() {
       }
     });
   }, [content, db, isMyPrayer, relation, requester, router, runWithLoading, showToast, t, target]);
+
+  if (isInitializing) {
+    return <LoadingScreen message="Loading prayer..." />;
+  }
 
   return (
     <SafeAreaView

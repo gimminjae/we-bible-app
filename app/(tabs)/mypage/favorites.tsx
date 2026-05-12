@@ -1,8 +1,11 @@
 import type { FavoriteVerseRecord } from "@/components/bible/types"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { copyToClipboard } from "@/utils/clipboard"
@@ -30,18 +33,51 @@ export default function FavoriteListScreen() {
   const { appLanguage } = useAppSettings()
   const { showToast } = useToast()
   const { scale, moderateScale } = useResponsive()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const [items, setItems] = useState<FavoriteVerseRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
 
   const load = useCallback(() => {
     let active = true
-    getAllFavorites(db).then((rows) => {
-      if (!active) return
-      setItems(rows)
-    })
+
+    const loadFavorites = async () => {
+      setIsLoading(true)
+
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["favorites"])
+          if (!active) return
+        }
+
+        const rows = await getAllFavorites(db)
+        if (!active) return
+        setItems(rows)
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadFavorites()
+
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(load)
 
@@ -91,6 +127,10 @@ export default function FavoriteListScreen() {
     },
     [appLanguage, showToast, t],
   )
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading favorites..." />
+  }
 
   return (
     <SafeAreaView

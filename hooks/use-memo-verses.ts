@@ -3,6 +3,8 @@ import {
   getMemoVerseNumbersForChapter,
   initMemosTable,
 } from '@/utils/memo-db';
+import { useAuth } from '@/contexts/auth-context';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -16,9 +18,16 @@ export function useMemoVerses(
   options: UseMemoVersesOptions = {}
 ) {
   const db = useSQLiteContext();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const enabled = options.enabled ?? true;
   const [memoVerseNumbers, setMemoVerseNumbers] = useState<number[]>([]);
   const [initDone, setInitDone] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   const refetch = useCallback(async () => {
     try {
@@ -49,10 +58,58 @@ export function useMemoVerses(
     if (!initDone) return;
     if (!enabled) {
       setMemoVerseNumbers([]);
+      setIsHydrating(false);
       return;
     }
-    refetch();
-  }, [enabled, initDone, refetch]);
+
+    let cancelled = false;
+
+    const load = async () => {
+      if (currentUser && isConfigured) {
+        if (isAccountDataPending || dataUserId !== currentUser.id) {
+          setMemoVerseNumbers([]);
+          setIsHydrating(true);
+          return;
+        }
+
+        setIsHydrating(true);
+        try {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['memos']);
+          if (cancelled) return;
+        } finally {
+          if (!cancelled) {
+            setIsHydrating(false);
+          }
+        }
+      } else {
+        setIsHydrating(false);
+      }
+
+      if (!cancelled) {
+        await refetch();
+      }
+    };
+
+    void load().catch(() => {
+      if (!cancelled) {
+        setMemoVerseNumbers([]);
+        setIsHydrating(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentUser,
+    dataUserId,
+    db,
+    enabled,
+    initDone,
+    isAccountDataPending,
+    isConfigured,
+    refetch,
+  ]);
 
   const addMemo = useCallback(
     async (title: string, content: string, verseText: string, verseNumbers: number[]) => {
@@ -67,5 +124,6 @@ export function useMemoVerses(
     memoVerseNumbers,
     addMemo,
     refetch,
+    isHydrating,
   };
 }

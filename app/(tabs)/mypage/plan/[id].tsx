@@ -2,7 +2,9 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
 import {
@@ -78,6 +80,7 @@ export default function PlanDetailScreen() {
   const { t } = useI18n()
   const { appLanguage } = useAppSettings()
   const { showToast } = useToast()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const params = useLocalSearchParams<{ id?: string }>()
   const planId = useMemo(() => Number(params.id || 0), [params.id])
   const [plan, setPlan] = useState<PlanRecord | null>(null)
@@ -87,6 +90,11 @@ export default function PlanDetailScreen() {
     number | null
   >(null)
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
+
   const load = useCallback(() => {
     let active = true
     if (!planId) {
@@ -95,15 +103,38 @@ export default function PlanDetailScreen() {
       return
     }
     setLoading(true)
-    getPlanById(db, planId).then((row) => {
-      if (!active) return
-      setPlan(row)
-      setLoading(false)
-    })
+
+    const loadPlan = async () => {
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["plans"])
+          if (!active) return
+        }
+
+        const row = await getPlanById(db, planId)
+        if (!active) return
+        setPlan(row)
+      } catch {
+        if (active) {
+          setPlan(null)
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadPlan()
+
     return () => {
       active = false
     }
-  }, [db, planId])
+  }, [currentUser, db, isAccountDataPending, isConfigured, planId])
 
   useFocusEffect(load)
 
