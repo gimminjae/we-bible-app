@@ -1,19 +1,18 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack, usePathname } from 'expo-router';
+import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { type SQLiteDatabase } from 'expo-sqlite';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import 'react-native-url-polyfill/auto';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
-import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ThemeVerseNotificationSync } from '@/components/theme-verse-notification-sync';
 import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { AuthProvider } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
 import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from '@/lib/google-mobile-ads';
@@ -74,24 +73,6 @@ function RootLayoutContent() {
   );
 }
 
-function AuthSyncGate({ children }: { children: ReactNode }) {
-  const { isConfigured, isLoadingSession, isSyncingData } = useAuth();
-  const pathname = usePathname();
-  const isAuthCallbackRoute = pathname === '/auth/callback';
-  const isBibleHomeRoute = pathname === '/';
-
-  if (
-    !isAuthCallbackRoute &&
-    !isBibleHomeRoute &&
-    isConfigured &&
-    (isLoadingSession || isSyncingData)
-  ) {
-    return <LoadingScreen message="Synchronizing account data..." />;
-  }
-
-  return <>{children}</>;
-}
-
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -100,9 +81,7 @@ export default function RootLayout() {
           <AppSettingsProvider>
             <AuthProvider>
               <ThemeVerseNotificationSync />
-              <AuthSyncGate>
-                <RootLayoutContent />
-              </AuthSyncGate>
+              <RootLayoutContent />
             </AuthProvider>
           </AppSettingsProvider>
         </SQLiteProvider>

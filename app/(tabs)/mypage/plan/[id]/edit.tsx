@@ -6,7 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PlanForm } from '@/components/plans/plan-form';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { getPlanById, updatePlanInfo } from '@/utils/plan-db';
 import { useI18n } from '@/utils/i18n';
 
@@ -15,6 +17,7 @@ export default function EditPlanScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const params = useLocalSearchParams<{ id?: string }>();
   const planId = useMemo(() => Number(params.id || 0), [params.id]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,6 +30,11 @@ export default function EditPlanScreen() {
     selectedBookCodes: string[];
   } | null>(null);
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
+
   useEffect(() => {
     let active = true;
     if (!planId) {
@@ -36,8 +44,19 @@ export default function EditPlanScreen() {
     }
 
     setIsLoading(true);
-    getPlanById(db, planId)
-      .then((plan) => {
+
+    const loadPlan = async () => {
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
+          if (!active) return;
+        }
+
+        const plan = await getPlanById(db, planId);
         if (!active || !plan) return;
         setInitialValues({
           planName: plan.planName,
@@ -46,15 +65,21 @@ export default function EditPlanScreen() {
           endDate: plan.endDate,
           selectedBookCodes: plan.selectedBookCodes,
         });
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoading(false);
-      });
+      }
+    };
+
+    void loadPlan().catch(() => {
+      if (active) {
+        setInitialValues(null);
+      }
+    });
 
     return () => {
       active = false;
     };
-  }, [db, planId]);
+  }, [currentUser, db, isAccountDataPending, isConfigured, planId]);
 
   if (isLoading) {
     return <LoadingScreen message="Loading plan..." />;

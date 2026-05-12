@@ -51,11 +51,11 @@ export function useBibleReader() {
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
   const [hasRestored, setHasRestored] = useState(false);
-  const isAccountDataBusy =
+  const isAuthDataBusy =
     isConfigured &&
     (isLoadingSession ||
       (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
-  const canUseAccountDataFeatures = !isAccountDataBusy;
+  const canHydrateAccountData = !isAuthDataBusy;
 
   const restoreBibleSearchInfoFromStorage = useCallback(() => {
     if (hasRestored) return;
@@ -121,11 +121,21 @@ export function useBibleReader() {
     secondaryLang,
   });
 
-  const { favoriteVerseNumbers, addVerses: addFavoriteVerses, removeVerses: removeFavoriteVerses } =
-    useFavoriteVerses(bookCode, chapter, { enabled: canUseAccountDataFeatures });
-  const { memoVerseNumbers, addMemo: addMemoToDb } = useMemoVerses(bookCode, chapter, {
-    enabled: canUseAccountDataFeatures,
+  const {
+    favoriteVerseNumbers,
+    addVerses: addFavoriteVerses,
+    removeVerses: removeFavoriteVerses,
+    isHydrating: isHydratingFavorites,
+  } = useFavoriteVerses(bookCode, chapter, { enabled: canHydrateAccountData });
+  const {
+    memoVerseNumbers,
+    addMemo: addMemoToDb,
+    isHydrating: isHydratingMemos,
+  } = useMemoVerses(bookCode, chapter, {
+    enabled: canHydrateAccountData,
   });
+  const isAccountDataBusy = isAuthDataBusy || isHydratingFavorites || isHydratingMemos;
+  const canUseAccountDataFeatures = !isAccountDataBusy;
 
   const allSelectedAreFavorites =
     selectedVerseNumbers.length > 0 &&

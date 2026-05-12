@@ -1,7 +1,10 @@
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { LoadingScreen } from "@/components/ui/loading-screen"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useLoading } from "@/hooks/use-loading"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import {
   addPrayerContent,
@@ -32,6 +35,7 @@ export default function EditPrayerScreen() {
   const router = useRouter()
   const { t } = useI18n()
   const { showToast } = useToast()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const params = useLocalSearchParams<{ id?: string }>()
   const prayerId = useMemo(() => Number(params.id || 0), [params.id])
   const [requester, setRequester] = useState("")
@@ -40,29 +44,64 @@ export default function EditPrayerScreen() {
   const [isMyPrayer, setIsMyPrayer] = useState(false)
   const [contents, setContents] = useState<ContentItem[]>([])
   const [deletedIds, setDeletedIds] = useState<number[]>([])
+  const [isInitializing, setIsInitializing] = useState(true)
   const { isLoading, runWithLoading } = useLoading()
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
 
   useEffect(() => {
     let active = true
-    if (!prayerId) return
-    getPrayerById(db, prayerId).then((row) => {
-      if (!active || !row) return
-      setRequester(row.requester)
-      setRelation(row.relation)
-      setTarget(row.target)
-      setIsMyPrayer(row.isMyPrayer)
-      setContents(
-        row.contents.map((c) => ({
-          id: c.id,
-          content: c.content,
-          registeredAt: c.registeredAt,
-        })),
-      )
+    if (!prayerId) {
+      setIsInitializing(false)
+      return
+    }
+
+    const loadPrayer = async () => {
+      setIsInitializing(true)
+
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["prayers"])
+          if (!active) return
+        }
+
+        const row = await getPrayerById(db, prayerId)
+        if (!active || !row) return
+        setRequester(row.requester)
+        setRelation(row.relation)
+        setTarget(row.target)
+        setIsMyPrayer(row.isMyPrayer)
+        setContents(
+          row.contents.map((c) => ({
+            id: c.id,
+            content: c.content,
+            registeredAt: c.registeredAt,
+          })),
+        )
+      } finally {
+        if (active) {
+          setIsInitializing(false)
+        }
+      }
+    }
+
+    void loadPrayer().catch(() => {
+      if (active) {
+        setIsInitializing(false)
+      }
     })
+
     return () => {
       active = false
     }
-  }, [db, prayerId])
+  }, [currentUser, db, isAccountDataPending, isConfigured, prayerId])
 
   const handleToggleMyPrayer = useCallback(() => {
     setIsMyPrayer((prev) => {
@@ -136,6 +175,10 @@ export default function EditPrayerScreen() {
     t,
     target,
   ])
+
+  if (isInitializing) {
+    return <LoadingScreen message="Loading prayer..." />
+  }
 
   return (
     <SafeAreaView

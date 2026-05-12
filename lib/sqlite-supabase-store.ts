@@ -38,6 +38,7 @@ const PENDING_NAVIGATION_KEY = 'pendingBibleNavigation';
 const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
 const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
+const HYDRATED_SLICE_USER_ID_PREFIX = 'hydratedSliceUserId:';
 const GRASS_META_ROW_DATE = '__meta__';
 
 const PERSISTED_SLICE_KEYS = ['appState', 'favorites', 'memos', 'plans', 'prayers', 'grassData', 'themeVerses'] as const;
@@ -540,6 +541,37 @@ async function setBibleStateValue(db: SQLiteDatabase, key: string, value: string
   );
 }
 
+function getHydratedSliceUserIdKey(slice: PersistedSliceKey): string {
+  return `${HYDRATED_SLICE_USER_ID_PREFIX}${slice}`;
+}
+
+async function getHydratedSliceUserId(
+  db: SQLiteDatabase,
+  slice: PersistedSliceKey,
+): Promise<string | null> {
+  return await getBibleStateValue(db, getHydratedSliceUserIdKey(slice));
+}
+
+async function setHydratedSliceUserId(
+  db: SQLiteDatabase,
+  slice: PersistedSliceKey,
+  userId: string,
+): Promise<void> {
+  await setBibleStateValue(db, getHydratedSliceUserIdKey(slice), userId);
+}
+
+async function clearHydratedSliceUserIds(
+  db: SQLiteDatabase,
+  slices: PersistedSliceKey[] = [...PERSISTED_SLICE_KEYS],
+): Promise<void> {
+  for (const slice of slices) {
+    await db.runAsync(
+      `DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+      getHydratedSliceUserIdKey(slice),
+    );
+  }
+}
+
 async function readLocalTheme(db: SQLiteDatabase): Promise<AppTheme> {
   const value = await getBibleStateValue(db, APP_THEME_KEY);
   return value === 'dark' ? 'dark' : 'light';
@@ -744,6 +776,71 @@ export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<Per
     grassTheme,
     themeVerses,
   });
+}
+
+async function getLocalPersistedSnapshotForSlices(
+  db: SQLiteDatabase,
+  slices: PersistedSliceKey[],
+): Promise<PersistedStateSnapshot> {
+  const requestedSlices = new Set(slices);
+  const shouldLoadAppState = requestedSlices.has('appState');
+  const shouldLoadFavorites = requestedSlices.has('favorites');
+  const shouldLoadMemos = requestedSlices.has('memos');
+  const shouldLoadPlans = requestedSlices.has('plans');
+  const shouldLoadPrayers = requestedSlices.has('prayers');
+  const shouldLoadGrassData = requestedSlices.has('grassData');
+  const shouldLoadThemeVerses = requestedSlices.has('themeVerses');
+
+  const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme, themeVerses] =
+    await Promise.all([
+      shouldLoadAppState ? readLocalTheme(db) : Promise.resolve(DEFAULT_STATE.theme),
+      shouldLoadAppState ? readLocalAppLanguage(db) : Promise.resolve(DEFAULT_STATE.appLanguage),
+      shouldLoadAppState ? readLocalBibleState(db) : Promise.resolve(DEFAULT_STATE.bible),
+      shouldLoadFavorites ? readLocalFavorites(db) : Promise.resolve(DEFAULT_STATE.favorites),
+      shouldLoadMemos ? readLocalMemos(db) : Promise.resolve(DEFAULT_STATE.memos),
+      shouldLoadPlans ? readLocalPlans(db) : Promise.resolve(DEFAULT_STATE.plans),
+      shouldLoadPrayers ? readLocalPrayers(db) : Promise.resolve(DEFAULT_STATE.prayers),
+      shouldLoadGrassData ? readLocalGrassData(db) : Promise.resolve(DEFAULT_STATE.grassData),
+      shouldLoadGrassData ? readLocalGrassTheme(db) : Promise.resolve(DEFAULT_STATE.grassTheme),
+      shouldLoadThemeVerses ? readLocalThemeVerses(db) : Promise.resolve(DEFAULT_STATE.themeVerses),
+    ]);
+
+  return createInitialSnapshot({
+    theme,
+    appLanguage,
+    bible,
+    favorites,
+    memos,
+    plans,
+    prayers,
+    grassData,
+    grassTheme,
+    themeVerses,
+  });
+}
+
+function sliceHasPersistedContent(
+  state: PersistedStateSnapshot,
+  slice: PersistedSliceKey,
+): boolean {
+  switch (slice) {
+    case 'appState':
+      return true;
+    case 'favorites':
+      return state.favorites.length > 0;
+    case 'memos':
+      return state.memos.length > 0;
+    case 'plans':
+      return state.plans.length > 0;
+    case 'prayers':
+      return state.prayers.length > 0;
+    case 'grassData':
+      return Object.keys(state.grassData).length > 0 || state.grassTheme !== DEFAULT_STATE.grassTheme;
+    case 'themeVerses':
+      return state.themeVerses.length > 0;
+    default:
+      return false;
+  }
 }
 
 function buildStateRecord(userId: string, state: PersistedStateSnapshot) {
@@ -1032,30 +1129,65 @@ export async function savePersistedStateToSupabase(
   await savePersistedSlicesToSupabase(userId, state, [...PERSISTED_SLICE_KEYS]);
 }
 
-async function hasRemoteRows(userId: string): Promise<boolean> {
+async function hasRemoteSliceRows(
+  userId: string,
+  slice: PersistedSliceKey,
+): Promise<boolean> {
   const supabase = createSupabaseClient();
-  const checks = await Promise.all([
-    supabase.from(USER_BIBLE_STATE_TABLE).select('user_id').eq('user_id', userId).limit(1),
-    supabase.from(USER_FAVORITES_TABLE).select('verse').eq('user_id', userId).limit(1),
-    supabase.from(USER_MEMOS_TABLE).select('id').eq('user_id', userId).limit(1),
-    supabase.from(USER_PLANS_TABLE).select('id').eq('user_id', userId).is('church_id', null).limit(1),
-    supabase.from(USER_PRAYERS_TABLE).select('id').eq('user_id', userId).limit(1),
-    supabase.from(USER_GRASS_TABLE).select('date').eq('user_id', userId).limit(1),
-    supabase.from(USER_THEME_VERSES_TABLE).select('id').eq('user_id', userId).limit(1),
-  ]);
 
-  for (const result of checks) {
-    if (result.error) throwSupabaseError(result.error);
-    if ((result.data?.length ?? 0) > 0) return true;
+  let result:
+    | { data: { [key: string]: unknown }[] | null; error: unknown }
+    | undefined;
+
+  switch (slice) {
+    case 'appState':
+      result = await supabase.from(USER_BIBLE_STATE_TABLE).select('user_id').eq('user_id', userId).limit(1);
+      break;
+    case 'favorites':
+      result = await supabase.from(USER_FAVORITES_TABLE).select('verse').eq('user_id', userId).limit(1);
+      break;
+    case 'memos':
+      result = await supabase.from(USER_MEMOS_TABLE).select('id').eq('user_id', userId).limit(1);
+      break;
+    case 'plans':
+      result = await supabase
+        .from(USER_PLANS_TABLE)
+        .select('id')
+        .eq('user_id', userId)
+        .is('church_id', null)
+        .limit(1);
+      break;
+    case 'prayers':
+      result = await supabase.from(USER_PRAYERS_TABLE).select('id').eq('user_id', userId).limit(1);
+      break;
+    case 'grassData':
+      result = await supabase.from(USER_GRASS_TABLE).select('date').eq('user_id', userId).limit(1);
+      break;
+    case 'themeVerses':
+      result = await supabase.from(USER_THEME_VERSES_TABLE).select('id').eq('user_id', userId).limit(1);
+      break;
+    default:
+      return false;
   }
 
-  return false;
+  if (result.error) throwSupabaseError(result.error);
+  return (result.data?.length ?? 0) > 0;
 }
 
-export async function loadPersistedStateFromSupabase(
+async function loadPersistedSlicesFromSupabase(
   userId: string,
+  slices: PersistedSliceKey[],
 ): Promise<PersistedStateSnapshot> {
   const supabase = createSupabaseClient();
+  const requestedSlices = new Set(slices);
+  const shouldLoadAppState = requestedSlices.has('appState');
+  const shouldLoadFavorites = requestedSlices.has('favorites');
+  const shouldLoadMemos = requestedSlices.has('memos');
+  const shouldLoadPlans = requestedSlices.has('plans');
+  const shouldLoadPrayers = requestedSlices.has('prayers');
+  const shouldLoadGrassData = requestedSlices.has('grassData');
+  const shouldLoadThemeVerses = requestedSlices.has('themeVerses');
+
   const [
     stateResult,
     favoritesResult,
@@ -1066,47 +1198,63 @@ export async function loadPersistedStateFromSupabase(
     grassResult,
     themeVersesResult,
   ] = await Promise.all([
-    supabase
-      .from(USER_BIBLE_STATE_TABLE)
-      .select('app_theme, app_language, bible_search_info')
-      .eq('user_id', userId)
-      .maybeSingle(),
-    supabase
-      .from(USER_FAVORITES_TABLE)
-      .select('book_code, chapter, verse, verse_text, created_at')
-      .eq('user_id', userId),
-    supabase
-      .from(USER_MEMOS_TABLE)
-      .select('id, client_id, title, content, verse_text, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false }),
-    supabase
-      .from(USER_MEMO_VERSES_TABLE)
-      .select('memo_id, book_code, chapter, verse')
-      .eq('user_id', userId),
-    supabase
-      .from(USER_PLANS_TABLE)
-      .select(
-        'id, client_id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
-      )
-      .eq('user_id', userId)
-      .is('church_id', null)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false }),
-    supabase
-      .from(USER_PRAYERS_TABLE)
-      .select('id, client_id, is_my_prayer, requester, relation, target, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false }),
-    supabase.from(USER_GRASS_TABLE).select('date, data').eq('user_id', userId),
-    supabase
-      .from(USER_THEME_VERSES_TABLE)
-      .select('id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at')
-      .eq('user_id', userId)
-      .order('year', { ascending: false })
-      .order('id', { ascending: false }),
+    shouldLoadAppState
+      ? supabase
+          .from(USER_BIBLE_STATE_TABLE)
+          .select('app_theme, app_language, bible_search_info')
+          .eq('user_id', userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    shouldLoadFavorites
+      ? supabase
+          .from(USER_FAVORITES_TABLE)
+          .select('book_code, chapter, verse, verse_text, created_at')
+          .eq('user_id', userId)
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadMemos
+      ? supabase
+          .from(USER_MEMOS_TABLE)
+          .select('id, client_id, title, content, verse_text, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadMemos
+      ? supabase
+          .from(USER_MEMO_VERSES_TABLE)
+          .select('memo_id, book_code, chapter, verse')
+          .eq('user_id', userId)
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadPlans
+      ? supabase
+          .from(USER_PLANS_TABLE)
+          .select(
+            'id, client_id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
+          )
+          .eq('user_id', userId)
+          .is('church_id', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadPrayers
+      ? supabase
+          .from(USER_PRAYERS_TABLE)
+          .select('id, client_id, is_my_prayer, requester, relation, target, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadGrassData
+      ? supabase.from(USER_GRASS_TABLE).select('date, data').eq('user_id', userId)
+      : Promise.resolve({ data: [], error: null }),
+    shouldLoadThemeVerses
+      ? supabase
+          .from(USER_THEME_VERSES_TABLE)
+          .select('id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at')
+          .eq('user_id', userId)
+          .order('year', { ascending: false })
+          .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   for (const result of [
@@ -1141,7 +1289,7 @@ export async function loadPersistedStateFromSupabase(
   const prayersIds = [...new Set(prayerRows.map((row) => row.id).filter((value) => Number.isFinite(value)))];
   let prayerContentRows: RemotePrayerContentRow[] = [];
 
-  if (prayersIds.length > 0) {
+  if (shouldLoadPrayers && prayersIds.length > 0) {
     const { data, error } = await supabase
       .from(USER_PRAYER_CONTENTS_TABLE)
       .select('id, client_id, prayer_id, content, registered_at')
@@ -1172,247 +1320,311 @@ export async function loadPersistedStateFromSupabase(
       : null;
 
   return createInitialSnapshot({
-    theme: stateRow?.app_theme === 'dark' ? 'dark' : 'light',
-    appLanguage: isAppLanguage(stateRow?.app_language) ? stateRow.app_language : DEFAULT_STATE.appLanguage,
-    bible: normalizeBibleState(stateRow?.bible_search_info, DEFAULT_BIBLE_STATE),
-    favorites: favoritesRows.map((row) => ({
-      bookCode: row.book_code,
-      chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
-      verse: Math.max(1, Math.floor(toNumber(row.verse, 1))),
-      verseText: row.verse_text ?? '',
-      createdAt: row.created_at ?? '',
-    })),
-    memos: memoRows.map((row) => {
-      const memo: PersistedMemoRecord = {
-        clientId: row.client_id?.trim() || `memo-${row.id}`,
-        title: row.title ?? '',
-        content: row.content ?? '',
-        verseText: row.verse_text ?? '',
-        createdAt: row.created_at ?? '',
-      };
+    ...(shouldLoadAppState
+      ? {
+          theme: stateRow?.app_theme === 'dark' ? 'dark' : 'light',
+          appLanguage: isAppLanguage(stateRow?.app_language) ? stateRow.app_language : DEFAULT_STATE.appLanguage,
+          bible: normalizeBibleState(stateRow?.bible_search_info, DEFAULT_BIBLE_STATE),
+        }
+      : {}),
+    ...(shouldLoadFavorites
+      ? {
+          favorites: favoritesRows.map((row) => ({
+            bookCode: row.book_code,
+            chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
+            verse: Math.max(1, Math.floor(toNumber(row.verse, 1))),
+            verseText: row.verse_text ?? '',
+            createdAt: row.created_at ?? '',
+          })),
+        }
+      : {}),
+    ...(shouldLoadMemos
+      ? {
+          memos: memoRows.map((row) => {
+            const memo: PersistedMemoRecord = {
+              clientId: row.client_id?.trim() || `memo-${row.id}`,
+              title: row.title ?? '',
+              content: row.content ?? '',
+              verseText: row.verse_text ?? '',
+              createdAt: row.created_at ?? '',
+            };
 
-      const verses = [...(memoVerseMap.get(row.id) ?? [])].sort((left, right) => left.verse - right.verse);
-      if (!verses.length) return memo;
+            const verses = [...(memoVerseMap.get(row.id) ?? [])].sort((left, right) => left.verse - right.verse);
+            if (!verses.length) return memo;
 
-      const first = verses[0];
-      const sameLocation = verses.every(
-        (item) => item.book_code === first.book_code && item.chapter === first.chapter,
-      );
-      if (!sameLocation) return memo;
+            const first = verses[0];
+            const sameLocation = verses.every(
+              (item) => item.book_code === first.book_code && item.chapter === first.chapter,
+            );
+            if (!sameLocation) return memo;
 
-      return {
-        ...memo,
-        bookCode: first.book_code,
-        chapter: first.chapter,
-        verseNumbers: verses.map((item) => item.verse),
-      };
-    }),
-    plans: planRows.map((row) => {
-      const goalStatus = normalizeGoalStatus(row.goal_status);
-      const selectedBookCodes = parseJsonText<string[]>(row.selected_book_codes, []).filter(
-        (value): value is string => typeof value === 'string',
-      );
+            return {
+              ...memo,
+              bookCode: first.book_code,
+              chapter: first.chapter,
+              verseNumbers: verses.map((item) => item.verse),
+            };
+          }),
+        }
+      : {}),
+    ...(shouldLoadPlans
+      ? {
+          plans: planRows.map((row) => {
+            const goalStatus = normalizeGoalStatus(row.goal_status);
+            const selectedBookCodes = parseJsonText<string[]>(row.selected_book_codes, []).filter(
+              (value): value is string => typeof value === 'string',
+            );
 
-      return buildPlanSnapshot({
-        clientId: row.client_id?.trim() || `plan-${row.id}`,
-        planName: row.plan_name ?? '',
-        planDescription: row.plan_description ?? '',
-        startDate: row.start_date ?? '',
-        endDate: row.end_date ?? '',
-        goalStatus,
-        selectedBookCodes,
-        createdAt: row.created_at ?? '',
-        updatedAt: row.updated_at ?? row.created_at ?? '',
-      });
-    }),
-    prayers: prayerRows.map((row) => ({
-      clientId: row.client_id?.trim() || `prayer-${row.id}`,
-      isMyPrayer: row.is_my_prayer ?? false,
-      requester: row.is_my_prayer ? '' : row.requester ?? '',
-      relation: row.relation ?? '',
-      target: row.target ?? '',
-      createdAt: row.created_at ?? '',
-      updatedAt:
-        [...(prayerContentMap.get(row.id) ?? [])]
-          .sort((left, right) => right.registeredAt.localeCompare(left.registeredAt))[0]
-          ?.registeredAt ?? row.created_at ?? '',
-      contents: [...(prayerContentMap.get(row.id) ?? [])].sort((left, right) =>
-        right.registeredAt.localeCompare(left.registeredAt),
-      ),
-    })),
-    grassData: Object.fromEntries(
-      grassRows
-        .filter((row) => row.date !== GRASS_META_ROW_DATE)
-        .map((row) => [row.date, normalizeGrassDayValue(row.date, row.data)]),
-    ),
-    grassTheme: isGrassTheme(meta?.grassTheme) ? meta.grassTheme : DEFAULT_STATE.grassTheme,
-    themeVerses: themeVerseRows.map((row) => {
-      const verseNumbers = normalizeThemeVerseNumbers(row.verse_numbers, row.verse);
-      return {
-        clientId: row.client_id?.trim() || `theme-verse-${row.id}`,
-        year: Math.floor(toNumber(row.year, 0)),
-        bookCode: row.book_code ?? '',
-        chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
-        verse: verseNumbers[0] ?? Math.max(1, Math.floor(toNumber(row.verse, 1))),
-        verseNumbers,
-        verseText: row.verse_text ?? '',
-        description: row.description ?? '',
-        createdAt: row.created_at ?? '',
-        updatedAt: row.updated_at ?? row.created_at ?? '',
-      };
-    }),
+            return buildPlanSnapshot({
+              clientId: row.client_id?.trim() || `plan-${row.id}`,
+              planName: row.plan_name ?? '',
+              planDescription: row.plan_description ?? '',
+              startDate: row.start_date ?? '',
+              endDate: row.end_date ?? '',
+              goalStatus,
+              selectedBookCodes,
+              createdAt: row.created_at ?? '',
+              updatedAt: row.updated_at ?? row.created_at ?? '',
+            });
+          }),
+        }
+      : {}),
+    ...(shouldLoadPrayers
+      ? {
+          prayers: prayerRows.map((row) => ({
+            clientId: row.client_id?.trim() || `prayer-${row.id}`,
+            isMyPrayer: row.is_my_prayer ?? false,
+            requester: row.is_my_prayer ? '' : row.requester ?? '',
+            relation: row.relation ?? '',
+            target: row.target ?? '',
+            createdAt: row.created_at ?? '',
+            updatedAt:
+              [...(prayerContentMap.get(row.id) ?? [])]
+                .sort((left, right) => right.registeredAt.localeCompare(left.registeredAt))[0]
+                ?.registeredAt ?? row.created_at ?? '',
+            contents: [...(prayerContentMap.get(row.id) ?? [])].sort((left, right) =>
+              right.registeredAt.localeCompare(left.registeredAt),
+            ),
+          })),
+        }
+      : {}),
+    ...(shouldLoadGrassData
+      ? {
+          grassData: Object.fromEntries(
+            grassRows
+              .filter((row) => row.date !== GRASS_META_ROW_DATE)
+              .map((row) => [row.date, normalizeGrassDayValue(row.date, row.data)]),
+          ),
+          grassTheme: isGrassTheme(meta?.grassTheme) ? meta.grassTheme : DEFAULT_STATE.grassTheme,
+        }
+      : {}),
+    ...(shouldLoadThemeVerses
+      ? {
+          themeVerses: themeVerseRows.map((row) => {
+            const verseNumbers = normalizeThemeVerseNumbers(row.verse_numbers, row.verse);
+            return {
+              clientId: row.client_id?.trim() || `theme-verse-${row.id}`,
+              year: Math.floor(toNumber(row.year, 0)),
+              bookCode: row.book_code ?? '',
+              chapter: Math.max(1, Math.floor(toNumber(row.chapter, 1))),
+              verse: verseNumbers[0] ?? Math.max(1, Math.floor(toNumber(row.verse, 1))),
+              verseNumbers,
+              verseText: row.verse_text ?? '',
+              description: row.description ?? '',
+              createdAt: row.created_at ?? '',
+              updatedAt: row.updated_at ?? row.created_at ?? '',
+            };
+          }),
+        }
+      : {}),
   });
 }
 
-async function replaceLocalPersistedState(
+export async function loadPersistedStateFromSupabase(
+  userId: string,
+): Promise<PersistedStateSnapshot> {
+  return await loadPersistedSlicesFromSupabase(userId, [...PERSISTED_SLICE_KEYS]);
+}
+
+async function replaceLocalPersistedSlices(
   db: SQLiteDatabase,
   state: PersistedStateSnapshot,
+  slices: PersistedSliceKey[],
 ): Promise<void> {
+  const requestedSlices = new Set(slices);
   await db.execAsync('PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE;');
 
   try {
-    await db.runAsync(`DELETE FROM ${FAVORITES_TABLE}`);
-    await db.runAsync(`DELETE FROM ${MEMO_VERSES_TABLE}`);
-    await db.runAsync(`DELETE FROM ${MEMOS_TABLE}`);
-    await db.runAsync(`DELETE FROM ${PRAYER_CONTENTS_TABLE}`);
-    await db.runAsync(`DELETE FROM ${PRAYERS_TABLE}`);
-    await db.runAsync(`DELETE FROM ${PLANS_TABLE}`);
-    await db.runAsync(`DELETE FROM ${GRASS_TABLE}`);
-    await db.runAsync(`DELETE FROM ${THEME_VERSES_TABLE}`);
-
-    const keysToDelete = [
-      BIBLE_SEARCH_INFO_KEY,
-      APP_THEME_KEY,
-      APP_LANGUAGE_KEY,
-      ACTIVE_DATA_USER_ID_KEY,
-      PENDING_NAVIGATION_KEY,
-      LAST_AUTO_SYNC_AT_KEY,
-      POINT_TOTAL_KEY,
-      GRASS_COLOR_THEME_KEY,
-    ];
-
-    for (const key of keysToDelete) {
-      await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, key);
+    if (requestedSlices.has('favorites')) {
+      await db.runAsync(`DELETE FROM ${FAVORITES_TABLE}`);
     }
 
-    await setBibleStateValue(db, APP_THEME_KEY, state.theme);
-    await setBibleStateValue(db, APP_LANGUAGE_KEY, state.appLanguage);
-    await setBibleStateValue(db, BIBLE_SEARCH_INFO_KEY, JSON.stringify(state.bible));
-    await setBibleStateValue(db, GRASS_COLOR_THEME_KEY, state.grassTheme);
-
-    for (const favorite of state.favorites) {
-      await db.runAsync(
-        `INSERT INTO ${FAVORITES_TABLE} (book_code, chapter, verse, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
-        favorite.bookCode,
-        favorite.chapter,
-        favorite.verse,
-        favorite.verseText,
-        favorite.createdAt,
-      );
+    if (requestedSlices.has('memos')) {
+      await db.runAsync(`DELETE FROM ${MEMO_VERSES_TABLE}`);
+      await db.runAsync(`DELETE FROM ${MEMOS_TABLE}`);
     }
 
-    for (const memo of state.memos) {
-      const result = await db.runAsync(
-        `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
-        memo.clientId,
-        memo.title,
-        memo.content,
-        memo.verseText,
-        memo.createdAt,
-      );
-      const memoId = Number(result.lastInsertRowId);
-      if (!memoId || !memo.bookCode || typeof memo.chapter !== 'number' || !memo.verseNumbers?.length) {
-        continue;
+    if (requestedSlices.has('prayers')) {
+      await db.runAsync(`DELETE FROM ${PRAYER_CONTENTS_TABLE}`);
+      await db.runAsync(`DELETE FROM ${PRAYERS_TABLE}`);
+    }
+
+    if (requestedSlices.has('plans')) {
+      await db.runAsync(`DELETE FROM ${PLANS_TABLE}`);
+    }
+
+    if (requestedSlices.has('grassData')) {
+      await db.runAsync(`DELETE FROM ${GRASS_TABLE}`);
+      await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, GRASS_COLOR_THEME_KEY);
+    }
+
+    if (requestedSlices.has('themeVerses')) {
+      await db.runAsync(`DELETE FROM ${THEME_VERSES_TABLE}`);
+    }
+
+    if (requestedSlices.has('appState')) {
+      const keysToDelete = [BIBLE_SEARCH_INFO_KEY, APP_THEME_KEY, APP_LANGUAGE_KEY];
+      for (const key of keysToDelete) {
+        await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, key);
       }
 
-      for (const verse of memo.verseNumbers) {
+      await setBibleStateValue(db, APP_THEME_KEY, state.theme);
+      await setBibleStateValue(db, APP_LANGUAGE_KEY, state.appLanguage);
+      await setBibleStateValue(db, BIBLE_SEARCH_INFO_KEY, JSON.stringify(state.bible));
+    }
+
+    if (requestedSlices.has('grassData')) {
+      await setBibleStateValue(db, GRASS_COLOR_THEME_KEY, state.grassTheme);
+    }
+
+    if (requestedSlices.has('favorites')) {
+      for (const favorite of state.favorites) {
         await db.runAsync(
-          `INSERT INTO ${MEMO_VERSES_TABLE} (memo_id, book_code, chapter, verse) VALUES (?, ?, ?, ?)`,
-          memoId,
-          memo.bookCode,
-          memo.chapter,
-          verse,
+          `INSERT INTO ${FAVORITES_TABLE} (book_code, chapter, verse, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+          favorite.bookCode,
+          favorite.chapter,
+          favorite.verse,
+          favorite.verseText,
+          favorite.createdAt,
         );
       }
     }
 
-    for (const plan of state.plans) {
-      const computed = recalcPlanFields(plan.goalStatus, plan.selectedBookCodes, plan.endDate);
-      await db.runAsync(
-        `INSERT INTO ${PLANS_TABLE} (
-          client_id, plan_name, plan_description, start_date, end_date,
-          total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day,
-          goal_status, selected_book_codes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        plan.clientId,
-        plan.planName,
-        plan.planDescription,
-        plan.startDate,
-        plan.endDate,
-        computed.totalReadCount,
-        computed.currentReadCount,
-        computed.goalPercent,
-        computed.readCountPerDay,
-        computed.restDay,
-        JSON.stringify(plan.goalStatus),
-        JSON.stringify(plan.selectedBookCodes),
-        plan.createdAt,
-        plan.updatedAt,
-      );
+    if (requestedSlices.has('memos')) {
+      for (const memo of state.memos) {
+        const result = await db.runAsync(
+          `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+          memo.clientId,
+          memo.title,
+          memo.content,
+          memo.verseText,
+          memo.createdAt,
+        );
+        const memoId = Number(result.lastInsertRowId);
+        if (!memoId || !memo.bookCode || typeof memo.chapter !== 'number' || !memo.verseNumbers?.length) {
+          continue;
+        }
+
+        for (const verse of memo.verseNumbers) {
+          await db.runAsync(
+            `INSERT INTO ${MEMO_VERSES_TABLE} (memo_id, book_code, chapter, verse) VALUES (?, ?, ?, ?)`,
+            memoId,
+            memo.bookCode,
+            memo.chapter,
+            verse,
+          );
+        }
+      }
     }
 
-    for (const prayer of state.prayers) {
-      const result = await db.runAsync(
-        `INSERT INTO ${PRAYERS_TABLE} (client_id, requester, relation, target, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-        prayer.clientId,
-        prayer.requester,
-        prayer.relation ?? '',
-        prayer.target,
-        prayer.createdAt,
-        prayer.updatedAt ?? prayer.createdAt,
-      );
-      const prayerId = Number(result.lastInsertRowId);
-      if (!prayerId) continue;
-
-      for (const content of prayer.contents) {
+    if (requestedSlices.has('plans')) {
+      for (const plan of state.plans) {
+        const computed = recalcPlanFields(plan.goalStatus, plan.selectedBookCodes, plan.endDate);
         await db.runAsync(
-          `INSERT INTO ${PRAYER_CONTENTS_TABLE} (client_id, prayer_id, content, registered_at) VALUES (?, ?, ?, ?)`,
-          content.clientId,
-          prayerId,
-          content.content,
-          content.registeredAt,
+          `INSERT INTO ${PLANS_TABLE} (
+            client_id, plan_name, plan_description, start_date, end_date,
+            total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day,
+            goal_status, selected_book_codes, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          plan.clientId,
+          plan.planName,
+          plan.planDescription,
+          plan.startDate,
+          plan.endDate,
+          computed.totalReadCount,
+          computed.currentReadCount,
+          computed.goalPercent,
+          computed.readCountPerDay,
+          computed.restDay,
+          JSON.stringify(plan.goalStatus),
+          JSON.stringify(plan.selectedBookCodes),
+          plan.createdAt,
+          plan.updatedAt,
         );
       }
     }
 
-    for (const day of Object.values(state.grassData)) {
-      await db.runAsync(
-        `INSERT INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
-        day.date,
-        JSON.stringify({
-          date: day.date,
-          data: day.data,
-          fillYn: day.fillYn,
-        }),
-      );
+    if (requestedSlices.has('prayers')) {
+      for (const prayer of state.prayers) {
+        const result = await db.runAsync(
+          `INSERT INTO ${PRAYERS_TABLE} (
+            client_id, is_my_prayer, requester, relation, target, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          prayer.clientId,
+          prayer.isMyPrayer ? 1 : 0,
+          prayer.isMyPrayer ? '' : prayer.requester,
+          prayer.relation ?? '',
+          prayer.target,
+          prayer.createdAt,
+          prayer.updatedAt ?? prayer.createdAt,
+        );
+        const prayerId = Number(result.lastInsertRowId);
+        if (!prayerId) continue;
+
+        for (const content of prayer.contents) {
+          await db.runAsync(
+            `INSERT INTO ${PRAYER_CONTENTS_TABLE} (client_id, prayer_id, content, registered_at) VALUES (?, ?, ?, ?)`,
+            content.clientId,
+            prayerId,
+            content.content,
+            content.registeredAt,
+          );
+        }
+      }
     }
 
-    for (const themeVerse of state.themeVerses) {
-      await db.runAsync(
-        `INSERT INTO ${THEME_VERSES_TABLE} (
-          client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        themeVerse.clientId,
-        themeVerse.year,
-        themeVerse.bookCode,
-        themeVerse.chapter,
-        themeVerse.verse,
-        JSON.stringify(themeVerse.verseNumbers),
-        themeVerse.verseText,
-        themeVerse.description,
-        themeVerse.createdAt,
-        themeVerse.updatedAt,
-      );
+    if (requestedSlices.has('grassData')) {
+      for (const day of Object.values(state.grassData)) {
+        await db.runAsync(
+          `INSERT INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
+          day.date,
+          JSON.stringify({
+            date: day.date,
+            data: day.data,
+            fillYn: day.fillYn,
+          }),
+        );
+      }
+    }
+
+    if (requestedSlices.has('themeVerses')) {
+      for (const themeVerse of state.themeVerses) {
+        await db.runAsync(
+          `INSERT INTO ${THEME_VERSES_TABLE} (
+            client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          themeVerse.clientId,
+          themeVerse.year,
+          themeVerse.bookCode,
+          themeVerse.chapter,
+          themeVerse.verse,
+          JSON.stringify(themeVerse.verseNumbers),
+          themeVerse.verseText,
+          themeVerse.description,
+          themeVerse.createdAt,
+          themeVerse.updatedAt,
+        );
+      }
     }
 
     await db.execAsync('COMMIT;');
@@ -1424,29 +1636,37 @@ async function replaceLocalPersistedState(
   }
 }
 
+async function replaceLocalPersistedState(
+  db: SQLiteDatabase,
+  state: PersistedStateSnapshot,
+): Promise<void> {
+  await replaceLocalPersistedSlices(db, state, [...PERSISTED_SLICE_KEYS]);
+
+  const keysToDelete = [
+    ACTIVE_DATA_USER_ID_KEY,
+    PENDING_NAVIGATION_KEY,
+    LAST_AUTO_SYNC_AT_KEY,
+    POINT_TOTAL_KEY,
+  ];
+
+  for (const key of keysToDelete) {
+    await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, key);
+  }
+
+  await clearHydratedSliceUserIds(db);
+}
+
 export async function bootstrapSupabaseUserData(
   db: SQLiteDatabase,
   userId: string,
 ): Promise<void> {
-  const localSnapshot = await getLocalPersistedSnapshot(db);
-  const remoteHasData = await hasRemoteRows(userId);
+  const localDataOwnerUserId = await getLocalDataOwnerUserId(db);
 
-  if (!remoteHasData) {
-    await savePersistedStateToSupabase(userId, localSnapshot);
+  if (localDataOwnerUserId && localDataOwnerUserId !== userId) {
+    await resetLocalPersistedState(db);
   }
 
-  let remoteSnapshot = await loadPersistedStateFromSupabase(userId);
-
-  if (remoteSnapshot.themeVerses.length === 0 && localSnapshot.themeVerses.length > 0) {
-    await savePersistedSlicesToSupabase(userId, localSnapshot, ['themeVerses']);
-    remoteSnapshot = createInitialSnapshot({
-      ...remoteSnapshot,
-      themeVerses: localSnapshot.themeVerses,
-    });
-  }
-
-  await replaceLocalPersistedState(db, remoteSnapshot);
-  await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);
+  await ensurePersistedSlicesHydrated(db, userId, ['appState']);
 }
 
 export async function resetLocalPersistedState(
@@ -1465,6 +1685,57 @@ export async function resetLocalPersistedState(
   );
 }
 
+export async function ensurePersistedSlicesHydrated(
+  db: SQLiteDatabase,
+  userId: string,
+  slices: PersistedSliceKey[],
+): Promise<void> {
+  const uniqueSlices = [...new Set(slices)];
+  if (!uniqueSlices.length) {
+    await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);
+    return;
+  }
+
+  const missingSlices: PersistedSliceKey[] = [];
+  for (const slice of uniqueSlices) {
+    const hydratedUserId = await getHydratedSliceUserId(db, slice);
+    if (hydratedUserId !== userId) {
+      missingSlices.push(slice);
+    }
+  }
+
+  if (!missingSlices.length) {
+    await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);
+    return;
+  }
+
+  const localDataOwnerUserId = await getLocalDataOwnerUserId(db);
+  const canSeedFromLocal = !localDataOwnerUserId || localDataOwnerUserId === userId;
+  const localSnapshot = canSeedFromLocal
+    ? await getLocalPersistedSnapshotForSlices(db, missingSlices)
+    : createInitialSnapshot();
+
+  const remoteSlicePresence = await Promise.all(
+    missingSlices.map((slice) => hasRemoteSliceRows(userId, slice)),
+  );
+  const slicesToSeed = missingSlices.filter(
+    (slice, index) =>
+      !remoteSlicePresence[index] && sliceHasPersistedContent(localSnapshot, slice),
+  );
+
+  if (slicesToSeed.length > 0) {
+    await savePersistedSlicesToSupabase(userId, localSnapshot, slicesToSeed);
+  }
+
+  const remoteSnapshot = await loadPersistedSlicesFromSupabase(userId, missingSlices);
+  await replaceLocalPersistedSlices(db, remoteSnapshot, missingSlices);
+  await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);
+
+  for (const slice of missingSlices) {
+    await setHydratedSliceUserId(db, slice, userId);
+  }
+}
+
 export function queuePersistedSlicesSave(
   db: SQLiteDatabase,
   slices: PersistedSliceKey[],
@@ -1481,7 +1752,7 @@ export function queuePersistedSlicesSave(
     .then(async () => {
       const userId = getActiveUserId();
       if (!userId || isSQLiteStateSyncPaused()) return;
-      const snapshot = await getLocalPersistedSnapshot(db);
+      const snapshot = await getLocalPersistedSnapshotForSlices(db, uniqueSlices);
       await savePersistedSlicesToSupabase(userId, snapshot, uniqueSlices);
     })
     .catch((error) => {

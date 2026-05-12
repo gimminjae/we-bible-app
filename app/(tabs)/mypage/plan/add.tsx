@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PlanForm } from '@/components/plans/plan-form';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useBiblePlanTemplate } from '@/hooks/use-plan-templates';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { addPlan } from '@/utils/plan-db';
 import { useI18n } from '@/utils/i18n';
 
@@ -16,6 +18,7 @@ export default function AddPlanScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const params = useLocalSearchParams<{ templateId?: string }>();
   const templateId = useMemo(
     () => (typeof params.templateId === 'string' ? params.templateId : ''),
@@ -23,8 +26,46 @@ export default function AddPlanScreen() {
   );
   const { template, isLoading } = useBiblePlanTemplate(templateId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  if (templateId && isLoading) {
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
+
+  useEffect(() => {
+    let active = true;
+
+    const initialize = async () => {
+      setIsInitializing(true);
+
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
+        }
+      } finally {
+        if (active) {
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    void initialize().catch(() => {
+      if (active) {
+        setIsInitializing(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser, db, isAccountDataPending, isConfigured]);
+
+  if (isInitializing || (templateId && isLoading)) {
     return <LoadingScreen message={t('planTemplate.loadingTemplates')} />;
   }
 

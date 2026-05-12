@@ -10,7 +10,9 @@ import { AdBanner } from '@/components/ads/ad-banner';
 import { BibleGrass } from '@/components/bible-grass';
 import { ThemeVerseSummaryCard } from '@/components/mypage/theme-verse-summary-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import {
   getCurrentThemeVerseYear,
@@ -23,19 +25,57 @@ export default function MyPageScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { scale, moderateScale, pageMaxWidth } = useResponsive();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const currentYear = getCurrentThemeVerseYear();
   const [currentThemeVerse, setCurrentThemeVerse] = useState<ThemeVerseRecord | null>(null);
+  const [isLoadingThemeVerse, setIsLoadingThemeVerse] = useState(true);
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   const loadThemeVerse = useCallback(() => {
     let active = true;
-    getThemeVerseByYear(db, currentYear).then((row) => {
-      if (!active) return;
-      setCurrentThemeVerse(row);
-    });
+
+    const load = async () => {
+      if (active) {
+        setIsLoadingThemeVerse(true);
+      }
+
+      if (isAccountDataPending) {
+        if (active) {
+          setCurrentThemeVerse(null);
+        }
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['themeVerses']);
+          if (!active) return;
+        }
+
+        const row = await getThemeVerseByYear(db, currentYear);
+        if (!active) return;
+        setCurrentThemeVerse(row);
+      } catch {
+        if (active) {
+          setCurrentThemeVerse(null);
+        }
+      } finally {
+        if (active) {
+          setIsLoadingThemeVerse(false);
+        }
+      }
+    };
+
+    void load();
+
     return () => {
       active = false;
     };
-  }, [currentYear, db]);
+  }, [currentUser, currentYear, db, isAccountDataPending, isConfigured]);
 
   useFocusEffect(loadThemeVerse);
 
@@ -94,6 +134,7 @@ export default function MyPageScreen() {
           <ThemeVerseSummaryCard
             year={currentYear}
             themeVerse={currentThemeVerse}
+            isLoading={isLoadingThemeVerse}
             onPress={() => router.push('/(tabs)/mypage/theme-verse')}
           />
 

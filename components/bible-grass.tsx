@@ -3,12 +3,14 @@
 import { useFocusEffect } from "@react-navigation/native"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from "react-native"
 
 import { AdNativeCard } from "@/components/ads/ad-native-card"
 import { useAppSettings } from "@/contexts/app-settings"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import {
   getGrassColorThemeFromDb,
@@ -257,6 +259,7 @@ export function BibleGrass() {
   const { t } = useI18n()
   const { showToast } = useToast()
   const { theme, appLanguage } = useAppSettings()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const { scale, moderateScale, isTablet, dialogMaxWidth } = useResponsive()
   const [grassData, setGrassData] = useState<GrassDataMap>({})
   const [selectedYear, setSelectedYear] = useState(() =>
@@ -269,11 +272,60 @@ export function BibleGrass() {
   const [rewardModalAction, setRewardModalAction] = useState<RewardModalAction | null>(null)
   const [rewardModalSecondsLeft, setRewardModalSecondsLeft] = useState(0)
   const [rewardModalSubmitting, setRewardModalSubmitting] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(true)
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
 
   const load = useCallback(() => {
-    getGrassData(db).then(setGrassData)
-    getGrassColorThemeFromDb(db).then(setGrassTheme)
-  }, [db])
+    let active = true
+
+    const loadGrass = async () => {
+      if (active) {
+        setIsLoadingData(true)
+      }
+
+      if (isAccountDataPending) {
+        if (active) {
+          setGrassData({})
+          setGrassTheme("green")
+        }
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["grassData"])
+          if (!active) return
+        }
+
+        const [nextGrassData, nextGrassTheme] = await Promise.all([
+          getGrassData(db),
+          getGrassColorThemeFromDb(db),
+        ])
+        if (!active) return
+        setGrassData(nextGrassData)
+        setGrassTheme(nextGrassTheme)
+      } catch {
+        if (active) {
+          setGrassData({})
+          setGrassTheme("green")
+        }
+      } finally {
+        if (active) {
+          setIsLoadingData(false)
+        }
+      }
+    }
+
+    void loadGrass()
+
+    return () => {
+      active = false
+    }
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(load)
 
@@ -451,6 +503,22 @@ export function BibleGrass() {
         paddingVertical: scale(24),
       }}
     >
+      {isLoadingData ? (
+        <View
+          className="items-center justify-center"
+          style={{ minHeight: scale(220), gap: scale(14) }}
+        >
+          <ActivityIndicator size="large" color="#2563eb" />
+          <View className="w-full" style={{ gap: scale(10) }}>
+            <View className="h-3 rounded-full bg-primary-100 dark:bg-primary-950/40" />
+            <View
+              className="h-3 rounded-full bg-gray-200 dark:bg-gray-800"
+              style={{ width: '68%', alignSelf: 'center' }}
+            />
+          </View>
+        </View>
+      ) : (
+        <>
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1 flex-row items-center pr-2">
           <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
@@ -966,6 +1034,8 @@ export function BibleGrass() {
           </Text>
         )}
       </View>
+        </>
+      )}
     </View>
   )
 }

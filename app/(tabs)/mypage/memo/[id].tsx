@@ -1,7 +1,10 @@
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LoadingScreen } from '@/components/ui/loading-screen';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
 import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
@@ -24,10 +27,17 @@ export default function MemoDetailScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const params = useLocalSearchParams<{ id?: string }>();
   const memoId = useMemo(() => Number(params.id || 0), [params.id]);
   const [memo, setMemo] = useState<MemoRecord | null>(null);
   const [showEditDrawer, setShowEditDrawer] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   const handleSaveEdit = useCallback(
     async (id: number, title: string, content: string) => {
@@ -85,16 +95,47 @@ export default function MemoDetailScreen() {
     let active = true;
     if (!memoId) {
       setMemo(null);
+      setIsLoading(false);
       return;
     }
-    getMemoById(db, memoId).then((row) => {
-      if (!active) return;
-      setMemo(row);
-    });
+
+    const loadMemo = async () => {
+      setIsLoading(true);
+
+      if (isAccountDataPending) {
+        return;
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ['memos']);
+          if (!active) return;
+        }
+
+        const row = await getMemoById(db, memoId);
+        if (!active) return;
+        setMemo(row);
+      } catch {
+        if (active) {
+          setMemo(null);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadMemo();
+
     return () => {
       active = false;
     };
-  }, [db, memoId]);
+  }, [currentUser, db, isAccountDataPending, isConfigured, memoId]);
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading memo..." />;
+  }
 
   return (
     <SafeAreaView

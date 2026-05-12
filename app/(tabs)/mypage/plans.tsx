@@ -8,9 +8,11 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { Button, ButtonText } from "@/components/ui/button"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { ScreenHeader } from "@/components/ui/screen-header"
+import { useAuth } from "@/contexts/auth-context"
 import { useMySharedPlans } from "@/hooks/use-churches"
 import { formatShortDate } from "@/lib/date"
 import { getPlanGoalSummary } from "@/lib/plan"
+import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import { getAllPlans, type PlanListItem } from "@/utils/plan-db"
 
@@ -18,6 +20,7 @@ export default function PlanListScreen() {
   const db = useSQLiteContext()
   const router = useRouter()
   const { t } = useI18n()
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth()
   const [items, setItems] = useState<PlanListItem[]>([])
   const [isLoadingLocal, setIsLoadingLocal] = useState(true)
   const {
@@ -26,21 +29,44 @@ export default function PlanListScreen() {
     error: sharedPlansError,
   } = useMySharedPlans()
 
+  const isAccountDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)))
+
   const loadLocalPlans = useCallback(() => {
     let active = true
     setIsLoadingLocal(true)
-    getAllPlans(db)
-      .then((rows) => {
+
+    const loadPlans = async () => {
+      if (isAccountDataPending) {
+        return
+      }
+
+      try {
+        if (currentUser && isConfigured) {
+          await ensurePersistedSlicesHydrated(db, currentUser.id, ["plans"])
+          if (!active) return
+        }
+
+        const rows = await getAllPlans(db)
         if (!active) return
         setItems(rows)
-      })
-      .finally(() => {
+      } catch {
+        if (active) {
+          setItems([])
+        }
+      } finally {
         if (active) setIsLoadingLocal(false)
-      })
+      }
+    }
+
+    void loadPlans()
+
     return () => {
       active = false
     }
-  }, [db])
+  }, [currentUser, db, isAccountDataPending, isConfigured])
 
   useFocusEffect(loadLocalPlans)
 
