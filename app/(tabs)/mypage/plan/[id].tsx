@@ -1,9 +1,17 @@
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button, ButtonText } from "@/components/ui/button"
+import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
+import { EditableChapterReadCountGrid } from "@/components/plans/editable-chapter-read-count-grid"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
+import { useLoading } from "@/hooks/use-loading"
+import {
+  countReadChapters,
+  formatReadCountBadge,
+  isChapterRead,
+  normalizeChapterReadCount,
+} from "@/lib/plan"
 import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
@@ -46,7 +54,7 @@ function BookChapterSection({
   getBookName: (code: string, lang: string) => string
 }) {
   const chapters = plan.goalStatus[bookIndex] ?? []
-  const readCount = chapters.filter((c) => c === 1).length
+  const readCount = countReadChapters(chapters)
   return (
     <View className="mb-4">
       <Text className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -55,18 +63,27 @@ function BookChapterSection({
       </Text>
       <View className="flex-row flex-wrap gap-1.5">
         {Array.from({ length: book.maxChapter }, (_, i) => i + 1).map((ch) => {
-          const isRead = (chapters[ch - 1] ?? 0) === 1
+          const chapterReadCount = normalizeChapterReadCount(chapters[ch - 1])
+          const isRead = isChapterRead(chapterReadCount)
           return (
-            <Button
-              key={ch}
-              onPress={() => onChapterPress(bookIndex)}
-              action={isRead ? "positive" : "secondary"}
-              variant={isRead ? "solid" : "outline"}
-              size="xs"
-              className="w-10 h-10 rounded-full p-0 min-h-0"
-            >
-              <ButtonText className="text-xs font-medium">{ch}</ButtonText>
-            </Button>
+            <View key={ch} className="relative">
+              <Button
+                onPress={() => onChapterPress(bookIndex)}
+                action={isRead ? "positive" : "secondary"}
+                variant={isRead ? "solid" : "outline"}
+                size="xs"
+                className="w-10 h-10 rounded-full p-0 min-h-0"
+              >
+                <ButtonText className="text-xs font-medium">{ch}</ButtonText>
+              </Button>
+              {chapterReadCount > 0 ? (
+                <View className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-primary-500 px-1 py-0.5 items-center">
+                  <Text className="text-[10px] font-bold text-white">
+                    {formatReadCountBadge(chapterReadCount)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           )
         })}
       </View>
@@ -414,26 +431,33 @@ function ChapterEditDrawer({
   onSaved,
   t,
 }: ChapterEditDrawerProps) {
-  const [localStatus, setLocalStatus] = useState<GoalStatus>(plan.goalStatus)
+  const [localStatus, setLocalStatus] = useState<GoalStatus>(plan.goalStatus.map((row) => [...row]))
+  const { isLoading, runWithLoading } = useLoading()
 
   useEffect(() => {
     if (visible && plan) {
-      setLocalStatus(plan.goalStatus)
+      setLocalStatus(plan.goalStatus.map((row) => [...row]))
     }
   }, [visible, plan, bookIndex])
 
   const book = BIBLE_BOOKS[bookIndex]
   if (!book) return null
 
-  const chapters = localStatus[bookIndex] ?? Array(book.maxChapter).fill(0)
+  const chapters = Array.from(
+    { length: book.maxChapter },
+    (_entry, chapterIndex) => normalizeChapterReadCount(localStatus[bookIndex]?.[chapterIndex]),
+  )
 
-  const toggleChapter = (chIndex: number) => {
+  const updateChapterCount = (chIndex: number, updater: (current: number) => number) => {
     setLocalStatus((prev) => {
       const next = prev.map((row, i) => {
         if (i !== bookIndex) return row
-        const arr = [...row]
+        const arr = Array.from(
+          { length: book.maxChapter },
+          (_entry, chapterIndex) => normalizeChapterReadCount(row[chapterIndex]),
+        )
         if (chIndex >= 0 && chIndex < arr.length) {
-          arr[chIndex] = (arr[chIndex] ?? 0) === 1 ? 0 : 1
+          arr[chIndex] = Math.max(0, normalizeChapterReadCount(updater(arr[chIndex] ?? 0)))
         }
         return arr
       })
@@ -441,73 +465,94 @@ function ChapterEditDrawer({
     })
   }
 
+  const incrementChapter = (chIndex: number) => {
+    updateChapterCount(chIndex, (current) => current + 1)
+  }
+
+  const decrementChapter = (chIndex: number) => {
+    updateChapterCount(chIndex, (current) => current - 1)
+  }
+
   const checkAll = () => {
-    const allRead = Array.from(
-      { length: book.maxChapter },
-      (_, i) => chapters[i] ?? 0,
-    ).every((c) => c === 1)
+    const allRead = chapters.every((count) => isChapterRead(count))
     setLocalStatus((prev) => {
       const next = prev.map((row, i) =>
-        i === bookIndex ? row.map(() => (allRead ? 0 : 1)) : row,
+        i === bookIndex
+          ? Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
+              const current = normalizeChapterReadCount(row[chapterIndex])
+              if (allRead) return 0
+              return isChapterRead(current) ? current : 1
+            })
+          : row,
       )
       return next
     })
   }
 
   const handleSave = async () => {
-    const { updateGoalStatus } = await import("@/utils/plan-db")
-    const { syncGrassFromPlanSave } = await import("@/utils/grass-db")
-    await updateGoalStatus(db, plan.id, localStatus)
-    await syncGrassFromPlanSave(
-      db,
-      book.bookCode,
-      plan.goalStatus[bookIndex] ?? [],
-      localStatus[bookIndex] ?? [],
-    )
-    onSaved()
+    await runWithLoading(async () => {
+      const { updateGoalStatus } = await import("@/utils/plan-db")
+      const { syncGrassFromPlanSave } = await import("@/utils/grass-db")
+      await updateGoalStatus(db, plan.id, localStatus)
+      await syncGrassFromPlanSave(
+        db,
+        book.bookCode,
+        plan.goalStatus[bookIndex] ?? [],
+        localStatus[bookIndex] ?? [],
+      )
+      onSaved()
+    })
   }
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} heightFraction={0.8}>
+    <BottomSheet
+      visible={visible}
+      onClose={() => {
+        if (isLoading) return
+        onClose()
+      }}
+      heightFraction={0.8}
+    >
       <View className="px-6 py-3 flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
         <Text className="text-lg font-bold text-gray-900 dark:text-white">
           {getBookName(book.bookCode, appLanguage)}
         </Text>
-        <Button onPress={onClose} action="secondary" variant="link" className="h-auto px-2 py-1">
+        <Button
+          onPress={onClose}
+          disabled={isLoading}
+          action="secondary"
+          variant="link"
+          className="h-auto px-2 py-1"
+        >
           <ButtonText className="text-base text-gray-600 dark:text-gray-400">✕</ButtonText>
         </Button>
       </View>
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 8,
           paddingHorizontal: 24,
           paddingVertical: 16,
         }}
       >
-        {Array.from({ length: book.maxChapter }, (_, i) => i).map((chIndex) => {
-          const isRead = (chapters[chIndex] ?? 0) === 1
-          return (
-            <Button
-              key={chIndex}
-              onPress={() => toggleChapter(chIndex)}
-              action={isRead ? "positive" : "secondary"}
-              variant={isRead ? "solid" : "outline"}
-              size="xs"
-              className="w-12 h-12 rounded-full p-0 min-h-0 items-center justify-center"
-            >
-              <ButtonText className="text-xs font-medium">{chIndex + 1}</ButtonText>
-            </Button>
-          )
-        })}
+        <EditableChapterReadCountGrid
+          maxChapter={book.maxChapter}
+          chapters={chapters}
+          onIncrement={incrementChapter}
+          onDecrement={decrementChapter}
+          disabled={isLoading}
+        />
       </ScrollView>
       <View className="px-6 pb-6 pt-2 flex-row gap-3">
-        <Button onPress={handleSave} action="primary" className="flex-1">
+        <Button
+          onPress={handleSave}
+          disabled={isLoading}
+          action="primary"
+          className="flex-1"
+        >
+          {isLoading ? <ButtonSpinner color="#ffffff" /> : null}
           <ButtonText>{t("mypage.savePlan")}</ButtonText>
         </Button>
-        <Button onPress={checkAll} action="secondary" className="flex-1">
+        <Button onPress={checkAll} disabled={isLoading} action="secondary" className="flex-1">
           <ButtonText>{t("mypage.checkAll")}</ButtonText>
         </Button>
       </View>

@@ -9,6 +9,7 @@ import {
   calcTotalReadCount,
   createEmptyGoalStatus,
   getPlanScope,
+  normalizeGoalStatus as normalizePlanGoalStatus,
   updatePlanComputedFields,
   type GoalStatus,
   type PlanRecord,
@@ -306,13 +307,7 @@ function normalizeSelectedBookCodes(raw: unknown) {
 
 function normalizeGoalStatus(raw: unknown): GoalStatus {
   const parsedGoalStatus = parseJsonText<GoalStatus>(raw, createEmptyGoalStatus());
-  return BIBLE_BOOKS.map((book, bookIndex) => {
-    const source = Array.isArray(parsedGoalStatus[bookIndex]) ? parsedGoalStatus[bookIndex] : [];
-    return Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
-      const value = source[chapterIndex];
-      return value === 1 ? 1 : 0;
-    });
-  });
+  return normalizePlanGoalStatus(parsedGoalStatus);
 }
 
 function resolveVisibleEmail(row: UserProfileRow, actorUserId?: string) {

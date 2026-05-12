@@ -1,4 +1,4 @@
-import { BIBLE_BOOKS as PLAN_BOOKS, type GoalStatus } from '@/lib/plan';
+import { BIBLE_BOOKS as PLAN_BOOKS, isChapterRead, type GoalStatus } from '@/lib/plan';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -190,8 +190,8 @@ async function applyGoalStatusDiffForBook(
     const p = prevStatus[i] ?? 0;
     const n = newStatus[i] ?? 0;
     const ch = i + 1;
-    if (p === 1) prevChapters.push(ch);
-    if (n === 1) newChapters.push(ch);
+    if (isChapterRead(p)) prevChapters.push(ch);
+    if (isChapterRead(n)) newChapters.push(ch);
   }
 
   const rows = await db.getAllAsync<{ data: string }>(

@@ -8,7 +8,7 @@ const PLANS_TABLE = 'plans';
 /** 66개 성경 (bookSeq 1~66) */
 export const BIBLE_BOOKS = bibleInfos.filter((b) => b.bookSeq >= 1 && b.bookSeq <= 66);
 
-/** goalStatus: 2차원 배열. 1차원=66성경, 2차원=각 성경의 장별 상태 (0=미읽음, 1=읽음) */
+/** goalStatus: 2차원 배열. 1차원=66성경, 2차원=각 성경의 장별 읽은 횟수 */
 export type GoalStatus = number[][];
 
 export type PlanRecord = {
@@ -71,7 +71,7 @@ export function calcCurrentReadCount(
     const book = BIBLE_BOOKS[i];
     if (!selectedBookCodes.includes(book.bookCode)) continue;
     const chapters = goalStatus[i] ?? [];
-    count += chapters.filter((v) => v === 1).length;
+    count += countReadChapters(chapters);
   }
   return count;
 }
@@ -104,6 +104,42 @@ export function calcGoalPercent(totalReadCount: number, currentReadCount: number
 /** 빈 goalStatus 초기화 (66개 성경, 각각 maxChapter 길이의 0 배열) */
 export function createEmptyGoalStatus(): GoalStatus {
   return BIBLE_BOOKS.map((b) => Array(b.maxChapter).fill(0));
+}
+
+export function normalizeChapterReadCount(value: unknown): number {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return parsed;
+}
+
+export function isChapterRead(value: unknown): boolean {
+  return normalizeChapterReadCount(value) > 0;
+}
+
+export function countReadChapters(chapters: number[]): number {
+  return chapters.reduce((sum, chapter) => sum + (isChapterRead(chapter) ? 1 : 0), 0);
+}
+
+export function normalizeGoalStatus(raw: unknown): GoalStatus {
+  const parsed =
+    typeof raw === 'string'
+      ? (() => {
+          try {
+            const value = JSON.parse(raw) as unknown;
+            return Array.isArray(value) ? value : [];
+          } catch {
+            return [];
+          }
+        })()
+      : Array.isArray(raw)
+        ? raw
+        : [];
+  return BIBLE_BOOKS.map((book, bookIndex) => {
+    const source = Array.isArray(parsed[bookIndex]) ? parsed[bookIndex] : [];
+    return Array.from({ length: book.maxChapter }, (_entry, chapterIndex) =>
+      normalizeChapterReadCount(source[chapterIndex])
+    );
+  });
 }
 
 /** goalStatus를 goalStatus와 selectedBookCodes에 맞게 재계산하여 업데이트 */
@@ -254,12 +290,9 @@ export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanR
   if (!row) return null;
 
   const endDate = row.end_date ?? '';
-  const restDay = calcRestDay(endDate);
-  const readCountPerDay = calcReadCountPerDay(
-    row.total_read_count ?? 0,
-    row.current_read_count ?? 0,
-    restDay
-  );
+  const goalStatus = normalizeGoalStatus(parseJson<GoalStatus>(row.goal_status ?? '[]'));
+  const selectedBookCodes = parseJson<string[]>(row.selected_book_codes ?? '[]');
+  const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
 
   return {
     id: row.id,
@@ -267,13 +300,13 @@ export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanR
     planDescription: row.plan_description ?? '',
     startDate: row.start_date ?? '',
     endDate,
-    totalReadCount: row.total_read_count ?? 0,
-    currentReadCount: row.current_read_count ?? 0,
-    goalPercent: row.goal_percent ?? 0,
-    readCountPerDay,
-    restDay,
-    goalStatus: parseJson<GoalStatus>(row.goal_status ?? '[]'),
-    selectedBookCodes: parseJson<string[]>(row.selected_book_codes ?? '[]'),
+    totalReadCount: computed.totalReadCount,
+    currentReadCount: computed.currentReadCount,
+    goalPercent: computed.goalPercent,
+    readCountPerDay: computed.readCountPerDay,
+    restDay: computed.restDay,
+    goalStatus,
+    selectedBookCodes,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',
   };
@@ -335,7 +368,8 @@ export async function updateGoalStatus(
   const plan = await getPlanById(db, id);
   if (!plan) return;
 
-  const computed = recalcAndUpdate(goalStatus, plan.selectedBookCodes, plan.endDate);
+  const normalizedGoalStatus = normalizeGoalStatus(goalStatus);
+  const computed = recalcAndUpdate(normalizedGoalStatus, plan.selectedBookCodes, plan.endDate);
   const now = nowString();
 
   await db.runAsync(
@@ -345,7 +379,7 @@ export async function updateGoalStatus(
       read_count_per_day = ?, rest_day = ?,
       updated_at = ?
     WHERE id = ?`,
-    JSON.stringify(goalStatus),
+    JSON.stringify(normalizedGoalStatus),
     computed.currentReadCount,
     computed.goalPercent,
     computed.readCountPerDay,

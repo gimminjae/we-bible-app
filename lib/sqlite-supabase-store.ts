@@ -3,6 +3,7 @@ import { getActiveUserId } from '@/lib/auth-state';
 import {
   BIBLE_BOOKS,
   createEmptyGoalStatus,
+  normalizeGoalStatus as normalizePlanGoalStatus,
   recalcPlanFields,
   type GoalStatus,
 } from '@/lib/plan';
@@ -421,12 +422,7 @@ function normalizeGrassDayValue(date: string, raw: unknown): GrassDayValue {
 
 function normalizeGoalStatus(raw: unknown): GoalStatus {
   const parsed = parseJsonText<GoalStatus>(raw, createEmptyGoalStatus());
-  return BIBLE_BOOKS.map((book, bookIndex) => {
-    const source = Array.isArray(parsed[bookIndex]) ? parsed[bookIndex] : [];
-    return Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
-      return source[chapterIndex] === 1 ? 1 : 0;
-    });
-  });
+  return normalizePlanGoalStatus(parsed);
 }
 
 function normalizeThemeVerseNumbers(raw: unknown, fallbackVerse?: unknown): number[] {

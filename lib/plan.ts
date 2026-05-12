@@ -31,6 +31,48 @@ export function createEmptyGoalStatus(): GoalStatus {
   return BIBLE_BOOKS.map((book) => Array(book.maxChapter).fill(0));
 }
 
+export function normalizeChapterReadCount(value: unknown): number {
+  const parsed = Math.floor(Number(value))
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0
+  return parsed
+}
+
+export function isChapterRead(value: unknown): boolean {
+  return normalizeChapterReadCount(value) > 0
+}
+
+export function countReadChapters(chapters: number[]): number {
+  return chapters.reduce((sum, chapter) => sum + (isChapterRead(chapter) ? 1 : 0), 0)
+}
+
+export function formatReadCountBadge(value: unknown): string {
+  const readCount = normalizeChapterReadCount(value)
+  if (readCount <= 0) return ''
+  return readCount > 99 ? '99+' : String(readCount)
+}
+
+export function normalizeGoalStatus(raw: unknown): GoalStatus {
+  const parsed =
+    typeof raw === 'string'
+      ? (() => {
+          try {
+            const value = JSON.parse(raw) as unknown
+            return Array.isArray(value) ? value : []
+          } catch {
+            return []
+          }
+        })()
+      : Array.isArray(raw)
+        ? raw
+        : []
+  return BIBLE_BOOKS.map((book, bookIndex) => {
+    const source = Array.isArray(parsed[bookIndex]) ? parsed[bookIndex] : []
+    return Array.from({ length: book.maxChapter }, (_entry, chapterIndex) =>
+      normalizeChapterReadCount(source[chapterIndex]),
+    )
+  })
+}
+
 export function getPlanScope(churchId?: string | null, teamId?: string | null): PlanScope {
   if (teamId) return 'team';
   if (churchId) return 'church';
@@ -48,7 +90,7 @@ export function calcCurrentReadCount(goalStatus: GoalStatus, selectedBookCodes: 
   return BIBLE_BOOKS.reduce((sum, book, bookIndex) => {
     if (!selectedBookCodes.includes(book.bookCode)) return sum;
     const chapters = goalStatus[bookIndex] ?? [];
-    return sum + chapters.filter((chapter) => chapter === 1).length;
+    return sum + countReadChapters(chapters);
   }, 0);
 }
 
