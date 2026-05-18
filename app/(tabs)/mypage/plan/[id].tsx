@@ -14,6 +14,7 @@ import {
 } from "@/lib/plan"
 import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
+import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { useI18n } from "@/utils/i18n"
 import {
   BIBLE_BOOKS,
@@ -25,7 +26,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -37,6 +38,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 const OT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq <= 39)
 const NT_BOOKS = BIBLE_BOOKS.filter((b) => b.bookSeq >= 40)
+const CHAPTER_BUTTON_LONG_PRESS_MS = 400
 
 function BookChapterSection({
   book,
@@ -44,6 +46,7 @@ function BookChapterSection({
   plan,
   appLanguage,
   onChapterPress,
+  onChapterLongPress,
   getBookName,
 }: {
   book: (typeof BIBLE_BOOKS)[0]
@@ -51,10 +54,13 @@ function BookChapterSection({
   plan: PlanRecord
   appLanguage: string
   onChapterPress: (bookIndex: number) => void
+  onChapterLongPress: (bookCode: string, chapter: number) => void | Promise<void>
   getBookName: (code: string, lang: string) => string
 }) {
   const chapters = plan.goalStatus[bookIndex] ?? []
   const readCount = countReadChapters(chapters)
+  const chapterPressStartedAtRef = useRef(0)
+
   return (
     <View className="mb-4">
       <Text className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -68,7 +74,19 @@ function BookChapterSection({
           return (
             <View key={ch} className="relative">
               <Button
-                onPress={() => onChapterPress(bookIndex)}
+                onPressIn={() => {
+                  chapterPressStartedAtRef.current = Date.now()
+                }}
+                onPress={() => {
+                  if (
+                    Date.now() - chapterPressStartedAtRef.current >= CHAPTER_BUTTON_LONG_PRESS_MS
+                  ) {
+                    return
+                  }
+                  onChapterPress(bookIndex)
+                }}
+                onLongPress={() => onChapterLongPress(book.bookCode, ch)}
+                delayLongPress={CHAPTER_BUTTON_LONG_PRESS_MS}
                 action={isRead ? "positive" : "secondary"}
                 variant={isRead ? "solid" : "outline"}
                 size="xs"
@@ -177,6 +195,14 @@ export default function PlanDetailScreen() {
       params: { id: String(planId) },
     })
   }, [router, planId])
+
+  const handleChapterLongPress = useCallback(
+    async (bookCode: string, chapter: number) => {
+      await setPendingBibleNavigation(db, { bookCode, chapter })
+      router.replace("/(tabs)")
+    },
+    [db, router],
+  )
 
   const selectedOtBooks = useMemo(
     () =>
@@ -306,6 +332,12 @@ export default function PlanDetailScreen() {
           </Text>
         </View>
 
+        <View className="mb-4 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 dark:border-primary-900/60 dark:bg-primary-950/30">
+          <Text className="text-sm leading-6 text-primary-700 dark:text-primary-200">
+            {t("mypage.planChapterLongPressGuide")}
+          </Text>
+        </View>
+
         {/* 구약/신약 탭 */}
         <View className="flex-row border-b border-gray-200 dark:border-gray-700 mb-4">
           {(["ot", "nt"] as const).map((tab) => {
@@ -352,6 +384,7 @@ export default function PlanDetailScreen() {
                     plan={plan}
                     appLanguage={appLanguage}
                     onChapterPress={setChapterModalBookIndex}
+                    onChapterLongPress={handleChapterLongPress}
                     getBookName={getBookName}
                   />
                 )
@@ -378,6 +411,7 @@ export default function PlanDetailScreen() {
                     plan={plan}
                     appLanguage={appLanguage}
                     onChapterPress={setChapterModalBookIndex}
+                    onChapterLongPress={handleChapterLongPress}
                     getBookName={getBookName}
                   />
                 )

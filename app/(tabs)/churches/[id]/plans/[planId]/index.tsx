@@ -13,6 +13,7 @@ import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useSharedPlanDetail } from '@/hooks/use-churches';
 import { syncPlanGoalStatusToGrass } from '@/utils/grass-db';
 import { useI18n } from '@/utils/i18n';
+import { setPendingBibleNavigation } from '@/utils/bible-storage';
 
 export default function ChurchPlanDetailScreen() {
   const params = useLocalSearchParams<{ id?: string; planId?: string }>();
@@ -223,6 +224,10 @@ export default function ChurchPlanDetailScreen() {
               saveError instanceof Error ? saveError.message : t('church.planProgressUpdateFailed'),
             );
           }
+        }}
+        onChapterLongPress={async (bookCode, chapter) => {
+          await setPendingBibleNavigation(db, { bookCode, chapter });
+          router.replace('/(tabs)');
         }}
       />
     </SafeAreaView>

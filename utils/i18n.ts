@@ -270,6 +270,8 @@ const messages = {
       savePlan: "저장",
       checkAll: "모두체크",
       planNoSelectedBooks: "선택된 성경이 없습니다.",
+      planChapterLongPressGuide:
+        "장 버튼을 길게 누르면 해당 장의 성경읽기 페이지로 바로 이동할 수 있어요.",
     },
     themeVerse: {
       title: "푯대말씀",
@@ -990,6 +992,8 @@ const messages = {
       savePlan: "Save",
       checkAll: "Check All",
       planNoSelectedBooks: "No books selected.",
+      planChapterLongPressGuide:
+        "Long-press a chapter button to jump straight to that chapter in the Bible reader.",
     },
     themeVerse: {
       title: "Theme Verse",

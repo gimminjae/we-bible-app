@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EditableChapterReadCountGrid } from '@/components/plans/editable-chapter-read-count-grid';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -25,7 +25,10 @@ type SharedPlanProgressSheetProps = {
   memberProgress: SharedPlanMemberProgress | null;
   canEdit: boolean;
   onSave: (goalStatus: GoalStatus) => Promise<void> | void;
+  onChapterLongPress?: (bookCode: string, chapter: number) => Promise<void> | void;
 };
+
+const CHAPTER_BUTTON_LONG_PRESS_MS = 400;
 
 export function SharedPlanProgressSheet({
   visible,
@@ -33,6 +36,7 @@ export function SharedPlanProgressSheet({
   memberProgress,
   canEdit,
   onSave,
+  onChapterLongPress,
 }: SharedPlanProgressSheetProps) {
   const { appLanguage } = useAppSettings();
   const { t } = useI18n();
@@ -116,6 +120,12 @@ export function SharedPlanProgressSheet({
                   style={{ width: `${Math.min(100, localGoalPercent)}%` }}
                 />
               </View>
+            </View>
+
+            <View className="mb-4 rounded-3xl border border-primary-100 bg-primary-50 px-5 py-4 dark:border-primary-900/60 dark:bg-primary-950/30">
+              <Text className="text-sm leading-6 text-primary-700 dark:text-primary-200">
+                {t('mypage.planChapterLongPressGuide')}
+              </Text>
             </View>
 
             <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
@@ -235,6 +245,9 @@ export function SharedPlanProgressSheet({
                         onDecrement={(chapterIndex) =>
                           updateChapterCount(chapterIndex, (current) => current - 1)
                         }
+                        onChapterLongPress={(chapter) =>
+                          onChapterLongPress?.(book.bookCode, chapter)
+                        }
                       />
                     ) : (
                       <View className="flex-row flex-wrap gap-2">
@@ -242,8 +255,12 @@ export function SharedPlanProgressSheet({
                           const chapterReadCount = chapters[chapterIndex] ?? 0;
                           const read = isChapterRead(chapterReadCount);
                           return (
-                            <View
+                            <Pressable
                               key={`${book.bookCode}-${chapterIndex}`}
+                              onLongPress={() =>
+                                onChapterLongPress?.(book.bookCode, chapterIndex + 1)
+                              }
+                              delayLongPress={CHAPTER_BUTTON_LONG_PRESS_MS}
                               className={`relative h-10 w-10 items-center justify-center rounded-2xl border ${
                                 read
                                   ? 'border-emerald-500 bg-emerald-500'
@@ -264,7 +281,7 @@ export function SharedPlanProgressSheet({
                                   </Text>
                                 </View>
                               ) : null}
-                            </View>
+                            </Pressable>
                           );
                         })}
                       </View>

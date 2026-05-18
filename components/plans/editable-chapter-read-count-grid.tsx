@@ -1,12 +1,16 @@
 import { Button, ButtonText } from '@/components/ui/button'
 import { formatReadCountBadge, isChapterRead, normalizeChapterReadCount } from '@/lib/plan'
+import { useRef } from 'react'
 import { Text, View } from 'react-native'
+
+const CHAPTER_BUTTON_LONG_PRESS_MS = 400
 
 type EditableChapterReadCountGridProps = {
   maxChapter: number
   chapters: number[]
   onIncrement: (chapterIndex: number) => void
   onDecrement: (chapterIndex: number) => void
+  onChapterLongPress?: (chapter: number) => void | Promise<void>
   disabled?: boolean
 }
 
@@ -15,8 +19,11 @@ export function EditableChapterReadCountGrid({
   chapters,
   onIncrement,
   onDecrement,
+  onChapterLongPress,
   disabled = false,
 }: EditableChapterReadCountGridProps) {
+  const chapterPressStartedAtRef = useRef(0)
+
   return (
     <View className="flex-row flex-wrap">
       {Array.from({ length: maxChapter }, (_entry, chapterIndex) => {
@@ -28,7 +35,20 @@ export function EditableChapterReadCountGrid({
             <View className="relative">
               <Button
                 disabled={disabled}
-                onPress={() => onIncrement(chapterIndex)}
+                onPressIn={() => {
+                  chapterPressStartedAtRef.current = Date.now()
+                }}
+                onPress={() => {
+                  if (
+                    onChapterLongPress &&
+                    Date.now() - chapterPressStartedAtRef.current >= CHAPTER_BUTTON_LONG_PRESS_MS
+                  ) {
+                    return
+                  }
+                  onIncrement(chapterIndex)
+                }}
+                onLongPress={() => onChapterLongPress?.(chapterIndex + 1)}
+                delayLongPress={CHAPTER_BUTTON_LONG_PRESS_MS}
                 action={read ? 'positive' : 'secondary'}
                 variant={read ? 'solid' : 'outline'}
                 size="xs"
