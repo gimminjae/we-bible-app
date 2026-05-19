@@ -4,21 +4,32 @@ import { BookChapterDrawer } from '@/components/bible/book-chapter-drawer';
 import { ChapterNav } from '@/components/bible/chapter-nav';
 import { LanguageDrawer } from '@/components/bible/language-drawer';
 import { MemoDrawer } from '@/components/bible/memo-drawer';
+import { ReaderPlanCheckSheet } from '@/components/bible/reader-plan-check-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { SettingsDrawer } from '@/components/bible/settings-drawer';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/contexts/toast-context';
+import { useLoading } from '@/hooks/use-loading';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useResponsive } from '@/hooks/use-responsive';
+import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import {
   clearPendingBibleNavigation,
   getPendingBibleNavigation,
 } from '@/utils/bible-storage';
+import { syncGrassFromPlanSave } from '@/utils/grass-db';
+import {
+  getActivePlansForBookChapter,
+  incrementPlanBookChapterReadCount,
+  type PlanChapterSelectionItem,
+} from '@/utils/plan-db';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -34,10 +45,22 @@ export function BibleReaderHome() {
   const bible = useBibleReader();
   const { goToBookChapter } = bible;
   const { t } = useI18n();
+  const { showToast } = useToast();
+  const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const { scale, moderateScale, isTablet, readingMaxWidth } = useResponsive();
   const actionCircleSize = isTablet ? 44 : scale(48);
   const floatingBottom = isTablet ? scale(20) : scale(24);
   const floatingGap = isTablet ? scale(10) : scale(12);
+  const [isPlanCheckSheetVisible, setIsPlanCheckSheetVisible] = useState(false);
+  const [isLoadingPlanCandidates, setIsLoadingPlanCandidates] = useState(false);
+  const [planCandidates, setPlanCandidates] = useState<PlanChapterSelectionItem[]>([]);
+  const [selectedPlanIds, setSelectedPlanIds] = useState<number[]>([]);
+  const { isLoading: isSavingPlanChecks, runWithLoading: runPlanCheckSave } = useLoading();
+
+  const isPlanDataPending =
+    isConfigured &&
+    (isLoadingSession ||
+      (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
 
   useFocusEffect(
     useCallback(() => {
@@ -101,6 +124,96 @@ export function BibleReaderHome() {
     bible.setShowSecondarySelector(false);
   }, [bible]);
 
+  const loadPlanCandidates = useCallback(async () => {
+    setIsLoadingPlanCandidates(true);
+
+    try {
+      if (currentUser && isConfigured) {
+        await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
+      }
+
+      const items = await getActivePlansForBookChapter(db, bible.bookCode, bible.chapter);
+      setPlanCandidates(items);
+    } catch {
+      setPlanCandidates([]);
+      showToast(t('bibleReader.planCheckLoadFailed'));
+    } finally {
+      setIsLoadingPlanCandidates(false);
+    }
+  }, [bible.bookCode, bible.chapter, currentUser, db, isConfigured, showToast, t]);
+
+  const handleOpenPlanCheckSheet = useCallback(() => {
+    if (isPlanDataPending) {
+      showToast(t('bibleReader.planCheckSyncPending'));
+      return;
+    }
+
+    setSelectedPlanIds([]);
+    setIsPlanCheckSheetVisible(true);
+    void loadPlanCandidates();
+  }, [isPlanDataPending, loadPlanCandidates, showToast, t]);
+
+  const handleClosePlanCheckSheet = useCallback(() => {
+    if (isSavingPlanChecks) return;
+    setIsPlanCheckSheetVisible(false);
+    setSelectedPlanIds([]);
+  }, [isSavingPlanChecks]);
+
+  const handleTogglePlanSelection = useCallback((planId: number) => {
+    setSelectedPlanIds((previous) =>
+      previous.includes(planId)
+        ? previous.filter((item) => item !== planId)
+        : [...previous, planId],
+    );
+  }, []);
+
+  const handleSavePlanChecks = useCallback(async () => {
+    if (!selectedPlanIds.length) return;
+
+    await runPlanCheckSave(async () => {
+      try {
+        let savedCount = 0;
+
+        for (const planId of selectedPlanIds) {
+          const result = await incrementPlanBookChapterReadCount(
+            db,
+            planId,
+            bible.bookCode,
+            bible.chapter,
+          );
+          if (!result) continue;
+
+          await syncGrassFromPlanSave(
+            db,
+            bible.bookCode,
+            result.previousBookStatus,
+            result.nextBookStatus,
+          );
+          savedCount += 1;
+        }
+
+        if (savedCount <= 0) {
+          showToast(t('bibleReader.planCheckSaveFailed'));
+          return;
+        }
+
+        setIsPlanCheckSheetVisible(false);
+        setSelectedPlanIds([]);
+        showToast(t('bibleReader.planCheckSaved').replace('{count}', String(savedCount)), '📖');
+      } catch {
+        showToast(t('bibleReader.planCheckSaveFailed'));
+      }
+    });
+  }, [
+    bible.bookCode,
+    bible.chapter,
+    db,
+    runPlanCheckSave,
+    selectedPlanIds,
+    showToast,
+    t,
+  ]);
+
   const copyButtonStyle = useAnimatedStyle(() => ({
     opacity: copyButtonOpacity.value,
   }));
@@ -135,6 +248,30 @@ export function BibleReaderHome() {
             onSwipePrev={bible.goPrevChapter}
             onSwipeNext={bible.goNextChapter}
             onScroll={handleScroll}
+            contentBottomInset={isTablet ? scale(128) : scale(140)}
+            footer={
+              <View className="rounded-3xl border border-primary-100 bg-white p-5 dark:border-primary-900/50 dark:bg-gray-900">
+                <Text className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+                  {t('bibleReader.planCheckDescription').replace(
+                    '{chapter}',
+                    t('themeVerse.selectedBookChapter')
+                      .replace('{book}', bible.bookName)
+                      .replace('{chapter}', String(bible.chapter)),
+                  )}
+                </Text>
+                <Button
+                  onPress={handleOpenPlanCheckSheet}
+                  className="mt-4 h-auto rounded-2xl bg-primary-500 px-4 py-4"
+                >
+                  <ButtonText
+                    style={{ fontSize: moderateScale(15) }}
+                    className="font-semibold text-white dark:text-gray-900"
+                  >
+                    {t('bibleReader.planCheckButton')}
+                  </ButtonText>
+                </Button>
+              </View>
+            }
           />
 
           <Animated.View
@@ -224,6 +361,20 @@ export function BibleReaderHome() {
           onClose={bible.closeMemoDrawer}
           initialVerseText={bible.memoInitialContent}
           onSave={bible.saveMemo}
+        />
+
+        <ReaderPlanCheckSheet
+          visible={isPlanCheckSheetVisible}
+          chapterLabel={t('themeVerse.selectedBookChapter')
+            .replace('{book}', bible.bookName)
+            .replace('{chapter}', String(bible.chapter))}
+          plans={planCandidates}
+          selectedPlanIds={selectedPlanIds}
+          isLoading={isLoadingPlanCandidates}
+          isSaving={isSavingPlanChecks}
+          onClose={handleClosePlanCheckSheet}
+          onTogglePlan={handleTogglePlanSelection}
+          onSave={handleSavePlanChecks}
         />
 
         <BookChapterDrawer

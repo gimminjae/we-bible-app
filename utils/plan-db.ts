@@ -41,6 +41,18 @@ export type PlanListItem = {
   selectedBookCodes: string[];
 };
 
+export type PlanChapterSelectionItem = {
+  id: number;
+  planName: string;
+  planDescription: string;
+  startDate: string;
+  endDate: string;
+  totalReadCount: number;
+  currentReadCount: number;
+  goalPercent: number;
+  currentChapterReadCount: number;
+};
+
 function nowString(): string {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -51,6 +63,11 @@ function todayString(): string {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function isDateWithinRange(date: string, startDate: string, endDate: string): boolean {
+  if (!date || !startDate || !endDate) return false;
+  return startDate <= date && date <= endDate;
 }
 
 /** 선택된 책들의 총 장 수 */
@@ -269,6 +286,52 @@ export async function getAllPlans(db: SQLiteDatabase): Promise<PlanListItem[]> {
   }));
 }
 
+export async function getActivePlansForBookChapter(
+  db: SQLiteDatabase,
+  bookCode: string,
+  chapter: number,
+  date = todayString()
+): Promise<PlanChapterSelectionItem[]> {
+  const bookIndex = BIBLE_BOOKS.findIndex((book) => book.bookCode === bookCode);
+  if (bookIndex < 0 || chapter <= 0) return [];
+
+  const rows = await db.getAllAsync<{
+    id: number;
+    plan_name: string;
+    plan_description: string;
+    start_date: string;
+    end_date: string;
+    goal_status: string;
+    selected_book_codes: string;
+  }>(`SELECT id, plan_name, plan_description, start_date, end_date, goal_status, selected_book_codes FROM ${PLANS_TABLE} ORDER BY id DESC`);
+
+  return rows
+    .map((row) => {
+      const selectedBookCodes = parseJson<string[]>(row.selected_book_codes ?? '[]');
+      if (!selectedBookCodes.includes(bookCode)) return null;
+
+      const startDate = row.start_date ?? '';
+      const endDate = row.end_date ?? '';
+      if (!isDateWithinRange(date, startDate, endDate)) return null;
+
+      const goalStatus = normalizeGoalStatus(parseJson<GoalStatus>(row.goal_status ?? '[]'));
+      const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
+
+      return {
+        id: row.id,
+        planName: row.plan_name ?? '',
+        planDescription: row.plan_description ?? '',
+        startDate,
+        endDate,
+        totalReadCount: computed.totalReadCount,
+        currentReadCount: computed.currentReadCount,
+        goalPercent: computed.goalPercent,
+        currentChapterReadCount: normalizeChapterReadCount(goalStatus[bookIndex]?.[chapter - 1]),
+      } satisfies PlanChapterSelectionItem;
+    })
+    .filter((item): item is PlanChapterSelectionItem => item !== null);
+}
+
 export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanRecord | null> {
   const row = await db.getFirstAsync<{
     id: number;
@@ -388,6 +451,36 @@ export async function updateGoalStatus(
     id
   );
   await queuePersistedSlicesSave(db, ['plans']);
+}
+
+export async function incrementPlanBookChapterReadCount(
+  db: SQLiteDatabase,
+  id: number,
+  bookCode: string,
+  chapter: number
+): Promise<{ previousBookStatus: number[]; nextBookStatus: number[] } | null> {
+  const plan = await getPlanById(db, id);
+  if (!plan || chapter <= 0 || !plan.selectedBookCodes.includes(bookCode)) return null;
+
+  const bookIndex = BIBLE_BOOKS.findIndex((book) => book.bookCode === bookCode);
+  const book = BIBLE_BOOKS[bookIndex];
+  if (bookIndex < 0 || !book || chapter > book.maxChapter) return null;
+
+  const nextGoalStatus = plan.goalStatus.map((row) => [...row]);
+  const previousBookStatus = Array.from(
+    { length: book.maxChapter },
+    (_entry, chapterIndex) => normalizeChapterReadCount(plan.goalStatus[bookIndex]?.[chapterIndex]),
+  );
+  const nextBookStatus = [...previousBookStatus];
+  nextBookStatus[chapter - 1] = normalizeChapterReadCount(nextBookStatus[chapter - 1]) + 1;
+  nextGoalStatus[bookIndex] = nextBookStatus;
+
+  await updateGoalStatus(db, id, nextGoalStatus);
+
+  return {
+    previousBookStatus,
+    nextBookStatus,
+  };
 }
 
 export async function deletePlan(db: SQLiteDatabase, id: number): Promise<void> {

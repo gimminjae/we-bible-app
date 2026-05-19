@@ -651,6 +651,21 @@ const messages = {
       churchPlanDeleted: "공용 계획을 삭제했어요!",
       churchPlanProgressUpdated: "진행도를 저장했어요!",
     },
+    bibleReader: {
+      planCheckButton: "읽기표에 체크",
+      planCheckTitle: "읽기표 바로 체크",
+      planCheckDescription:
+        "{chapter}을(를) 선택한 읽기표에 바로 반영할 수 있어요. 이미 체크된 읽기표는 횟수가 1회 더 올라가요.",
+      planCheckLoading: "읽기표를 불러오는 중이에요...",
+      planCheckLoadFailed: "읽기표를 불러오지 못했어요.",
+      planCheckNoPlans:
+        "현재 장을 바로 반영할 수 있는 읽기표가 없습니다. 책 범위와 기간이 맞는 읽기표를 먼저 만들어 주세요.",
+      planCheckSelectionHint: "선택한 읽기표 {count}개",
+      planCheckReadCount: "현재 {count}회",
+      planCheckSaved: "{count}개의 읽기표에 반영했어요.",
+      planCheckSaveFailed: "읽기표 체크를 저장하지 못했어요.",
+      planCheckSyncPending: "읽기표 데이터를 동기화하는 중이에요. 잠시 후 다시 시도해 주세요.",
+    },
     bibleDrawer: {
       oldTestament: "구약",
       newTestament: "신약",
@@ -1374,6 +1389,21 @@ const messages = {
       churchPlanUpdated: "Shared plan updated!",
       churchPlanDeleted: "Shared plan deleted!",
       churchPlanProgressUpdated: "Progress saved!",
+    },
+    bibleReader: {
+      planCheckButton: "Check in plan",
+      planCheckTitle: "Quick Plan Check",
+      planCheckDescription:
+        "Add {chapter} directly to the selected reading plans. If it is already checked, the count increases by 1.",
+      planCheckLoading: "Loading reading plans...",
+      planCheckLoadFailed: "Failed to load reading plans.",
+      planCheckNoPlans:
+        "No reading plans currently match this chapter. Create a plan with this book and an active date range first.",
+      planCheckSelectionHint: "{count} plans selected",
+      planCheckReadCount: "Current {count} times",
+      planCheckSaved: "Updated {count} reading plans.",
+      planCheckSaveFailed: "Failed to save the reading plan check.",
+      planCheckSyncPending: "Reading plan data is still syncing. Please try again shortly.",
     },
     bibleDrawer: {
       oldTestament: "Old Testament",

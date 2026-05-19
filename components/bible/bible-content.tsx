@@ -64,6 +64,8 @@ type BibleContentProps = {
   onSwipePrev?: () => void;
   onSwipeNext?: () => void;
   onScroll?: () => void;
+  footer?: React.ReactNode;
+  contentBottomInset?: number;
 };
 
 export function BibleContent({
@@ -80,9 +82,12 @@ export function BibleContent({
   onSwipePrev,
   onSwipeNext,
   onScroll,
+  footer,
+  contentBottomInset,
 }: BibleContentProps) {
   const scrollRef = useRef<ScrollView>(null);
   const { scale, moderateScale } = useResponsive();
+  const resolvedBottomInset = contentBottomInset ?? scale(40);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -116,7 +121,7 @@ export function BibleContent({
           contentContainerStyle={{
             paddingHorizontal: scale(16),
             paddingTop: scale(20),
-            paddingBottom: scale(40),
+            paddingBottom: resolvedBottomInset,
           }}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
@@ -221,6 +226,8 @@ export function BibleContent({
                   </Pressable>
                 );
               })}
+
+              {footer ? <View style={{ marginTop: scale(24) }}>{footer}</View> : null}
             </View>
           )}
         </ScrollView>
