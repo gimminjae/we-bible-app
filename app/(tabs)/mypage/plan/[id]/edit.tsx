@@ -8,7 +8,6 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { getPlanById, updatePlanInfo } from '@/utils/plan-db';
 import { useI18n } from '@/utils/i18n';
 
@@ -51,11 +50,6 @@ export default function EditPlanScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
-          if (!active) return;
-        }
-
         const plan = await getPlanById(db, planId);
         if (!active || !plan) return;
         setInitialValues({

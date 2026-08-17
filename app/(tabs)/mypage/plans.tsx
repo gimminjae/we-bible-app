@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { useMySharedPlans } from "@/hooks/use-churches"
 import { formatShortDate } from "@/lib/date"
 import { getPlanGoalSummary } from "@/lib/plan"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import { getAllPlans, type PlanListItem } from "@/utils/plan-db"
 
@@ -44,11 +43,6 @@ export default function PlanListScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["plans"])
-          if (!active) return
-        }
-
         const rows = await getAllPlans(db)
         if (!active) return
         setItems(rows)

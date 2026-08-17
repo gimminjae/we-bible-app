@@ -1,4 +1,6 @@
 import { createId } from '@/lib/date';
+import { getActiveUserId } from '@/lib/auth-state';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -13,14 +15,15 @@ export type MemoRecord = {
   createdAt: string;
 };
 
-/** 저장 시각 'YYYY-MM-DD HH:mm:ss' */
 function nowString(): string {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export async function initMemosTable(db: SQLiteDatabase): Promise<void> {
+async function ensureLocalMemosTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${MEMOS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +51,31 @@ export async function initMemosTable(db: SQLiteDatabase): Promise<void> {
   }
 }
 
+function toSupabaseError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('MEMOS_REMOTE_ERROR');
+}
+
+function normalizeMemoRow(row: {
+  id?: unknown;
+  title?: unknown;
+  content?: unknown;
+  verse_text?: unknown;
+  created_at?: unknown;
+}): MemoRecord {
+  return {
+    id: Number(row.id ?? 0),
+    title: String(row.title ?? ''),
+    content: String(row.content ?? ''),
+    verseText: String(row.verse_text ?? ''),
+    createdAt: String(row.created_at ?? ''),
+  };
+}
+
+export async function initMemosTable(db: SQLiteDatabase): Promise<void> {
+  if (getActiveUserId()) return;
+  await ensureLocalMemosTable(db);
+}
+
 export async function addMemo(
   db: SQLiteDatabase,
   title: string,
@@ -55,17 +83,52 @@ export async function addMemo(
   verseText: string,
   bookCode: string,
   chapter: number,
-  verseNumbers: number[]
+  verseNumbers: number[],
 ): Promise<void> {
+  const userId = getActiveUserId();
   const createdAt = nowString();
-  const clientId = createId();
+
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(MEMOS_TABLE)
+      .insert({
+        user_id: userId,
+        client_id: createId(),
+        title: title.trim() || '',
+        content: content.trim() || '',
+        verse_text: verseText.trim() || '',
+        created_at: createdAt,
+      })
+      .select('id')
+      .single();
+
+    if (error) throw toSupabaseError(error);
+    const memoId = Number((data as { id?: unknown } | null)?.id ?? 0);
+    if (!memoId) return;
+
+    if (verseNumbers.length > 0) {
+      const payload = verseNumbers.map((verse) => ({
+        user_id: userId,
+        memo_id: memoId,
+        book_code: bookCode,
+        chapter,
+        verse,
+      }));
+      const { error: verseError } = await supabase.from(MEMO_VERSES_TABLE).insert(payload);
+      if (verseError) throw toSupabaseError(verseError);
+    }
+    return;
+  }
+
+  await ensureLocalMemosTable(db);
   const result = await db.runAsync(
     `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
-    clientId,
+    createId(),
     title.trim() || '',
     content.trim() || '',
     verseText.trim() || '',
-    createdAt
+    createdAt,
   );
   const memoId = Number(result.lastInsertRowId);
   if (!memoId) return;
@@ -75,46 +138,91 @@ export async function addMemo(
       memoId,
       bookCode,
       chapter,
-      verse
+      verse,
     );
   }
   await queuePersistedSlicesSave(db, ['memos']);
 }
 
-/** 성경 구절 참조 없이 메모 저장 */
 export async function addMemoWithoutVerse(
   db: SQLiteDatabase,
   title: string,
-  content: string
+  content: string,
 ): Promise<void> {
+  const userId = getActiveUserId();
   const createdAt = nowString();
+
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.from(MEMOS_TABLE).insert({
+      user_id: userId,
+      client_id: createId(),
+      title: title.trim() || '',
+      content: content.trim() || '',
+      verse_text: '',
+      created_at: createdAt,
+    });
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalMemosTable(db);
   await db.runAsync(
     `INSERT INTO ${MEMOS_TABLE} (client_id, title, content, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
     createId(),
     title.trim() || '',
     content.trim() || '',
     '',
-    createdAt
+    createdAt,
   );
   await queuePersistedSlicesSave(db, ['memos']);
 }
 
-/** 현재 장에서 메모가 있는 절 번호 목록 */
 export async function getMemoVerseNumbersForChapter(
   db: SQLiteDatabase,
   bookCode: string,
-  chapter: number
+  chapter: number,
 ): Promise<number[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(MEMO_VERSES_TABLE)
+      .select('verse')
+      .eq('user_id', userId)
+      .eq('book_code', bookCode)
+      .eq('chapter', chapter)
+      .order('verse', { ascending: true });
+
+    if (error) throw toSupabaseError(error);
+    return (data ?? []).map((row) => Number((row as { verse?: unknown }).verse ?? 0));
+  }
+
+  await ensureLocalMemosTable(db);
   const rows = await db.getAllAsync<{ verse: number }>(
     `SELECT DISTINCT verse FROM ${MEMO_VERSES_TABLE} WHERE book_code = ? AND chapter = ? ORDER BY verse`,
     bookCode,
-    chapter
+    chapter,
   );
   return rows.map((r) => r.verse);
 }
 
-/** 메모 목록 조회 (최신순) */
 export async function getAllMemos(db: SQLiteDatabase): Promise<MemoRecord[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(MEMOS_TABLE)
+      .select('id, title, content, verse_text, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+
+    if (error) throw toSupabaseError(error);
+    return (data ?? []).map((row) => normalizeMemoRow(row as Record<string, unknown>));
+  }
+
+  await ensureLocalMemosTable(db);
   const rows = await db.getAllAsync<{
     id: number;
     title: string;
@@ -122,7 +230,7 @@ export async function getAllMemos(db: SQLiteDatabase): Promise<MemoRecord[]> {
     verse_text: string;
     created_at: string;
   }>(
-    `SELECT id, title, content, verse_text, created_at FROM ${MEMOS_TABLE} ORDER BY created_at DESC, id DESC`
+    `SELECT id, title, content, verse_text, created_at FROM ${MEMOS_TABLE} ORDER BY created_at DESC, id DESC`,
   );
   return rows.map((r) => ({
     id: r.id,
@@ -133,30 +241,68 @@ export async function getAllMemos(db: SQLiteDatabase): Promise<MemoRecord[]> {
   }));
 }
 
-/** 메모 수정 */
 export async function updateMemo(
   db: SQLiteDatabase,
   id: number,
   title: string,
-  content: string
+  content: string,
 ): Promise<void> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from(MEMOS_TABLE)
+      .update({
+        title: title.trim() || '',
+        content: content.trim() || '',
+      })
+      .eq('user_id', userId)
+      .eq('id', id);
+
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalMemosTable(db);
   await db.runAsync(
     `UPDATE ${MEMOS_TABLE} SET title = ?, content = ? WHERE id = ?`,
     title.trim() || '',
     content.trim() || '',
-    id
+    id,
   );
   await queuePersistedSlicesSave(db, ['memos']);
 }
 
-/** 메모 삭제 */
 export async function deleteMemo(db: SQLiteDatabase, id: number): Promise<void> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.from(MEMOS_TABLE).delete().eq('user_id', userId).eq('id', id);
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalMemosTable(db);
   await db.runAsync(`DELETE FROM ${MEMOS_TABLE} WHERE id = ?`, id);
   await queuePersistedSlicesSave(db, ['memos']);
 }
 
-/** 메모 상세 조회 */
 export async function getMemoById(db: SQLiteDatabase, id: number): Promise<MemoRecord | null> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(MEMOS_TABLE)
+      .select('id, title, content, verse_text, created_at')
+      .eq('user_id', userId)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw toSupabaseError(error);
+    return data ? normalizeMemoRow(data as Record<string, unknown>) : null;
+  }
+
+  await ensureLocalMemosTable(db);
   const row = await db.getFirstAsync<{
     id: number;
     title: string;
@@ -165,7 +311,7 @@ export async function getMemoById(db: SQLiteDatabase, id: number): Promise<MemoR
     created_at: string;
   }>(
     `SELECT id, title, content, verse_text, created_at FROM ${MEMOS_TABLE} WHERE id = ?`,
-    id
+    id,
   );
   if (!row) return null;
   return {

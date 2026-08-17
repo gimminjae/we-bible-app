@@ -1,8 +1,11 @@
+import { getActiveUserId } from '@/lib/auth-state';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { BIBLE_BOOKS as PLAN_BOOKS, isChapterRead, type GoalStatus } from '@/lib/plan';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const GRASS_TABLE = 'bible_grass';
+const GRASS_META_ROW_DATE = '__meta__';
 
 export type GrassDayEntry = {
   bookCode: string;
@@ -15,7 +18,6 @@ export type GrassDayValue = {
   fillYn: boolean;
 };
 
-/** date string (YYYY-MM-DD) -> { date, data, fillYn } */
 export type GrassDataMap = Record<string, GrassDayValue>;
 
 function todayString(): string {
@@ -32,7 +34,24 @@ function parseJson<T>(raw: string, fallback: T): T {
   }
 }
 
-export async function initGrassTable(db: SQLiteDatabase): Promise<void> {
+function parseGrassValue(date: string, raw: unknown): GrassDayValue {
+  if (Array.isArray(raw)) {
+    return { date, data: raw as GrassDayEntry[], fillYn: false };
+  }
+
+  if (raw && typeof raw === 'object') {
+    const value = raw as { date?: unknown; data?: unknown; fillYn?: unknown };
+    return {
+      date: typeof value.date === 'string' ? value.date : date,
+      data: Array.isArray(value.data) ? (value.data as GrassDayEntry[]) : [],
+      fillYn: value.fillYn === true,
+    };
+  }
+
+  return { date, data: [], fillYn: false };
+}
+
+async function ensureLocalGrassTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${GRASS_TABLE} (
       date TEXT PRIMARY KEY,
@@ -41,36 +60,90 @@ export async function initGrassTable(db: SQLiteDatabase): Promise<void> {
   `);
 }
 
+function toSupabaseError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('GRASS_REMOTE_ERROR');
+}
+
+async function loadRemoteGrassDay(
+  userId: string,
+  date: string,
+): Promise<GrassDayValue | null> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from(GRASS_TABLE)
+    .select('date, data')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .maybeSingle();
+
+  if (error) throw toSupabaseError(error);
+  if (!data) return null;
+
+  const row = data as { date?: unknown; data?: unknown };
+  return parseGrassValue(String(row.date ?? date), row.data);
+}
+
+async function upsertRemoteGrassDay(
+  userId: string,
+  value: GrassDayValue,
+): Promise<void> {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.from(GRASS_TABLE).upsert(
+    {
+      user_id: userId,
+      date: value.date,
+      data: {
+        date: value.date,
+        data: value.data,
+        fillYn: value.fillYn,
+      },
+    },
+    { onConflict: 'user_id,date' },
+  );
+
+  if (error) throw toSupabaseError(error);
+}
+
+export async function initGrassTable(db: SQLiteDatabase): Promise<void> {
+  if (getActiveUserId()) return;
+  await ensureLocalGrassTable(db);
+}
+
 export async function getGrassData(db: SQLiteDatabase): Promise<GrassDataMap> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(GRASS_TABLE)
+      .select('date, data')
+      .eq('user_id', userId);
+
+    if (error) throw toSupabaseError(error);
+
+    const map: GrassDataMap = {};
+    for (const rawRow of data ?? []) {
+      const row = rawRow as { date?: unknown; data?: unknown };
+      const date = String(row.date ?? '');
+      if (!date || date === GRASS_META_ROW_DATE) continue;
+      map[date] = parseGrassValue(date, row.data);
+    }
+    return map;
+  }
+
+  await ensureLocalGrassTable(db);
   const rows = await db.getAllAsync<{ date: string; data: string }>(
-    `SELECT date, data FROM ${GRASS_TABLE}`
+    `SELECT date, data FROM ${GRASS_TABLE}`,
   );
   const map: GrassDataMap = {};
   for (const r of rows) {
-    if (r.date) {
-      const parsed = parseJson<unknown>(r.data ?? '[]', []);
-      if (Array.isArray(parsed)) {
-        map[r.date] = { date: r.date, data: parsed as GrassDayEntry[], fillYn: false };
-      } else if (typeof parsed === 'object' && parsed !== null) {
-        const obj = parsed as { date?: unknown; data?: unknown; fillYn?: unknown };
-        map[r.date] = {
-          date: typeof obj.date === 'string' ? obj.date : r.date,
-          data: Array.isArray(obj.data) ? (obj.data as GrassDayEntry[]) : [],
-          fillYn: obj.fillYn === true,
-        };
-      } else {
-        map[r.date] = { date: r.date, data: [], fillYn: false };
-      }
-    }
+    if (!r.date) continue;
+    const parsed = parseJson<unknown>(r.data ?? '[]', []);
+    map[r.date] = parseGrassValue(r.date, parsed);
   }
   return map;
 }
 
-/** Get total chapter count for a specific date */
-export function getChapterCountForDate(
-  data: GrassDataMap,
-  date: string
-): number {
+export function getChapterCountForDate(data: GrassDataMap, date: string): number {
   const day = data[date];
   if (!day) return 0;
   return day.data.reduce((sum, e) => sum + e.readChapter.length, 0);
@@ -81,14 +154,9 @@ function toDateString(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/**
- * 어제까지 이어지는 연속 읽기 일수.
- * selectedYear 내에서만 계산.
- * includesYesterday: 어제 읽었는지 (연속 유지 중인지)
- */
 export function getStreakUpToYesterday(
   data: GrassDataMap,
-  selectedYear: number
+  selectedYear: number,
 ): { streak: number; includesYesterday: boolean } {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -114,36 +182,32 @@ export function getStreakUpToYesterday(
   return { streak, includesYesterday: true };
 }
 
-/** Merge/replace book entry for a date. Used when syncing from plan save. */
 export async function syncGrassForBook(
   db: SQLiteDatabase,
   date: string,
   bookCode: string,
-  readChapters: number[]
+  readChapters: number[],
 ): Promise<void> {
-  const rows = await db.getAllAsync<{ data: string }>(
-    `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
-    date
-  );
+  const userId = getActiveUserId();
+  if (userId) {
+    const current = (await loadRemoteGrassDay(userId, date)) ?? { date, data: [], fillYn: false };
+    let dayData = current.data.filter((entry) => entry.bookCode !== bookCode);
+    if (readChapters.length > 0) {
+      dayData.push({ bookCode, readChapter: readChapters });
+    }
+    await upsertRemoteGrassDay(userId, {
+      date,
+      data: dayData,
+      fillYn: dayData.length > 0 ? false : current.fillYn,
+    });
+    return;
+  }
 
+  await ensureLocalGrassTable(db);
+  const rows = await db.getAllAsync<{ data: string }>(`SELECT data FROM ${GRASS_TABLE} WHERE date = ?`, date);
   const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
-  const current =
-    Array.isArray(parsed)
-      ? { date, data: parsed as GrassDayEntry[], fillYn: false }
-      : typeof parsed === 'object' && parsed !== null
-        ? {
-          date: typeof (parsed as { date?: unknown }).date === 'string'
-            ? ((parsed as { date?: string }).date as string)
-            : date,
-          data: Array.isArray((parsed as { data?: unknown }).data)
-            ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
-            : [],
-          fillYn: (parsed as { fillYn?: unknown }).fillYn === true,
-        }
-        : { date, data: [], fillYn: false };
-  let dayData: GrassDayEntry[] = current.data;
-
-  dayData = dayData.filter((e) => e.bookCode !== bookCode);
+  const current = parseGrassValue(date, parsed);
+  let dayData = current.data.filter((entry) => entry.bookCode !== bookCode);
   if (readChapters.length > 0) {
     dayData.push({ bookCode, readChapter: readChapters });
   }
@@ -155,26 +219,21 @@ export async function syncGrassForBook(
       date,
       data: dayData,
       fillYn: dayData.length > 0 ? false : current.fillYn,
-    })
+    }),
   );
   await queuePersistedSlicesSave(db, ['grassData']);
 }
 
-/**
- * Sync grass when user saves in ChapterEditDrawer.
- * 읽기표 goalStatus는 누적 진행 상태이므로, 오늘 잔디에는 "이번 저장에서 바뀐 장"만 반영한다:
- * - prev에 있다가 new에서 해제된 장 → 오늘 잔디에 있던 경우에만 제거
- * - prev에 없었다가 new에서 체크된 장 → 오늘 잔디에 추가
- * - 과거 날짜에 읽어서 이미 누적 상태에만 남아 있던 장은 오늘 잔디에 다시 기록하지 않음
- */
 export async function syncGrassFromPlanSave(
   db: SQLiteDatabase,
   bookCode: string,
   prevStatus: number[],
-  newStatus: number[]
+  newStatus: number[],
 ): Promise<void> {
   await applyGoalStatusDiffForBook(db, todayString(), bookCode, prevStatus, newStatus);
-  await queuePersistedSlicesSave(db, ['grassData']);
+  if (!getActiveUserId()) {
+    await queuePersistedSlicesSave(db, ['grassData']);
+  }
 }
 
 async function applyGoalStatusDiffForBook(
@@ -182,7 +241,7 @@ async function applyGoalStatusDiffForBook(
   date: string,
   bookCode: string,
   prevStatus: number[],
-  newStatus: number[]
+  newStatus: number[],
 ): Promise<void> {
   const prevChapters: number[] = [];
   const newChapters: number[] = [];
@@ -194,29 +253,21 @@ async function applyGoalStatusDiffForBook(
     if (isChapterRead(n)) newChapters.push(ch);
   }
 
-  const rows = await db.getAllAsync<{ data: string }>(
-    `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
-    date
-  );
-
-  const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
+  const userId = getActiveUserId();
   const current =
-    Array.isArray(parsed)
-      ? { date, data: parsed as GrassDayEntry[], fillYn: false }
-      : typeof parsed === 'object' && parsed !== null
-        ? {
-          date: typeof (parsed as { date?: unknown }).date === 'string'
-            ? ((parsed as { date?: string }).date as string)
-            : date,
-          data: Array.isArray((parsed as { data?: unknown }).data)
-            ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
-            : [],
-          fillYn: (parsed as { fillYn?: unknown }).fillYn === true,
-        }
-        : { date, data: [], fillYn: false };
-  let dayData: GrassDayEntry[] = current.data;
+    userId
+      ? (await loadRemoteGrassDay(userId, date)) ?? { date, data: [], fillYn: false }
+      : await (async () => {
+          await ensureLocalGrassTable(db);
+          const rows = await db.getAllAsync<{ data: string }>(
+            `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
+            date,
+          );
+          const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
+          return parseGrassValue(date, parsed);
+        })();
 
-  const existingEntry = dayData.find((e) => e.bookCode === bookCode);
+  const existingEntry = current.data.find((entry) => entry.bookCode === bookCode);
   const currentChapters = existingEntry?.readChapter ?? [];
 
   const prevSet = new Set(prevChapters);
@@ -224,27 +275,33 @@ async function applyGoalStatusDiffForBook(
   const removedChapters = prevChapters.filter((ch) => !newSet.has(ch));
   const addedChapters = newChapters.filter((ch) => !prevSet.has(ch));
 
-  // 오늘 잔디는 누적 goalStatus 전체가 아니라 이번 저장에서 바뀐 장만 반영한다.
   const resultChapters = [
     ...currentChapters.filter((ch) => !removedChapters.includes(ch)),
     ...addedChapters,
   ]
-    .filter((ch, i, arr) => arr.indexOf(ch) === i)
-    .sort((a, b) => a - b);
+    .filter((ch, index, array) => array.indexOf(ch) === index)
+    .sort((left, right) => left - right);
 
-  const nextDayData = dayData.filter((e) => e.bookCode !== bookCode);
+  const nextDayData = current.data.filter((entry) => entry.bookCode !== bookCode);
   if (resultChapters.length > 0) {
     nextDayData.push({ bookCode, readChapter: resultChapters });
+  }
+
+  const nextValue = {
+    date,
+    data: nextDayData,
+    fillYn: nextDayData.length > 0 ? false : current.fillYn,
+  };
+
+  if (userId) {
+    await upsertRemoteGrassDay(userId, nextValue);
+    return;
   }
 
   await db.runAsync(
     `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
     date,
-    JSON.stringify({
-      date,
-      data: nextDayData,
-      fillYn: nextDayData.length > 0 ? false : current.fillYn,
-    })
+    JSON.stringify(nextValue),
   );
 }
 
@@ -253,7 +310,7 @@ export async function syncPlanGoalStatusToGrass(
   selectedBookCodes: string[],
   previousGoalStatus: GoalStatus,
   nextGoalStatus: GoalStatus,
-  date = todayString()
+  date = todayString(),
 ): Promise<void> {
   for (const bookCode of selectedBookCodes) {
     const bookIndex = PLAN_BOOKS.findIndex((book) => book.bookCode === bookCode);
@@ -263,27 +320,40 @@ export async function syncPlanGoalStatusToGrass(
       date,
       bookCode,
       previousGoalStatus[bookIndex] ?? [],
-      nextGoalStatus[bookIndex] ?? []
+      nextGoalStatus[bookIndex] ?? [],
     );
   }
-  await queuePersistedSlicesSave(db, ['grassData']);
+  if (!getActiveUserId()) {
+    await queuePersistedSlicesSave(db, ['grassData']);
+  }
 }
 
 export async function fillGrassByPoint(
   db: SQLiteDatabase,
-  date: string
+  date: string,
 ): Promise<boolean> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const current = await loadRemoteGrassDay(userId, date);
+    const currentData = current?.data ?? [];
+    if (currentData.length > 0) return false;
+
+    await upsertRemoteGrassDay(userId, {
+      date,
+      data: [],
+      fillYn: true,
+    });
+    return true;
+  }
+
+  await ensureLocalGrassTable(db);
   const rows = await db.getAllAsync<{ data: string }>(
     `SELECT data FROM ${GRASS_TABLE} WHERE date = ?`,
-    date
+    date,
   );
   const parsed = rows[0] ? parseJson<unknown>(rows[0].data ?? '[]', []) : [];
-  const currentData = Array.isArray(parsed)
-    ? (parsed as GrassDayEntry[])
-    : typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { data?: unknown }).data)
-      ? ((parsed as { data: GrassDayEntry[] }).data as GrassDayEntry[])
-      : [];
-  if (currentData.length > 0) return false;
+  const currentValue = parseGrassValue(date, parsed);
+  if (currentValue.data.length > 0) return false;
 
   await db.runAsync(
     `INSERT OR REPLACE INTO ${GRASS_TABLE} (date, data) VALUES (?, ?)`,
@@ -292,7 +362,7 @@ export async function fillGrassByPoint(
       date,
       data: [],
       fillYn: true,
-    })
+    }),
   );
   await queuePersistedSlicesSave(db, ['grassData']);
   return true;

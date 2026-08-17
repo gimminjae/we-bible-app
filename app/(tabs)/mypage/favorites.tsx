@@ -5,7 +5,6 @@ import { useAppSettings } from "@/contexts/app-settings"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { copyToClipboard } from "@/utils/clipboard"
@@ -53,11 +52,6 @@ export default function FavoriteListScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["favorites"])
-          if (!active) return
-        }
-
         const rows = await getAllFavorites(db)
         if (!active) return
         setItems(rows)

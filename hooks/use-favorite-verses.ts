@@ -1,12 +1,10 @@
 import {
   addFavorites as dbAddFavorites,
   getFavoritesForChapter,
-  initFavoriteVersesTable,
   removeFavorites as dbRemoveFavorites,
   type FavoriteVerseInput,
 } from '@/utils/favorite-verses-db';
 import { useAuth } from '@/contexts/auth-context';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -25,7 +23,6 @@ export function useFavoriteVerses(
   const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const enabled = options.enabled ?? true;
   const [favoriteVerseNumbers, setFavoriteVerseNumbers] = useState<number[]>([]);
-  const [initDone, setInitDone] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
 
   const isAccountDataPending =
@@ -43,23 +40,6 @@ export function useFavoriteVerses(
   }, [db, bookCode, chapter]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await initFavoriteVersesTable(db);
-        if (cancelled) return;
-        setInitDone(true);
-      } catch {
-        if (!cancelled) setInitDone(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [db]);
-
-  useEffect(() => {
-    if (!initDone) return;
     if (!enabled) {
       setFavoriteVerseNumbers([]);
       setIsHydrating(false);
@@ -75,22 +55,17 @@ export function useFavoriteVerses(
           setIsHydrating(true);
           return;
         }
+      }
 
-        setIsHydrating(true);
+      setIsHydrating(true);
+      if (!cancelled) {
         try {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['favorites']);
-          if (cancelled) return;
+          await refetch();
         } finally {
           if (!cancelled) {
             setIsHydrating(false);
           }
         }
-      } else {
-        setIsHydrating(false);
-      }
-
-      if (!cancelled) {
-        await refetch();
       }
     };
 
@@ -109,7 +84,6 @@ export function useFavoriteVerses(
     dataUserId,
     db,
     enabled,
-    initDone,
     isAccountDataPending,
     isConfigured,
     refetch,

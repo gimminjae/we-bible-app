@@ -12,7 +12,6 @@ import { ThemeVerseSummaryCard } from '@/components/mypage/theme-verse-summary-c
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import {
   getCurrentThemeVerseYear,
@@ -51,11 +50,6 @@ export default function MyPageScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['themeVerses']);
-          if (!active) return;
-        }
-
         const row = await getThemeVerseByYear(db, currentYear);
         if (!active) return;
         setCurrentThemeVerse(row);

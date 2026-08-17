@@ -312,6 +312,7 @@ const DEFAULT_STATE: PersistedStateSnapshot = {
 };
 
 let persistWriteQueue: Promise<void> = Promise.resolve();
+let localPersistedTablesReady = false;
 
 function toErrorMessagePart(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
@@ -521,7 +522,130 @@ function createInitialSnapshot(overrides?: Partial<PersistedStateSnapshot>): Per
   };
 }
 
+async function addColumnIfMissing(
+  db: SQLiteDatabase,
+  tableName: string,
+  columnName: string,
+  definition: string,
+): Promise<void> {
+  const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName})`);
+  if (!info.some((row) => row.name === columnName)) {
+    await db.runAsync(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+}
+
+async function ensureLocalPersistedTables(db: SQLiteDatabase): Promise<void> {
+  if (localPersistedTablesReady) return;
+
+  await db.execAsync(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS ${BIBLE_STATE_TABLE} (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS ${FAVORITES_TABLE} (
+      book_code TEXT NOT NULL,
+      chapter INTEGER NOT NULL,
+      verse INTEGER NOT NULL,
+      verse_text TEXT DEFAULT '',
+      created_at TEXT DEFAULT '',
+      PRIMARY KEY (book_code, chapter, verse)
+    );
+    CREATE TABLE IF NOT EXISTS ${MEMOS_TABLE} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
+      title TEXT DEFAULT '',
+      content TEXT DEFAULT '',
+      verse_text TEXT DEFAULT '',
+      created_at TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS ${MEMO_VERSES_TABLE} (
+      memo_id INTEGER NOT NULL,
+      book_code TEXT NOT NULL,
+      chapter INTEGER NOT NULL,
+      verse INTEGER NOT NULL,
+      PRIMARY KEY (memo_id, book_code, chapter, verse),
+      FOREIGN KEY (memo_id) REFERENCES ${MEMOS_TABLE}(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS ${PLANS_TABLE} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
+      plan_name TEXT NOT NULL DEFAULT '',
+      plan_description TEXT NOT NULL DEFAULT '',
+      start_date TEXT NOT NULL DEFAULT '',
+      end_date TEXT NOT NULL DEFAULT '',
+      total_read_count INTEGER NOT NULL DEFAULT 0,
+      current_read_count INTEGER NOT NULL DEFAULT 0,
+      goal_percent REAL NOT NULL DEFAULT 0,
+      read_count_per_day REAL NOT NULL DEFAULT 0,
+      rest_day INTEGER NOT NULL DEFAULT 0,
+      goal_status TEXT NOT NULL DEFAULT '[]',
+      selected_book_codes TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS ${PRAYERS_TABLE} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
+      is_my_prayer INTEGER NOT NULL DEFAULT 0,
+      requester TEXT DEFAULT '',
+      relation TEXT DEFAULT '',
+      target TEXT DEFAULT '',
+      created_at TEXT DEFAULT '',
+      updated_at TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS ${PRAYER_CONTENTS_TABLE} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
+      prayer_id INTEGER NOT NULL,
+      content TEXT DEFAULT '',
+      registered_at TEXT DEFAULT '',
+      FOREIGN KEY (prayer_id) REFERENCES ${PRAYERS_TABLE}(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS ${GRASS_TABLE} (
+      date TEXT PRIMARY KEY,
+      data TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE TABLE IF NOT EXISTS ${THEME_VERSES_TABLE} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT '',
+      year INTEGER NOT NULL UNIQUE,
+      book_code TEXT NOT NULL DEFAULT '',
+      chapter INTEGER NOT NULL DEFAULT 1,
+      verse INTEGER NOT NULL DEFAULT 1,
+      verse_numbers TEXT NOT NULL DEFAULT '[]',
+      verse_text TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT ''
+    );
+  `);
+
+  await addColumnIfMissing(db, FAVORITES_TABLE, 'verse_text', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, FAVORITES_TABLE, 'created_at', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, MEMOS_TABLE, 'client_id', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, MEMOS_TABLE, 'verse_text', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, PLANS_TABLE, 'client_id', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, PLANS_TABLE, 'plan_description', `TEXT NOT NULL DEFAULT ''`);
+  await addColumnIfMissing(db, PRAYERS_TABLE, 'client_id', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, PRAYERS_TABLE, 'is_my_prayer', `INTEGER NOT NULL DEFAULT 0`);
+  await addColumnIfMissing(db, PRAYERS_TABLE, 'relation', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, PRAYERS_TABLE, 'updated_at', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, PRAYER_CONTENTS_TABLE, 'client_id', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, THEME_VERSES_TABLE, 'client_id', `TEXT DEFAULT ''`);
+  await addColumnIfMissing(db, THEME_VERSES_TABLE, 'description', `TEXT NOT NULL DEFAULT ''`);
+  await addColumnIfMissing(db, THEME_VERSES_TABLE, 'updated_at', `TEXT NOT NULL DEFAULT ''`);
+  await addColumnIfMissing(db, THEME_VERSES_TABLE, 'verse_numbers', `TEXT NOT NULL DEFAULT '[]'`);
+
+  await db.runAsync(
+    `UPDATE ${PRAYERS_TABLE} SET updated_at = created_at WHERE updated_at = '' OR updated_at IS NULL`,
+  );
+
+  localPersistedTablesReady = true;
+}
+
 async function getBibleStateValue(db: SQLiteDatabase, key: string): Promise<string | null> {
+  await ensureLocalPersistedTables(db);
   const row = await db.getFirstAsync<{ value: string }>(
     `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
     key,
@@ -530,6 +654,7 @@ async function getBibleStateValue(db: SQLiteDatabase, key: string): Promise<stri
 }
 
 async function setBibleStateValue(db: SQLiteDatabase, key: string, value: string): Promise<void> {
+  await ensureLocalPersistedTables(db);
   await db.runAsync(
     `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
     key,
@@ -560,6 +685,7 @@ async function clearHydratedSliceUserIds(
   db: SQLiteDatabase,
   slices: PersistedSliceKey[] = [...PERSISTED_SLICE_KEYS],
 ): Promise<void> {
+  await ensureLocalPersistedTables(db);
   for (const slice of slices) {
     await db.runAsync(
       `DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
@@ -746,6 +872,7 @@ export async function getLocalDataOwnerUserId(db: SQLiteDatabase): Promise<strin
 }
 
 export async function getLocalPersistedSnapshot(db: SQLiteDatabase): Promise<PersistedStateSnapshot> {
+  await ensureLocalPersistedTables(db);
   const [theme, appLanguage, bible, favorites, memos, plans, prayers, grassData, grassTheme, themeVerses] =
     await Promise.all([
       readLocalTheme(db),
@@ -778,6 +905,7 @@ async function getLocalPersistedSnapshotForSlices(
   db: SQLiteDatabase,
   slices: PersistedSliceKey[],
 ): Promise<PersistedStateSnapshot> {
+  await ensureLocalPersistedTables(db);
   const requestedSlices = new Set(slices);
   const shouldLoadAppState = requestedSlices.has('appState');
   const shouldLoadFavorites = requestedSlices.has('favorites');
@@ -1447,6 +1575,7 @@ async function replaceLocalPersistedSlices(
   state: PersistedStateSnapshot,
   slices: PersistedSliceKey[],
 ): Promise<void> {
+  await ensureLocalPersistedTables(db);
   const requestedSlices = new Set(slices);
   await db.execAsync('PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE;');
 
@@ -1657,12 +1786,29 @@ export async function bootstrapSupabaseUserData(
   userId: string,
 ): Promise<void> {
   const localDataOwnerUserId = await getLocalDataOwnerUserId(db);
+  const hasLegacyAuthenticatedSnapshot = Boolean(localDataOwnerUserId);
 
-  if (localDataOwnerUserId && localDataOwnerUserId !== userId) {
+  if (hasLegacyAuthenticatedSnapshot) {
     await resetLocalPersistedState(db);
   }
 
-  await ensurePersistedSlicesHydrated(db, userId, ['appState']);
+  const localSnapshot = await getLocalPersistedSnapshot(db);
+  const remoteSlicePresence = await Promise.all(
+    PERSISTED_SLICE_KEYS.map((slice) => hasRemoteSliceRows(userId, slice)),
+  );
+  const hasAnyRemoteData = remoteSlicePresence.some(Boolean);
+
+  if (hasAnyRemoteData) {
+    return;
+  }
+
+  const slicesToSeed = PERSISTED_SLICE_KEYS.filter((slice) =>
+    sliceHasPersistedContent(localSnapshot, slice),
+  );
+
+  if (slicesToSeed.length > 0) {
+    await savePersistedSlicesToSupabase(userId, localSnapshot, slicesToSeed);
+  }
 }
 
 export async function resetLocalPersistedState(
@@ -1686,6 +1832,10 @@ export async function ensurePersistedSlicesHydrated(
   userId: string,
   slices: PersistedSliceKey[],
 ): Promise<void> {
+  if (getActiveUserId() === userId) {
+    return;
+  }
+
   const uniqueSlices = [...new Set(slices)];
   if (!uniqueSlices.length) {
     await setBibleStateValue(db, ACTIVE_DATA_USER_ID_KEY, userId);

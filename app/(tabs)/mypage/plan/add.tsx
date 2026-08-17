@@ -9,7 +9,6 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useBiblePlanTemplate } from '@/hooks/use-plan-templates';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { addPlan } from '@/utils/plan-db';
 import { useI18n } from '@/utils/i18n';
 
@@ -44,9 +43,6 @@ export default function AddPlanScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
-        }
       } finally {
         if (active) {
           setIsInitializing(false);

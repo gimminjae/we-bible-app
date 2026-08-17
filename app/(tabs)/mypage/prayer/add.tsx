@@ -4,7 +4,6 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useLoading } from '@/hooks/use-loading';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import { addPrayer } from '@/utils/prayer-db';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -51,9 +50,6 @@ export default function AddPrayerScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['prayers']);
-        }
       } finally {
         if (active) {
           setIsInitializing(false);

@@ -1,14 +1,14 @@
 import { createId } from '@/lib/date';
+import { getActiveUserId } from '@/lib/auth-state';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import { bibleInfos } from '@/services/bible';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const PLANS_TABLE = 'plans';
 
-/** 66개 성경 (bookSeq 1~66) */
 export const BIBLE_BOOKS = bibleInfos.filter((b) => b.bookSeq >= 1 && b.bookSeq <= 66);
 
-/** goalStatus: 2차원 배열. 1차원=66성경, 2차원=각 성경의 장별 읽은 횟수 */
 export type GoalStatus = number[][];
 
 export type PlanRecord = {
@@ -56,7 +56,9 @@ export type PlanChapterSelectionItem = {
 function nowString(): string {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function todayString(): string {
@@ -70,7 +72,6 @@ function isDateWithinRange(date: string, startDate: string, endDate: string): bo
   return startDate <= date && date <= endDate;
 }
 
-/** 선택된 책들의 총 장 수 */
 export function calcTotalReadCount(selectedBookCodes: string[]): number {
   return selectedBookCodes.reduce((sum, code) => {
     const book = BIBLE_BOOKS.find((b) => b.bookCode === code);
@@ -78,11 +79,7 @@ export function calcTotalReadCount(selectedBookCodes: string[]): number {
   }, 0);
 }
 
-/** goalStatus에서 선택된 책들의 읽은 장 수 합계 */
-export function calcCurrentReadCount(
-  goalStatus: GoalStatus,
-  selectedBookCodes: string[]
-): number {
+export function calcCurrentReadCount(goalStatus: GoalStatus, selectedBookCodes: string[]): number {
   let count = 0;
   for (let i = 0; i < BIBLE_BOOKS.length; i++) {
     const book = BIBLE_BOOKS[i];
@@ -93,7 +90,6 @@ export function calcCurrentReadCount(
   return count;
 }
 
-/** 오늘부터 endDate까지 잔여 일수 */
 export function calcRestDay(endDate: string): number {
   const today = new Date(todayString());
   const end = new Date(endDate);
@@ -101,24 +97,21 @@ export function calcRestDay(endDate: string): number {
   return Math.max(0, diff);
 }
 
-/** 하루당 읽어야 할 장 수 */
 export function calcReadCountPerDay(
   totalReadCount: number,
   currentReadCount: number,
-  restDay: number
+  restDay: number,
 ): number {
   const remaining = totalReadCount - currentReadCount;
   if (restDay <= 0 || remaining <= 0) return 0;
   return Math.round((remaining / restDay) * 100) / 100;
 }
 
-/** 목표 달성 퍼센트 */
 export function calcGoalPercent(totalReadCount: number, currentReadCount: number): number {
   if (totalReadCount <= 0) return 0;
   return Math.round((currentReadCount / totalReadCount) * 10000) / 100;
 }
 
-/** 빈 goalStatus 초기화 (66개 성경, 각각 maxChapter 길이의 0 배열) */
 export function createEmptyGoalStatus(): GoalStatus {
   return BIBLE_BOOKS.map((b) => Array(b.maxChapter).fill(0));
 }
@@ -154,16 +147,15 @@ export function normalizeGoalStatus(raw: unknown): GoalStatus {
   return BIBLE_BOOKS.map((book, bookIndex) => {
     const source = Array.isArray(parsed[bookIndex]) ? parsed[bookIndex] : [];
     return Array.from({ length: book.maxChapter }, (_entry, chapterIndex) =>
-      normalizeChapterReadCount(source[chapterIndex])
+      normalizeChapterReadCount(source[chapterIndex]),
     );
   });
 }
 
-/** goalStatus를 goalStatus와 selectedBookCodes에 맞게 재계산하여 업데이트 */
 function recalcAndUpdate(
   goalStatus: GoalStatus,
   selectedBookCodes: string[],
-  endDate: string
+  endDate: string,
 ): {
   totalReadCount: number;
   currentReadCount: number;
@@ -186,7 +178,19 @@ function recalcAndUpdate(
   };
 }
 
-export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
+function parseJson<T>(value: unknown): T {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return [] as unknown as T;
+    }
+  }
+
+  return (value as T) ?? ([] as unknown as T);
+}
+
+async function ensureLocalPlansTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${PLANS_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,9 +216,92 @@ export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
   }
   if (!info.some((r) => r.name === 'plan_description')) {
     await db.runAsync(
-      `ALTER TABLE ${PLANS_TABLE} ADD COLUMN plan_description TEXT NOT NULL DEFAULT ''`
+      `ALTER TABLE ${PLANS_TABLE} ADD COLUMN plan_description TEXT NOT NULL DEFAULT ''`,
     );
   }
+}
+
+function toSupabaseError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('PLANS_REMOTE_ERROR');
+}
+
+type RemotePlanRow = {
+  id?: unknown;
+  plan_name?: unknown;
+  plan_description?: unknown;
+  start_date?: unknown;
+  end_date?: unknown;
+  total_read_count?: unknown;
+  current_read_count?: unknown;
+  goal_percent?: unknown;
+  read_count_per_day?: unknown;
+  rest_day?: unknown;
+  goal_status?: unknown;
+  selected_book_codes?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+function normalizeRemotePlanToRecord(row: RemotePlanRow): PlanRecord {
+  const endDate = String(row.end_date ?? '');
+  const goalStatus = normalizeGoalStatus(row.goal_status);
+  const selectedBookCodes = parseJson<string[]>(row.selected_book_codes).filter(
+    (value): value is string => typeof value === 'string',
+  );
+  const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
+
+  return {
+    id: Number(row.id ?? 0),
+    planName: String(row.plan_name ?? ''),
+    planDescription: String(row.plan_description ?? ''),
+    startDate: String(row.start_date ?? ''),
+    endDate,
+    totalReadCount: computed.totalReadCount,
+    currentReadCount: computed.currentReadCount,
+    goalPercent: computed.goalPercent,
+    readCountPerDay: computed.readCountPerDay,
+    restDay: computed.restDay,
+    goalStatus,
+    selectedBookCodes,
+    createdAt: String(row.created_at ?? ''),
+    updatedAt: String(row.updated_at ?? ''),
+  };
+}
+
+function normalizeRemotePlanToListItem(row: RemotePlanRow): PlanListItem {
+  const record = normalizeRemotePlanToRecord(row);
+  return {
+    id: record.id,
+    planName: record.planName,
+    planDescription: record.planDescription,
+    startDate: record.startDate,
+    endDate: record.endDate,
+    totalReadCount: record.totalReadCount,
+    currentReadCount: record.currentReadCount,
+    goalPercent: record.goalPercent,
+    restDay: record.restDay,
+    selectedBookCodes: record.selectedBookCodes,
+  };
+}
+
+async function getRemotePlanRows(userId: string): Promise<RemotePlanRow[]> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from(PLANS_TABLE)
+    .select(
+      'id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
+    )
+    .eq('user_id', userId)
+    .is('church_id', null)
+    .order('id', { ascending: false });
+
+  if (error) throw toSupabaseError(error);
+  return (data ?? []) as RemotePlanRow[];
+}
+
+export async function initPlansTable(db: SQLiteDatabase): Promise<void> {
+  if (getActiveUserId()) return;
+  await ensureLocalPlansTable(db);
 }
 
 export async function addPlan(
@@ -223,13 +310,45 @@ export async function addPlan(
   planDescription: string,
   startDate: string,
   endDate: string,
-  selectedBookCodes: string[]
+  selectedBookCodes: string[],
 ): Promise<number> {
   const now = nowString();
   const goalStatus = createEmptyGoalStatus();
   const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
   const clientId = createId();
+  const userId = getActiveUserId();
 
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(PLANS_TABLE)
+      .insert({
+        user_id: userId,
+        client_id: clientId,
+        plan_name: planName.trim(),
+        plan_description: planDescription.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        total_read_count: computed.totalReadCount,
+        current_read_count: computed.currentReadCount,
+        goal_percent: computed.goalPercent,
+        read_count_per_day: computed.readCountPerDay,
+        rest_day: computed.restDay,
+        goal_status: goalStatus,
+        selected_book_codes: selectedBookCodes,
+        created_at: now,
+        updated_at: now,
+        church_id: null,
+        team_id: null,
+      })
+      .select('id')
+      .single();
+
+    if (error) throw toSupabaseError(error);
+    return Number((data as { id?: unknown } | null)?.id ?? 0);
+  }
+
+  await ensureLocalPlansTable(db);
   const result = await db.runAsync(
     `INSERT INTO ${PLANS_TABLE} (
       client_id, plan_name, plan_description, start_date, end_date,
@@ -249,13 +368,20 @@ export async function addPlan(
     JSON.stringify(goalStatus),
     JSON.stringify(selectedBookCodes),
     now,
-    now
+    now,
   );
   await queuePersistedSlicesSave(db, ['plans']);
   return Number(result.lastInsertRowId);
 }
 
 export async function getAllPlans(db: SQLiteDatabase): Promise<PlanListItem[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const rows = await getRemotePlanRows(userId);
+    return rows.map(normalizeRemotePlanToListItem);
+  }
+
+  await ensureLocalPlansTable(db);
   const rows = await db.getAllAsync<{
     id: number;
     plan_name: string;
@@ -269,7 +395,7 @@ export async function getAllPlans(db: SQLiteDatabase): Promise<PlanListItem[]> {
     selected_book_codes: string;
   }>(
     `SELECT id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, rest_day, selected_book_codes
-     FROM ${PLANS_TABLE} ORDER BY id DESC`
+     FROM ${PLANS_TABLE} ORDER BY id DESC`,
   );
 
   return rows.map((r) => ({
@@ -290,11 +416,44 @@ export async function getActivePlansForBookChapter(
   db: SQLiteDatabase,
   bookCode: string,
   chapter: number,
-  date = todayString()
+  date = todayString(),
 ): Promise<PlanChapterSelectionItem[]> {
   const bookIndex = BIBLE_BOOKS.findIndex((book) => book.bookCode === bookCode);
   if (bookIndex < 0 || chapter <= 0) return [];
 
+  const userId = getActiveUserId();
+  if (userId) {
+    const rows = await getRemotePlanRows(userId);
+    return rows
+      .map((row) => {
+        const selectedBookCodes = parseJson<string[]>(row.selected_book_codes).filter(
+          (value): value is string => typeof value === 'string',
+        );
+        if (!selectedBookCodes.includes(bookCode)) return null;
+
+        const startDate = String(row.start_date ?? '');
+        const endDate = String(row.end_date ?? '');
+        if (!isDateWithinRange(date, startDate, endDate)) return null;
+
+        const goalStatus = normalizeGoalStatus(row.goal_status);
+        const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
+
+        return {
+          id: Number(row.id ?? 0),
+          planName: String(row.plan_name ?? ''),
+          planDescription: String(row.plan_description ?? ''),
+          startDate,
+          endDate,
+          totalReadCount: computed.totalReadCount,
+          currentReadCount: computed.currentReadCount,
+          goalPercent: computed.goalPercent,
+          currentChapterReadCount: normalizeChapterReadCount(goalStatus[bookIndex]?.[chapter - 1]),
+        } satisfies PlanChapterSelectionItem;
+      })
+      .filter((item): item is PlanChapterSelectionItem => item !== null);
+  }
+
+  await ensureLocalPlansTable(db);
   const rows = await db.getAllAsync<{
     id: number;
     plan_name: string;
@@ -303,7 +462,9 @@ export async function getActivePlansForBookChapter(
     end_date: string;
     goal_status: string;
     selected_book_codes: string;
-  }>(`SELECT id, plan_name, plan_description, start_date, end_date, goal_status, selected_book_codes FROM ${PLANS_TABLE} ORDER BY id DESC`);
+  }>(
+    `SELECT id, plan_name, plan_description, start_date, end_date, goal_status, selected_book_codes FROM ${PLANS_TABLE} ORDER BY id DESC`,
+  );
 
   return rows
     .map((row) => {
@@ -333,6 +494,24 @@ export async function getActivePlansForBookChapter(
 }
 
 export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanRecord | null> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(PLANS_TABLE)
+      .select(
+        'id, plan_name, plan_description, start_date, end_date, total_read_count, current_read_count, goal_percent, read_count_per_day, rest_day, goal_status, selected_book_codes, created_at, updated_at',
+      )
+      .eq('user_id', userId)
+      .is('church_id', null)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw toSupabaseError(error);
+    return data ? normalizeRemotePlanToRecord(data as RemotePlanRow) : null;
+  }
+
+  await ensureLocalPlansTable(db);
   const row = await db.getFirstAsync<{
     id: number;
     plan_name: string;
@@ -375,14 +554,6 @@ export async function getPlanById(db: SQLiteDatabase, id: number): Promise<PlanR
   };
 }
 
-function parseJson<T>(s: string): T {
-  try {
-    return JSON.parse(s) as T;
-  } catch {
-    return [] as unknown as T;
-  }
-}
-
 export async function updatePlanInfo(
   db: SQLiteDatabase,
   id: number,
@@ -390,7 +561,7 @@ export async function updatePlanInfo(
   planDescription: string,
   startDate: string,
   endDate: string,
-  selectedBookCodes: string[]
+  selectedBookCodes: string[],
 ): Promise<void> {
   const plan = await getPlanById(db, id);
   if (!plan) return;
@@ -398,7 +569,34 @@ export async function updatePlanInfo(
   const goalStatus = plan.goalStatus;
   const computed = recalcAndUpdate(goalStatus, selectedBookCodes, endDate);
   const now = nowString();
+  const userId = getActiveUserId();
 
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from(PLANS_TABLE)
+      .update({
+        plan_name: planName.trim(),
+        plan_description: planDescription.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        selected_book_codes: selectedBookCodes,
+        total_read_count: computed.totalReadCount,
+        current_read_count: computed.currentReadCount,
+        goal_percent: computed.goalPercent,
+        read_count_per_day: computed.readCountPerDay,
+        rest_day: computed.restDay,
+        updated_at: now,
+      })
+      .eq('user_id', userId)
+      .is('church_id', null)
+      .eq('id', id);
+
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalPlansTable(db);
   await db.runAsync(
     `UPDATE ${PLANS_TABLE} SET
       plan_name = ?, plan_description = ?, start_date = ?, end_date = ?,
@@ -418,7 +616,7 @@ export async function updatePlanInfo(
     computed.readCountPerDay,
     computed.restDay,
     now,
-    id
+    id,
   );
   await queuePersistedSlicesSave(db, ['plans']);
 }
@@ -426,7 +624,7 @@ export async function updatePlanInfo(
 export async function updateGoalStatus(
   db: SQLiteDatabase,
   id: number,
-  goalStatus: GoalStatus
+  goalStatus: GoalStatus,
 ): Promise<void> {
   const plan = await getPlanById(db, id);
   if (!plan) return;
@@ -434,7 +632,29 @@ export async function updateGoalStatus(
   const normalizedGoalStatus = normalizeGoalStatus(goalStatus);
   const computed = recalcAndUpdate(normalizedGoalStatus, plan.selectedBookCodes, plan.endDate);
   const now = nowString();
+  const userId = getActiveUserId();
 
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from(PLANS_TABLE)
+      .update({
+        goal_status: normalizedGoalStatus,
+        current_read_count: computed.currentReadCount,
+        goal_percent: computed.goalPercent,
+        read_count_per_day: computed.readCountPerDay,
+        rest_day: computed.restDay,
+        updated_at: now,
+      })
+      .eq('user_id', userId)
+      .is('church_id', null)
+      .eq('id', id);
+
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalPlansTable(db);
   await db.runAsync(
     `UPDATE ${PLANS_TABLE} SET
       goal_status = ?,
@@ -448,7 +668,7 @@ export async function updateGoalStatus(
     computed.readCountPerDay,
     computed.restDay,
     now,
-    id
+    id,
   );
   await queuePersistedSlicesSave(db, ['plans']);
 }
@@ -457,7 +677,7 @@ export async function incrementPlanBookChapterReadCount(
   db: SQLiteDatabase,
   id: number,
   bookCode: string,
-  chapter: number
+  chapter: number,
 ): Promise<{ previousBookStatus: number[]; nextBookStatus: number[] } | null> {
   const plan = await getPlanById(db, id);
   if (!plan || chapter <= 0 || !plan.selectedBookCodes.includes(bookCode)) return null;
@@ -469,7 +689,8 @@ export async function incrementPlanBookChapterReadCount(
   const nextGoalStatus = plan.goalStatus.map((row) => [...row]);
   const previousBookStatus = Array.from(
     { length: book.maxChapter },
-    (_entry, chapterIndex) => normalizeChapterReadCount(plan.goalStatus[bookIndex]?.[chapterIndex]),
+    (_entry, chapterIndex) =>
+      normalizeChapterReadCount(plan.goalStatus[bookIndex]?.[chapterIndex]),
   );
   const nextBookStatus = [...previousBookStatus];
   nextBookStatus[chapter - 1] = normalizeChapterReadCount(nextBookStatus[chapter - 1]) + 1;
@@ -484,6 +705,15 @@ export async function incrementPlanBookChapterReadCount(
 }
 
 export async function deletePlan(db: SQLiteDatabase, id: number): Promise<void> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.from(PLANS_TABLE).delete().eq('user_id', userId).eq('id', id);
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalPlansTable(db);
   await db.runAsync(`DELETE FROM ${PLANS_TABLE} WHERE id = ?`, id);
   await queuePersistedSlicesSave(db, ['plans']);
 }

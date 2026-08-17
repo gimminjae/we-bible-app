@@ -1,4 +1,6 @@
 import { createId, formatDateTime } from '@/lib/date';
+import { getActiveUserId } from '@/lib/auth-state';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import { summarizeRanges } from '@/utils/bible.util';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -71,7 +73,7 @@ function normalizeVerseNumbers(raw: unknown, fallbackVerse?: unknown): number[] 
   return [];
 }
 
-export async function initThemeVersesTable(db: SQLiteDatabase): Promise<void> {
+async function ensureLocalThemeVersesTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS ${THEME_VERSES_TABLE} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,21 +90,25 @@ export async function initThemeVersesTable(db: SQLiteDatabase): Promise<void> {
     );
   `);
 
-  const info = await db.getAllAsync<{ name: string }>(
-    `PRAGMA table_info(${THEME_VERSES_TABLE})`,
-  );
+  const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${THEME_VERSES_TABLE})`);
 
   if (!info.some((row) => row.name === 'client_id')) {
     await db.runAsync(`ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN client_id TEXT DEFAULT ''`);
   }
   if (!info.some((row) => row.name === 'description')) {
-    await db.runAsync(`ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN description TEXT NOT NULL DEFAULT ''`);
+    await db.runAsync(
+      `ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN description TEXT NOT NULL DEFAULT ''`,
+    );
   }
   if (!info.some((row) => row.name === 'updated_at')) {
-    await db.runAsync(`ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''`);
+    await db.runAsync(
+      `ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''`,
+    );
   }
   if (!info.some((row) => row.name === 'verse_numbers')) {
-    await db.runAsync(`ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN verse_numbers TEXT NOT NULL DEFAULT '[]'`);
+    await db.runAsync(
+      `ALTER TABLE ${THEME_VERSES_TABLE} ADD COLUMN verse_numbers TEXT NOT NULL DEFAULT '[]'`,
+    );
   }
 
   const rows = await db.getAllAsync<{
@@ -125,6 +131,10 @@ export async function initThemeVersesTable(db: SQLiteDatabase): Promise<void> {
   }
 }
 
+function toSupabaseError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('THEME_VERSE_REMOTE_ERROR');
+}
+
 function normalizeRow(row: {
   id: number;
   client_id: string | null;
@@ -132,7 +142,7 @@ function normalizeRow(row: {
   book_code: string | null;
   chapter: number | null;
   verse: number | null;
-  verse_numbers: string | null;
+  verse_numbers: unknown;
   verse_text: string | null;
   description: string | null;
   created_at: string | null;
@@ -154,10 +164,62 @@ function normalizeRow(row: {
   };
 }
 
+type RemoteThemeVerseRow = {
+  id?: unknown;
+  client_id?: unknown;
+  year?: unknown;
+  book_code?: unknown;
+  chapter?: unknown;
+  verse?: unknown;
+  verse_numbers?: unknown;
+  verse_text?: unknown;
+  description?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+function normalizeRemoteRow(row: RemoteThemeVerseRow): ThemeVerseRecord {
+  return normalizeRow({
+    id: Number(row.id ?? 0),
+    client_id: typeof row.client_id === 'string' ? row.client_id : null,
+    year: Number(row.year ?? 0),
+    book_code: typeof row.book_code === 'string' ? row.book_code : null,
+    chapter: Number(row.chapter ?? 1),
+    verse: Number(row.verse ?? 1),
+    verse_numbers: row.verse_numbers,
+    verse_text: typeof row.verse_text === 'string' ? row.verse_text : null,
+    description: typeof row.description === 'string' ? row.description : null,
+    created_at: typeof row.created_at === 'string' ? row.created_at : null,
+    updated_at: typeof row.updated_at === 'string' ? row.updated_at : null,
+  });
+}
+
+export async function initThemeVersesTable(db: SQLiteDatabase): Promise<void> {
+  if (getActiveUserId()) return;
+  await ensureLocalThemeVersesTable(db);
+}
+
 export async function getThemeVerseByYear(
   db: SQLiteDatabase,
   year: number,
 ): Promise<ThemeVerseRecord | null> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(THEME_VERSES_TABLE)
+      .select(
+        'id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at',
+      )
+      .eq('user_id', userId)
+      .eq('year', year)
+      .maybeSingle();
+
+    if (error) throw toSupabaseError(error);
+    return data ? normalizeRemoteRow(data as RemoteThemeVerseRow) : null;
+  }
+
+  await ensureLocalThemeVersesTable(db);
   const row = await db.getFirstAsync<{
     id: number;
     client_id: string | null;
@@ -176,6 +238,23 @@ export async function getThemeVerseByYear(
 }
 
 export async function getAllThemeVerses(db: SQLiteDatabase): Promise<ThemeVerseRecord[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(THEME_VERSES_TABLE)
+      .select(
+        'id, client_id, year, book_code, chapter, verse, verse_numbers, verse_text, description, created_at, updated_at',
+      )
+      .eq('user_id', userId)
+      .order('year', { ascending: false })
+      .order('id', { ascending: false });
+
+    if (error) throw toSupabaseError(error);
+    return (data ?? []).map((row) => normalizeRemoteRow(row as RemoteThemeVerseRow));
+  }
+
+  await ensureLocalThemeVersesTable(db);
   const rows = await db.getAllAsync<{
     id: number;
     client_id: string | null;
@@ -206,7 +285,52 @@ export async function upsertThemeVerse(
   const verseNumbers = normalizeVerseNumbers(input.verseNumbers);
   const primaryVerse = verseNumbers[0] ?? 1;
   const serializedVerseNumbers = JSON.stringify(verseNumbers);
+  const userId = getActiveUserId();
 
+  if (userId) {
+    const supabase = createSupabaseClient();
+    if (existing) {
+      const { error } = await supabase
+        .from(THEME_VERSES_TABLE)
+        .update({
+          book_code: input.bookCode,
+          chapter: input.chapter,
+          verse: primaryVerse,
+          verse_numbers: verseNumbers,
+          verse_text: input.verseText.trim(),
+          description: input.description.trim(),
+          updated_at: timestamp,
+        })
+        .eq('user_id', userId)
+        .eq('year', input.year);
+
+      if (error) throw toSupabaseError(error);
+      return existing.id;
+    }
+
+    const { data, error } = await supabase
+      .from(THEME_VERSES_TABLE)
+      .insert({
+        user_id: userId,
+        client_id: createId(),
+        year: input.year,
+        book_code: input.bookCode,
+        chapter: input.chapter,
+        verse: primaryVerse,
+        verse_numbers: verseNumbers,
+        verse_text: input.verseText.trim(),
+        description: input.description.trim(),
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id')
+      .single();
+
+    if (error) throw toSupabaseError(error);
+    return Number((data as { id?: unknown } | null)?.id ?? 0);
+  }
+
+  await ensureLocalThemeVersesTable(db);
   if (existing) {
     await db.runAsync(
       `UPDATE ${THEME_VERSES_TABLE}
@@ -253,6 +377,20 @@ export async function deleteThemeVerseByYear(
     throw new Error('Only the current year can be deleted.');
   }
 
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from(THEME_VERSES_TABLE)
+      .delete()
+      .eq('user_id', userId)
+      .eq('year', year);
+
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalThemeVersesTable(db);
   await db.runAsync(`DELETE FROM ${THEME_VERSES_TABLE} WHERE year = ?`, year);
   await queuePersistedSlicesSave(db, ['themeVerses']);
 }

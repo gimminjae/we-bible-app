@@ -239,7 +239,7 @@ export default function ChurchDetailScreen() {
     [teamPrayerGroups, normalizedPrayerSearchText],
   );
   const isPrayerSearching = normalizedPrayerSearchText.length > 0;
-  const hasSharedPrayers = churchDetail?.prayers.length > 0;
+  const hasSharedPrayers = (churchDetail?.prayers?.length ?? 0) > 0;
   const hasFilteredSharedPrayers =
     filteredChurchWidePrayers.length > 0 || filteredTeamPrayerGroups.length > 0;
 

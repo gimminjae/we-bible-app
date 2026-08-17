@@ -1,10 +1,8 @@
 import {
   addMemo as dbAddMemo,
   getMemoVerseNumbersForChapter,
-  initMemosTable,
 } from '@/utils/memo-db';
 import { useAuth } from '@/contexts/auth-context';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -21,7 +19,6 @@ export function useMemoVerses(
   const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const enabled = options.enabled ?? true;
   const [memoVerseNumbers, setMemoVerseNumbers] = useState<number[]>([]);
-  const [initDone, setInitDone] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
 
   const isAccountDataPending =
@@ -39,23 +36,6 @@ export function useMemoVerses(
   }, [db, bookCode, chapter]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await initMemosTable(db);
-        if (cancelled) return;
-        setInitDone(true);
-      } catch {
-        if (!cancelled) setInitDone(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [db]);
-
-  useEffect(() => {
-    if (!initDone) return;
     if (!enabled) {
       setMemoVerseNumbers([]);
       setIsHydrating(false);
@@ -71,22 +51,17 @@ export function useMemoVerses(
           setIsHydrating(true);
           return;
         }
+      }
 
-        setIsHydrating(true);
+      setIsHydrating(true);
+      if (!cancelled) {
         try {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ['memos']);
-          if (cancelled) return;
+          await refetch();
         } finally {
           if (!cancelled) {
             setIsHydrating(false);
           }
         }
-      } else {
-        setIsHydrating(false);
-      }
-
-      if (!cancelled) {
-        await refetch();
       }
     };
 
@@ -105,7 +80,6 @@ export function useMemoVerses(
     dataUserId,
     db,
     enabled,
-    initDone,
     isAccountDataPending,
     isConfigured,
     refetch,

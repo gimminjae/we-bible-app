@@ -12,7 +12,6 @@ import {
   isChapterRead,
   normalizeChapterReadCount,
 } from "@/lib/plan"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { useI18n } from "@/utils/i18n"
@@ -145,11 +144,6 @@ export default function PlanDetailScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["plans"])
-          if (!active) return
-        }
-
         const row = await getPlanById(db, planId)
         if (!active) return
         setPlan(row)

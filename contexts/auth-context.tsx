@@ -141,21 +141,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const nextReset = (async () => {
-    setCurrentUser(null)
-    setDataUserId(null)
-    setActiveUserId(null)
+      setCurrentUser(null)
+      setDataUserId(null)
+      setActiveUserId(null)
 
-    const localDataOwnerUserId = await getLocalDataOwnerUserId(db)
-    if (localDataOwnerUserId) {
-      pauseSQLiteStateSync()
-      try {
-        await resetLocalPersistedState(db)
-      } finally {
-        resumeSQLiteStateSync()
+      const localDataOwnerUserId = await getLocalDataOwnerUserId(db)
+      if (localDataOwnerUserId) {
+        pauseSQLiteStateSync()
+        try {
+          await resetLocalPersistedState(db)
+        } finally {
+          resumeSQLiteStateSync()
+        }
       }
-    }
 
-    await refreshSettings()
+      await refreshSettings()
     })()
 
     guestResetPromiseRef.current = nextReset
@@ -172,11 +172,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(user)
       setIsSyncingData(true)
 
-      pauseSQLiteStateSync()
       try {
         await bootstrapSupabaseUserData(db, user.id)
-        await syncUserProfileFromAuthUser(user)
         setActiveUserId(user.id)
+        await syncUserProfileFromAuthUser(user)
         await refreshSettings()
         if (!mountedRef.current) return
         setDataUserId(user.id)
@@ -193,12 +192,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await supabase.auth.signOut()
         if (result.error) {
           console.warn(
-            "Failed to sign out after SQLite sync bootstrap error.",
+            "Failed to sign out after authenticated user bootstrap error.",
             result.error,
           )
         }
       } finally {
-        resumeSQLiteStateSync()
         if (!mountedRef.current) return
         setIsSyncingData(false)
         setIsLoadingSession(false)

@@ -14,7 +14,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { syncThemeVerseNotificationSchedule } from "@/lib/theme-verse-notifications"
 import { getBookName } from "@/services/bible"
 import { useI18n } from "@/utils/i18n"
@@ -64,11 +63,6 @@ export default function ThemeVerseDetailScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["themeVerses"])
-          if (!active) return
-        }
-
         const rows = await getAllThemeVerses(db)
         if (!active) return
         setItems(rows)

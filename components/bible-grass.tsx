@@ -10,7 +10,6 @@ import { useAppSettings } from "@/contexts/app-settings"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useResponsive } from "@/hooks/use-responsive"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { getBookName } from "@/services/bible"
 import {
   getGrassColorThemeFromDb,
@@ -296,11 +295,6 @@ export function BibleGrass() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["grassData"])
-          if (!active) return
-        }
-
         const [nextGrassData, nextGrassTheme] = await Promise.all([
           getGrassData(db),
           getGrassColorThemeFromDb(db),

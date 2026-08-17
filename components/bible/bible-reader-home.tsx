@@ -14,7 +14,6 @@ import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useResponsive } from '@/hooks/use-responsive';
-import { ensurePersistedSlicesHydrated } from '@/lib/sqlite-supabase-store';
 import { useI18n } from '@/utils/i18n';
 import {
   clearPendingBibleNavigation,
@@ -128,10 +127,6 @@ export function BibleReaderHome() {
     setIsLoadingPlanCandidates(true);
 
     try {
-      if (currentUser && isConfigured) {
-        await ensurePersistedSlicesHydrated(db, currentUser.id, ['plans']);
-      }
-
       const items = await getActivePlansForBookChapter(db, bible.bookCode, bible.chapter);
       setPlanCandidates(items);
     } catch {

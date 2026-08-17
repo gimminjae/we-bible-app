@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { type SQLiteDatabase } from 'expo-sqlite';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -16,23 +15,6 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
 import { canUseGoogleMobileAds, loadGoogleMobileAdsModule } from '@/lib/google-mobile-ads';
-import { initBibleStateTable } from '@/utils/bible-storage';
-import { initFavoriteVersesTable } from '@/utils/favorite-verses-db';
-import { initGrassTable } from '@/utils/grass-db';
-import { initMemosTable } from '@/utils/memo-db';
-import { initPlansTable } from '@/utils/plan-db';
-import { initPrayersTable } from '@/utils/prayer-db';
-import { initThemeVersesTable } from '@/utils/theme-verse-db';
-
-async function initDb(db: SQLiteDatabase) {
-  await initFavoriteVersesTable(db);
-  await initBibleStateTable(db);
-  await initMemosTable(db);
-  await initPlansTable(db);
-  await initPrayersTable(db);
-  await initGrassTable(db);
-  await initThemeVersesTable(db);
-}
 
 const queryClient = new QueryClient();
 
@@ -77,7 +59,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <SQLiteProvider databaseName="we-bible.db" onInit={initDb}>
+        <SQLiteProvider databaseName="we-bible.db">
           <AppSettingsProvider>
             <AuthProvider>
               <ThemeVerseNotificationSync />

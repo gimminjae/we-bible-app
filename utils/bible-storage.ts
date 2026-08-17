@@ -1,7 +1,8 @@
 import type { BibleSearchInfo } from '@/components/bible/types';
-import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
+import { getActiveUserId } from '@/lib/auth-state';
+import { authStorage } from '@/lib/auth-storage';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { Platform } from 'react-native';
 
 const BIBLE_SEARCH_INFO_KEY = 'bibleSearchInfo';
 const APP_THEME_KEY = 'appTheme';
@@ -18,89 +19,254 @@ const LAST_AUTO_SYNC_AT_KEY = 'lastAutoSyncAt';
 const POINT_TOTAL_KEY = 'pointTotal';
 const GRASS_COLOR_THEME_KEY = 'grassColorTheme';
 const BIBLE_STATE_TABLE = 'bible_state';
-const MAX_AGE = 60 * 60 * 24 * 365;
+const GRASS_TABLE = 'bible_grass';
+const GRASS_META_ROW_DATE = '__meta__';
+const LOCAL_STATE_PREFIX = 'bible-state:';
 const GRASS_THEME_CHANGE_COST = 100;
+const ACTIVE_DATA_USER_ID_KEY = 'activeDataUserId';
 
-function getCookie(key: string): string | null {
-  if (typeof document === 'undefined' || typeof document.cookie === 'undefined') return null;
-  const match = document
-    .cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${key}=`));
-  if (!match) return null;
+function getScopedLocalStateKey(ownerId: string, key: string): string {
+  return `${LOCAL_STATE_PREFIX}${ownerId}:${key}`;
+}
 
-  try {
-    return decodeURIComponent(match.slice(key.length + 1));
-  } catch {
+function getLegacyGuestStateKey(key: string): string {
+  return getScopedLocalStateKey('guest', key);
+}
+
+function requireDb(db?: SQLiteDatabase | null): SQLiteDatabase {
+  if (!db) {
+    throw new Error('SQLITE_DB_REQUIRED');
+  }
+  return db;
+}
+
+async function ensureLocalBibleStateTable(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS ${BIBLE_STATE_TABLE} (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT DEFAULT ''
+    );
+  `);
+}
+
+async function getSQLiteStateValue(db: SQLiteDatabase, key: string): Promise<string | null> {
+  await ensureLocalBibleStateTable(db);
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
+    key,
+  );
+  return row?.value ?? null;
+}
+
+async function setSQLiteStateValue(
+  db: SQLiteDatabase,
+  key: string,
+  value: string,
+): Promise<void> {
+  await ensureLocalBibleStateTable(db);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+    key,
+    value,
+  );
+}
+
+async function removeSQLiteStateValue(db: SQLiteDatabase, key: string): Promise<void> {
+  await ensureLocalBibleStateTable(db);
+  await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, key);
+}
+
+async function getUserScopedLocalStateValue(key: string): Promise<string | null> {
+  const userId = getActiveUserId();
+  if (!userId) return null;
+  return authStorage.getItem(getScopedLocalStateKey(userId, key));
+}
+
+async function setUserScopedLocalStateValue(key: string, value: string): Promise<void> {
+  const userId = getActiveUserId();
+  if (!userId) return;
+  await authStorage.setItem(getScopedLocalStateKey(userId, key), value);
+}
+
+async function removeUserScopedLocalStateValue(key: string): Promise<void> {
+  const userId = getActiveUserId();
+  if (!userId) return;
+  await authStorage.removeItem(getScopedLocalStateKey(userId, key));
+}
+
+async function getGuestStateValue(db: SQLiteDatabase, key: string): Promise<string | null> {
+  const localDataOwnerUserId = await getSQLiteStateValue(db, ACTIVE_DATA_USER_ID_KEY);
+  if (localDataOwnerUserId) {
     return null;
   }
+
+  const value = await getSQLiteStateValue(db, key);
+  if (value != null) {
+    return value;
+  }
+
+  const legacyValue = await authStorage.getItem(getLegacyGuestStateKey(key));
+  if (legacyValue == null) {
+    return null;
+  }
+
+  await setSQLiteStateValue(db, key, legacyValue);
+  await authStorage.removeItem(getLegacyGuestStateKey(key));
+  return legacyValue;
 }
 
-function setCookie(key: string, value: string): void {
-  if (typeof document === 'undefined' || typeof document.cookie === 'undefined') return;
-  document.cookie = `${key}=${encodeURIComponent(value)};path=/;max-age=${MAX_AGE};samesite=lax`;
+async function setGuestStateValue(
+  db: SQLiteDatabase,
+  key: string,
+  value: string,
+): Promise<void> {
+  await setSQLiteStateValue(db, key, value);
+  await authStorage.removeItem(getLegacyGuestStateKey(key));
 }
 
-function parseBibleSearchInfo(raw: string): BibleSearchInfo | null {
-  try {
-    const parsed = JSON.parse(raw) as BibleSearchInfo;
-    if (
-      typeof parsed?.bookCode === 'string' &&
-      typeof parsed?.chapter === 'number' &&
-      typeof parsed?.primaryLang === 'string' &&
-      typeof parsed?.fontScale === 'number' &&
-      typeof parsed?.dualLang === 'boolean' &&
-      typeof parsed?.secondaryLang === 'string'
-    ) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
+async function removeGuestStateValue(db: SQLiteDatabase, key: string): Promise<void> {
+  await removeSQLiteStateValue(db, key);
+  await authStorage.removeItem(getLegacyGuestStateKey(key));
+}
+
+async function getDeviceLocalStateValue(
+  db: SQLiteDatabase,
+  key: string,
+): Promise<string | null> {
+  if (getActiveUserId()) {
+    return await getUserScopedLocalStateValue(key);
+  }
+  return await getGuestStateValue(db, key);
+}
+
+async function setDeviceLocalStateValue(
+  db: SQLiteDatabase,
+  key: string,
+  value: string,
+): Promise<void> {
+  if (getActiveUserId()) {
+    await setUserScopedLocalStateValue(key, value);
+    return;
+  }
+  await setGuestStateValue(db, key, value);
+}
+
+async function removeDeviceLocalStateValue(db: SQLiteDatabase, key: string): Promise<void> {
+  if (getActiveUserId()) {
+    await removeUserScopedLocalStateValue(key);
+    return;
+  }
+  await removeGuestStateValue(db, key);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return 'SUPABASE_STORAGE_ERROR';
+}
+
+function parseBibleSearchInfoValue(raw: unknown): BibleSearchInfo | null {
+  const parsed =
+    typeof raw === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(raw) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : raw;
+  const candidate =
+    parsed && typeof parsed === 'object' ? (parsed as Partial<BibleSearchInfo>) : null;
+
+  if (
+    typeof candidate?.bookCode === 'string' &&
+    typeof candidate.chapter === 'number' &&
+    typeof candidate.primaryLang === 'string' &&
+    typeof candidate.fontScale === 'number' &&
+    typeof candidate.dualLang === 'boolean' &&
+    typeof candidate.secondaryLang === 'string'
+  ) {
+    return candidate as BibleSearchInfo;
+  }
+
+  return null;
+}
+
+type RemoteBibleStateRow = {
+  app_theme: unknown;
+  app_language: unknown;
+  bible_search_info: unknown;
+};
+
+async function getRemoteBibleStateRow(userId: string): Promise<RemoteBibleStateRow | null> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from(BIBLE_STATE_TABLE)
+    .select('app_theme, app_language, bible_search_info')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return (data as RemoteBibleStateRow | null) ?? null;
+}
+
+async function upsertRemoteBibleState(
+  userId: string,
+  payload: Partial<{
+    app_theme: AppTheme;
+    app_language: AppLanguage;
+    bible_search_info: BibleSearchInfo;
+  }>,
+): Promise<void> {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.from(BIBLE_STATE_TABLE).upsert(
+    {
+      user_id: userId,
+      ...payload,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  );
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
   }
 }
 
 export async function initBibleStateTable(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS ${BIBLE_STATE_TABLE} (key TEXT PRIMARY KEY NOT NULL, value TEXT);
-  `);
+  if (getActiveUserId()) return;
+  await ensureLocalBibleStateTable(db);
 }
 
-async function getBibleSearchInfoFromDb(db: SQLiteDatabase): Promise<BibleSearchInfo | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    BIBLE_SEARCH_INFO_KEY,
-  );
-  if (!row?.value) return null;
-  return parseBibleSearchInfo(row.value);
-}
-
-async function setBibleSearchInfoToDb(db: SQLiteDatabase, info: BibleSearchInfo): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    BIBLE_SEARCH_INFO_KEY,
-    JSON.stringify(info),
-  );
-  await queuePersistedSlicesSave(db, ['appState']);
-}
-
-export async function getBibleSearchInfo(db?: SQLiteDatabase | null): Promise<BibleSearchInfo | null> {
-  if (Platform.OS === 'web') {
-    const raw = getCookie(BIBLE_SEARCH_INFO_KEY);
-    return raw ? parseBibleSearchInfo(raw) : null;
+export async function getBibleSearchInfo(
+  db?: SQLiteDatabase | null,
+): Promise<BibleSearchInfo | null> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const row = await getRemoteBibleStateRow(userId);
+    return parseBibleSearchInfoValue(row?.bible_search_info ?? null);
   }
-  if (db) return getBibleSearchInfoFromDb(db);
-  return null;
+
+  return parseBibleSearchInfoValue(
+    await getGuestStateValue(requireDb(db), BIBLE_SEARCH_INFO_KEY),
+  );
 }
 
 export async function setBibleSearchInfo(
   info: BibleSearchInfo,
   db?: SQLiteDatabase | null,
 ): Promise<void> {
-  if (Platform.OS === 'web') {
-    setCookie(BIBLE_SEARCH_INFO_KEY, JSON.stringify(info));
+  const userId = getActiveUserId();
+  if (userId) {
+    await upsertRemoteBibleState(userId, { bible_search_info: info });
+    return;
   }
-  if (db) await setBibleSearchInfoToDb(db, info);
+
+  await setGuestStateValue(requireDb(db), BIBLE_SEARCH_INFO_KEY, JSON.stringify(info));
 }
 
 export type AppTheme = 'light' | 'dark';
@@ -244,42 +410,46 @@ function parseBooleanState(raw: string | null): boolean {
 }
 
 export async function getAppThemeFromDb(db: SQLiteDatabase): Promise<AppTheme | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    APP_THEME_KEY,
-  );
-  if (row?.value === 'light' || row?.value === 'dark') return row.value;
-  return null;
+  const userId = getActiveUserId();
+  if (userId) {
+    const row = await getRemoteBibleStateRow(userId);
+    if (row?.app_theme === 'light' || row?.app_theme === 'dark') {
+      return row.app_theme;
+    }
+    return null;
+  }
+
+  const value = await getGuestStateValue(db, APP_THEME_KEY);
+  return value === 'light' || value === 'dark' ? value : null;
 }
 
 export async function getAppLanguageFromDb(db: SQLiteDatabase): Promise<AppLanguage | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    APP_LANGUAGE_KEY,
-  );
-  if (row?.value === 'ko' || row?.value === 'en') return row.value;
-  return null;
+  const userId = getActiveUserId();
+  if (userId) {
+    const row = await getRemoteBibleStateRow(userId);
+    if (row?.app_language === 'ko' || row?.app_language === 'en') {
+      return row.app_language;
+    }
+    return null;
+  }
+
+  const value = await getGuestStateValue(db, APP_LANGUAGE_KEY);
+  return value === 'ko' || value === 'en' ? value : null;
 }
 
 export async function getBibleMeditationNotificationEnabledFromDb(
   db: SQLiteDatabase,
 ): Promise<boolean> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
-  );
-
-  return row?.value == null
-    ? DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED
-    : parseBooleanState(row.value);
+  const value = await getDeviceLocalStateValue(db, BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY);
+  return value == null ? DEFAULT_BIBLE_MEDITATION_NOTIFICATION_ENABLED : parseBooleanState(value);
 }
 
 export async function setBibleMeditationNotificationEnabledToDb(
   db: SQLiteDatabase,
   enabled: boolean,
 ): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     BIBLE_MEDITATION_NOTIFICATION_ENABLED_KEY,
     enabled ? 'true' : 'false',
   );
@@ -288,12 +458,9 @@ export async function setBibleMeditationNotificationEnabledToDb(
 export async function getBibleMeditationNotificationTimeFromDb(
   db: SQLiteDatabase,
 ): Promise<BibleMeditationNotificationTime> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
+  return parseBibleMeditationNotificationTime(
+    await getDeviceLocalStateValue(db, BIBLE_MEDITATION_NOTIFICATION_TIME_KEY),
   );
-
-  return parseBibleMeditationNotificationTime(row?.value ?? null);
 }
 
 export async function setBibleMeditationNotificationTimeToDb(
@@ -301,8 +468,8 @@ export async function setBibleMeditationNotificationTimeToDb(
   time: BibleMeditationNotificationTime,
 ): Promise<void> {
   const normalized = normalizeBibleMeditationNotificationTime(time);
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     BIBLE_MEDITATION_NOTIFICATION_TIME_KEY,
     JSON.stringify(normalized),
   );
@@ -311,12 +478,9 @@ export async function setBibleMeditationNotificationTimeToDb(
 export async function getBibleMeditationNotificationScheduleIdsFromDb(
   db: SQLiteDatabase,
 ): Promise<string[]> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
+  return parseThemeVerseNotificationIds(
+    await getDeviceLocalStateValue(db, BIBLE_MEDITATION_NOTIFICATION_IDS_KEY),
   );
-
-  return parseThemeVerseNotificationIds(row?.value ?? null);
 }
 
 export async function setBibleMeditationNotificationScheduleIdsToDb(
@@ -328,8 +492,8 @@ export async function setBibleMeditationNotificationScheduleIdsToDb(
     .filter(Boolean)
     .filter((value, index, array) => array.indexOf(value) === index);
 
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     BIBLE_MEDITATION_NOTIFICATION_IDS_KEY,
     JSON.stringify(normalized),
   );
@@ -338,12 +502,9 @@ export async function setBibleMeditationNotificationScheduleIdsToDb(
 export async function getThemeVerseNotificationSettingsFromDb(
   db: SQLiteDatabase,
 ): Promise<ThemeVerseNotificationSettings> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    THEME_VERSE_NOTIFICATION_SETTINGS_KEY,
+  return parseThemeVerseNotificationSettings(
+    await getDeviceLocalStateValue(db, THEME_VERSE_NOTIFICATION_SETTINGS_KEY),
   );
-
-  return parseThemeVerseNotificationSettings(row?.value ?? null);
 }
 
 export async function setThemeVerseNotificationSettingsToDb(
@@ -351,8 +512,8 @@ export async function setThemeVerseNotificationSettingsToDb(
   settings: ThemeVerseNotificationSettings,
 ): Promise<void> {
   const normalized = normalizeThemeVerseNotificationSettings(settings);
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     THEME_VERSE_NOTIFICATION_SETTINGS_KEY,
     JSON.stringify(normalized),
   );
@@ -361,12 +522,9 @@ export async function setThemeVerseNotificationSettingsToDb(
 export async function getThemeVerseNotificationScheduleIdsFromDb(
   db: SQLiteDatabase,
 ): Promise<string[]> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    THEME_VERSE_NOTIFICATION_IDS_KEY,
+  return parseThemeVerseNotificationIds(
+    await getDeviceLocalStateValue(db, THEME_VERSE_NOTIFICATION_IDS_KEY),
   );
-
-  return parseThemeVerseNotificationIds(row?.value ?? null);
 }
 
 export async function setThemeVerseNotificationScheduleIdsToDb(
@@ -378,8 +536,8 @@ export async function setThemeVerseNotificationScheduleIdsToDb(
     .filter(Boolean)
     .filter((value, index, array) => array.indexOf(value) === index);
 
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     THEME_VERSE_NOTIFICATION_IDS_KEY,
     JSON.stringify(normalized),
   );
@@ -388,20 +546,17 @@ export async function setThemeVerseNotificationScheduleIdsToDb(
 export async function getThemeVerseNotificationPermissionRequestedFromDb(
   db: SQLiteDatabase,
 ): Promise<boolean> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY,
+  return parseBooleanState(
+    await getDeviceLocalStateValue(db, THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY),
   );
-
-  return parseBooleanState(row?.value ?? null);
 }
 
 export async function setThemeVerseNotificationPermissionRequestedToDb(
   db: SQLiteDatabase,
   requested: boolean,
 ): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
+  await setDeviceLocalStateValue(
+    db,
     THEME_VERSE_NOTIFICATION_PERMISSION_REQUESTED_KEY,
     requested ? 'true' : 'false',
   );
@@ -416,24 +571,17 @@ export async function setPendingBibleNavigation(
   db: SQLiteDatabase,
   nav: PendingBibleNavigation,
 ): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    PENDING_NAVIGATION_KEY,
-    JSON.stringify(nav),
-  );
+  await setDeviceLocalStateValue(db, PENDING_NAVIGATION_KEY, JSON.stringify(nav));
 }
 
 export async function getPendingBibleNavigation(
   db: SQLiteDatabase,
 ): Promise<PendingBibleNavigation | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    PENDING_NAVIGATION_KEY,
-  );
-  if (!row?.value) return null;
+  const raw = await getDeviceLocalStateValue(db, PENDING_NAVIGATION_KEY);
+  if (!raw) return null;
 
   try {
-    const parsed = JSON.parse(row.value) as PendingBibleNavigation;
+    const parsed = JSON.parse(raw) as PendingBibleNavigation;
     if (typeof parsed?.bookCode === 'string' && typeof parsed?.chapter === 'number') {
       return parsed;
     }
@@ -443,48 +591,41 @@ export async function getPendingBibleNavigation(
 }
 
 export async function clearPendingBibleNavigation(db: SQLiteDatabase): Promise<void> {
-  await db.runAsync(`DELETE FROM ${BIBLE_STATE_TABLE} WHERE key = ?`, PENDING_NAVIGATION_KEY);
+  await removeDeviceLocalStateValue(db, PENDING_NAVIGATION_KEY);
 }
 
 export async function setAppThemeToDb(db: SQLiteDatabase, theme: AppTheme): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    APP_THEME_KEY,
-    theme,
-  );
-  await queuePersistedSlicesSave(db, ['appState']);
+  const userId = getActiveUserId();
+  if (userId) {
+    await upsertRemoteBibleState(userId, { app_theme: theme });
+    return;
+  }
+
+  await setGuestStateValue(db, APP_THEME_KEY, theme);
 }
 
 export async function setAppLanguageToDb(
   db: SQLiteDatabase,
   appLanguage: AppLanguage,
 ): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    APP_LANGUAGE_KEY,
-    appLanguage,
-  );
-  await queuePersistedSlicesSave(db, ['appState']);
+  const userId = getActiveUserId();
+  if (userId) {
+    await upsertRemoteBibleState(userId, { app_language: appLanguage });
+    return;
+  }
+
+  await setGuestStateValue(db, APP_LANGUAGE_KEY, appLanguage);
 }
 
 export async function getLastAutoSyncAtFromDb(db: SQLiteDatabase): Promise<string | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    LAST_AUTO_SYNC_AT_KEY,
-  );
-  if (!row?.value) return null;
-  return row.value;
+  return await getDeviceLocalStateValue(db, LAST_AUTO_SYNC_AT_KEY);
 }
 
 export async function setLastAutoSyncAtToDb(
   db: SQLiteDatabase,
   syncedAt: string,
 ): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    LAST_AUTO_SYNC_AT_KEY,
-    syncedAt,
-  );
+  await setDeviceLocalStateValue(db, LAST_AUTO_SYNC_AT_KEY, syncedAt);
 }
 
 export type GrassColorTheme =
@@ -496,12 +637,60 @@ export type GrassColorTheme =
   | 'purple'
   | 'sky';
 
-export async function getPointTotalFromDb(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    POINT_TOTAL_KEY,
+function parseGrassTheme(raw: unknown): GrassColorTheme {
+  return raw === 'green' ||
+    raw === 'yellow' ||
+    raw === 'orange' ||
+    raw === 'red' ||
+    raw === 'blue' ||
+    raw === 'purple' ||
+    raw === 'sky'
+    ? raw
+    : 'green';
+}
+
+type RemoteGrassMetaRow = {
+  data: unknown;
+};
+
+async function getRemoteGrassMetaRow(userId: string): Promise<RemoteGrassMetaRow | null> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from(GRASS_TABLE)
+    .select('data')
+    .eq('user_id', userId)
+    .eq('date', GRASS_META_ROW_DATE)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return (data as RemoteGrassMetaRow | null) ?? null;
+}
+
+async function setRemoteGrassTheme(userId: string, theme: GrassColorTheme): Promise<void> {
+  const supabase = createSupabaseClient();
+  const { error } = await supabase.from(GRASS_TABLE).upsert(
+    {
+      user_id: userId,
+      date: GRASS_META_ROW_DATE,
+      data: {
+        type: 'meta',
+        grassTheme: theme,
+      },
+    },
+    { onConflict: 'user_id,date' },
   );
-  const parsed = Number(row?.value ?? 0);
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function getPointTotalFromDb(db: SQLiteDatabase): Promise<number> {
+  const raw = await getDeviceLocalStateValue(db, POINT_TOTAL_KEY);
+  const parsed = Number(raw ?? 0);
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
   return Math.floor(parsed);
 }
@@ -517,34 +706,22 @@ export async function spendPoints(
   }
 
   const nextPoint = currentPoint - cost;
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    POINT_TOTAL_KEY,
-    String(nextPoint),
-  );
+  await setDeviceLocalStateValue(db, POINT_TOTAL_KEY, String(nextPoint));
   return { success: true, pointTotal: nextPoint };
 }
 
-export async function getGrassColorThemeFromDb(
-  db: SQLiteDatabase,
-): Promise<GrassColorTheme> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM ${BIBLE_STATE_TABLE} WHERE key = ?`,
-    GRASS_COLOR_THEME_KEY,
-  );
-  const value = row?.value;
-  if (
-    value === 'green' ||
-    value === 'yellow' ||
-    value === 'orange' ||
-    value === 'red' ||
-    value === 'blue' ||
-    value === 'purple' ||
-    value === 'sky'
-  ) {
-    return value;
+export async function getGrassColorThemeFromDb(db: SQLiteDatabase): Promise<GrassColorTheme> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const row = await getRemoteGrassMetaRow(userId);
+    const raw =
+      row?.data && typeof row.data === 'object' && row.data !== null
+        ? (row.data as { grassTheme?: unknown }).grassTheme
+        : null;
+    return parseGrassTheme(raw);
   }
-  return 'green';
+
+  return parseGrassTheme(await getGuestStateValue(db, GRASS_COLOR_THEME_KEY));
 }
 
 export async function spendPointsForGrassColorTheme(
@@ -563,12 +740,12 @@ export async function spendPointsForGrassColorTheme(
     return { success: false, pointTotal: currentPoint, changed: false };
   }
 
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    GRASS_COLOR_THEME_KEY,
-    nextTheme,
-  );
-  await queuePersistedSlicesSave(db, ['grassData']);
+  const userId = getActiveUserId();
+  if (userId) {
+    await setRemoteGrassTheme(userId, nextTheme);
+  } else {
+    await setGuestStateValue(db, GRASS_COLOR_THEME_KEY, nextTheme);
+  }
 
   return { success: true, pointTotal: spendResult.pointTotal, changed: true };
 }
@@ -580,11 +757,12 @@ export async function setGrassColorThemeWithoutPoint(
   const currentTheme = await getGrassColorThemeFromDb(db);
   if (currentTheme === nextTheme) return false;
 
-  await db.runAsync(
-    `INSERT OR REPLACE INTO ${BIBLE_STATE_TABLE} (key, value) VALUES (?, ?)`,
-    GRASS_COLOR_THEME_KEY,
-    nextTheme,
-  );
-  await queuePersistedSlicesSave(db, ['grassData']);
+  const userId = getActiveUserId();
+  if (userId) {
+    await setRemoteGrassTheme(userId, nextTheme);
+  } else {
+    await setGuestStateValue(db, GRASS_COLOR_THEME_KEY, nextTheme);
+  }
+
   return true;
 }

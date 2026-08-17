@@ -50,44 +50,59 @@ export function useBibleReader() {
   const [showMemoDrawer, setShowMemoDrawer] = useState(false);
   const [showSecondarySelector, setShowSecondarySelector] = useState(false);
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([]);
-  const [hasRestored, setHasRestored] = useState(false);
+  const [restoredScope, setRestoredScope] = useState<string | null>(null);
   const isAuthDataBusy =
     isConfigured &&
     (isLoadingSession ||
       (currentUser !== null && (isSyncingData || dataUserId !== currentUser.id)));
   const canHydrateAccountData = !isAuthDataBusy;
+  const storageScope = useMemo(() => {
+    if (isAuthDataBusy) return null;
+    if (currentUser && dataUserId === currentUser.id) {
+      return currentUser.id;
+    }
+    return 'guest';
+  }, [currentUser, dataUserId, isAuthDataBusy]);
 
   const restoreBibleSearchInfoFromStorage = useCallback(() => {
-    if (hasRestored) return;
+    if (!storageScope || restoredScope === storageScope) return;
     let cancelled = false;
-    getBibleSearchInfo(db).then((saved) => {
-      if (cancelled || !saved) {
-        setHasRestored(true);
-        return;
-      }
-      const bookExists = BOOKS.some((b) => b.bookCode === saved.bookCode);
-      const currentBook = bookExists
-        ? BOOKS.find((b) => b.bookCode === saved.bookCode)!
-        : BOOKS[0];
-      const maxCh = currentBook?.maxChapter ?? 1;
-      const ch = Math.min(Math.max(1, saved.chapter), maxCh);
-      setBookCode(currentBook?.bookCode ?? 'genesis');
-      setChapter(ch);
-      if (isValidLang(saved.primaryLang)) setPrimaryLang(saved.primaryLang);
-      if (isValidLang(saved.secondaryLang)) setSecondaryLang(saved.secondaryLang);
-      setDualLang(Boolean(saved.dualLang));
-      if (typeof saved.fontScale === 'number' && saved.fontScale >= 0.8 && saved.fontScale <= 1.2) {
-        setFontScale(saved.fontScale);
-      }
-      setHasRestored(true);
-    });
+    getBibleSearchInfo(db)
+      .then((saved) => {
+        if (cancelled) return;
+        if (!saved) {
+          setRestoredScope(storageScope);
+          return;
+        }
+
+        const bookExists = BOOKS.some((b) => b.bookCode === saved.bookCode);
+        const currentBook = bookExists
+          ? BOOKS.find((b) => b.bookCode === saved.bookCode)!
+          : BOOKS[0];
+        const maxCh = currentBook?.maxChapter ?? 1;
+        const ch = Math.min(Math.max(1, saved.chapter), maxCh);
+        setBookCode(currentBook?.bookCode ?? 'genesis');
+        setChapter(ch);
+        if (isValidLang(saved.primaryLang)) setPrimaryLang(saved.primaryLang);
+        if (isValidLang(saved.secondaryLang)) setSecondaryLang(saved.secondaryLang);
+        setDualLang(Boolean(saved.dualLang));
+        if (typeof saved.fontScale === 'number' && saved.fontScale >= 0.8 && saved.fontScale <= 1.2) {
+          setFontScale(saved.fontScale);
+        }
+        setRestoredScope(storageScope);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRestoredScope(storageScope);
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [hasRestored, db]);
+  }, [db, restoredScope, storageScope]);
 
   const persistBibleSearchInfo = useCallback(() => {
-    if (!hasRestored) return;
+    if (!storageScope || restoredScope !== storageScope) return;
     void setBibleSearchInfo(
       {
         bookCode,
@@ -99,7 +114,17 @@ export function useBibleReader() {
       },
       db
     );
-  }, [hasRestored, bookCode, chapter, primaryLang, fontScale, dualLang, secondaryLang, db]);
+  }, [
+    storageScope,
+    restoredScope,
+    bookCode,
+    chapter,
+    primaryLang,
+    fontScale,
+    dualLang,
+    secondaryLang,
+    db,
+  ]);
 
   const clearSelectedVersesOnBookOrChapterChange = useCallback(() => {
     setSelectedVerseNumbers([]);

@@ -4,7 +4,6 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/contexts/toast-context"
 import { useLoading } from "@/hooks/use-loading"
-import { ensurePersistedSlicesHydrated } from "@/lib/sqlite-supabase-store"
 import { useI18n } from "@/utils/i18n"
 import {
   addPrayerContent,
@@ -67,11 +66,6 @@ export default function EditPrayerScreen() {
       }
 
       try {
-        if (currentUser && isConfigured) {
-          await ensurePersistedSlicesHydrated(db, currentUser.id, ["prayers"])
-          if (!active) return
-        }
-
         const row = await getPrayerById(db, prayerId)
         if (!active || !row) return
         setRequester(row.requester)

@@ -1,19 +1,20 @@
 import type { FavoriteVerseRecord } from '@/components/bible/types';
+import { getActiveUserId } from '@/lib/auth-state';
+import { createSupabaseClient } from '@/lib/supabase-client';
 import { queuePersistedSlicesSave } from '@/lib/sqlite-supabase-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 const TABLE = 'favorite_verses';
 
-/** 관심 구절 식별 키: 오직 (book_code, chapter, verse). verse_text·created_at은 보기용 */
-
-/** 현재 시각을 'YYYY-MM-DD HH:mm:ss' 형식으로 반환 */
 function nowString(): string {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export async function initFavoriteVersesTable(db: SQLiteDatabase): Promise<void> {
+async function ensureLocalFavoriteVersesTable(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS ${TABLE} (
@@ -34,31 +35,74 @@ export async function initFavoriteVersesTable(db: SQLiteDatabase): Promise<void>
   }
 }
 
-/** 현재 장에서 관심인 절 번호만 조회 (식별: book_code + chapter + verse) */
+function toSupabaseError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('FAVORITES_REMOTE_ERROR');
+}
+
+export async function initFavoriteVersesTable(db: SQLiteDatabase): Promise<void> {
+  if (getActiveUserId()) return;
+  await ensureLocalFavoriteVersesTable(db);
+}
+
 export async function getFavoritesForChapter(
   db: SQLiteDatabase,
   bookCode: string,
-  chapter: number
+  chapter: number,
 ): Promise<number[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('verse')
+      .eq('user_id', userId)
+      .eq('book_code', bookCode)
+      .eq('chapter', chapter)
+      .order('verse', { ascending: true });
+
+    if (error) throw toSupabaseError(error);
+    return (data ?? []).map((row) => Number((row as { verse?: unknown }).verse ?? 0));
+  }
+
+  await ensureLocalFavoriteVersesTable(db);
   const rows = await db.getAllAsync<{ verse: number }>(
     `SELECT verse FROM ${TABLE} WHERE book_code = ? AND chapter = ? ORDER BY verse`,
     bookCode,
-    chapter
+    chapter,
   );
   return rows.map((r) => r.verse);
 }
 
-/** 추가 시 입력. verse=식별용 절 번호, text=보기용 구절 본문 */
 export type FavoriteVerseInput = { verse: number; text: string };
 
-/** 관심 추가. 식별은 (book_code, chapter, verse)로만 함. verse_text·created_at은 보기용 저장 */
 export async function addFavorites(
   db: SQLiteDatabase,
   bookCode: string,
   chapter: number,
-  verses: FavoriteVerseInput[]
+  verses: FavoriteVerseInput[],
 ): Promise<void> {
+  const userId = getActiveUserId();
   const createdAt = nowString();
+
+  if (userId) {
+    if (verses.length === 0) return;
+    const supabase = createSupabaseClient();
+    const payload = verses.map(({ verse, text }) => ({
+      user_id: userId,
+      book_code: bookCode,
+      chapter,
+      verse,
+      verse_text: text ?? '',
+      created_at: createdAt,
+    }));
+    const { error } = await supabase
+      .from(TABLE)
+      .upsert(payload, { onConflict: 'user_id,book_code,chapter,verse' });
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalFavoriteVersesTable(db);
   for (const { verse, text } of verses) {
     await db.runAsync(
       `INSERT OR REPLACE INTO ${TABLE} (book_code, chapter, verse, verse_text, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -66,41 +110,78 @@ export async function addFavorites(
       chapter,
       verse,
       text ?? '',
-      createdAt
+      createdAt,
     );
   }
   await queuePersistedSlicesSave(db, ['favorites']);
 }
 
-/** 관심 해제. 식별은 (book_code, chapter, verse)로만 함 */
 export async function removeFavorites(
   db: SQLiteDatabase,
   bookCode: string,
   chapter: number,
-  verseNumbers: number[]
+  verseNumbers: number[],
 ): Promise<void> {
   if (verseNumbers.length === 0) return;
+
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from(TABLE)
+      .delete()
+      .eq('user_id', userId)
+      .eq('book_code', bookCode)
+      .eq('chapter', chapter)
+      .in('verse', verseNumbers);
+
+    if (error) throw toSupabaseError(error);
+    return;
+  }
+
+  await ensureLocalFavoriteVersesTable(db);
   const placeholders = verseNumbers.map(() => '?').join(',');
   await db.runAsync(
     `DELETE FROM ${TABLE} WHERE book_code = ? AND chapter = ? AND verse IN (${placeholders})`,
     bookCode,
     chapter,
-    ...verseNumbers
+    ...verseNumbers,
   );
   await queuePersistedSlicesSave(db, ['favorites']);
 }
 
-/** 리스트용 전체 조회. 각 행 식별은 (book_code, chapter, verse). verse_text·created_at은 표시용 */
-export async function getAllFavorites(
-  db: SQLiteDatabase
-): Promise<FavoriteVerseRecord[]> {
+export async function getAllFavorites(db: SQLiteDatabase): Promise<FavoriteVerseRecord[]> {
+  const userId = getActiveUserId();
+  if (userId) {
+    const supabase = createSupabaseClient();
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('book_code, chapter, verse, verse_text, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('verse', { ascending: false });
+
+    if (error) throw toSupabaseError(error);
+
+    return (data ?? []).map((row) => ({
+      bookCode: String((row as { book_code?: unknown }).book_code ?? ''),
+      chapter: Number((row as { chapter?: unknown }).chapter ?? 0),
+      verse: Number((row as { verse?: unknown }).verse ?? 0),
+      verseText: String((row as { verse_text?: unknown }).verse_text ?? ''),
+      createdAt: String((row as { created_at?: unknown }).created_at ?? ''),
+    }));
+  }
+
+  await ensureLocalFavoriteVersesTable(db);
   const rows = await db.getAllAsync<{
     book_code: string;
     chapter: number;
     verse: number;
     verse_text: string;
     created_at: string;
-  }>(`SELECT book_code, chapter, verse, verse_text, created_at FROM ${TABLE} ORDER BY created_at DESC, rowid DESC`);
+  }>(
+    `SELECT book_code, chapter, verse, verse_text, created_at FROM ${TABLE} ORDER BY created_at DESC, rowid DESC`,
+  );
   return rows.map((r) => ({
     bookCode: r.book_code,
     chapter: r.chapter,
