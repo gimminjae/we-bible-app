@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ChurchProgressBar } from '@/components/churches/church-progress-bar';
 import { EditableChapterReadCountGrid } from '@/components/plans/editable-chapter-read-count-grid';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
@@ -149,12 +150,12 @@ export function SharedPlanProgressSheet({
                   </Text>
                 </View>
               </View>
-              <View className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                <View
-                  className="h-full rounded-full bg-primary-500"
-                  style={{ width: `${Math.min(100, localGoalPercent)}%` }}
-                />
-              </View>
+              <ChurchProgressBar
+                value={localGoalPercent}
+                size="md"
+                tone={canEdit ? 'emerald' : 'primary'}
+                className="mt-4"
+              />
             </View>
 
             <View className="mb-4 rounded-3xl border border-primary-100 bg-primary-50 px-5 py-4 dark:border-primary-900/60 dark:bg-primary-950/30">

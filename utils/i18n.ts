@@ -460,6 +460,23 @@ const messages = {
       averageProgress: "평균 진행도",
       myProgress: "내 진행도",
       memberProgressList: "회원 진행도",
+      teamRankingList: "팀 평균 및 등수",
+      rankLabel: "{rank}위",
+      privateValue: "비공개",
+      sharedPlanVisibilityTitle: "공통 읽기표 공개 설정",
+      sharedPlanVisibilityDescription:
+        "교회 공통 읽기표에서 회원 진행도와 등수 공개 범위를 설정할 수 있어요.",
+      sharedPlanRankingVisibilityLabel: "회원/팀 등수 공개",
+      sharedPlanRankingVisibilityEnabledHint: "회원과 팀의 순위를 교회 구성원이 볼 수 있어요.",
+      sharedPlanRankingVisibilityDisabledHint: "회원과 팀의 순위는 관리자만 볼 수 있어요.",
+      sharedPlanProgressVisibilityLabel: "회원/팀 진행도 공개",
+      sharedPlanProgressVisibilityEnabledHint: "회원과 팀의 진행도를 교회 구성원이 볼 수 있어요.",
+      sharedPlanProgressVisibilityDisabledHint: "회원과 팀의 진행도는 관리자만 볼 수 있어요.",
+      planProgressPrivateHint: "이 공통 읽기표의 진행도는 교회 설정에 따라 비공개예요.",
+      planRankingPrivateHint: "이 공통 읽기표의 등수는 교회 설정에 따라 비공개예요.",
+      planProgressAndRankingPrivateHint:
+        "이 공통 읽기표의 진행도와 등수는 교회 설정에 따라 비공개예요.",
+      planProgressPrivateMessage: "현재 다른 회원의 진행도는 비공개예요.",
       me: "나",
       tabs: {
         members: "회원 리스트",
@@ -1198,6 +1215,30 @@ const messages = {
       averageProgress: "Average progress",
       myProgress: "My progress",
       memberProgressList: "Member progress",
+      teamRankingList: "Team averages and ranks",
+      rankLabel: "#{rank}",
+      privateValue: "Private",
+      sharedPlanVisibilityTitle: "Shared plan visibility",
+      sharedPlanVisibilityDescription:
+        "Choose whether church members can see shared-plan rankings and progress.",
+      sharedPlanRankingVisibilityLabel: "Show member/team rankings",
+      sharedPlanRankingVisibilityEnabledHint:
+        "Church members can see the ranking order of members and teams.",
+      sharedPlanRankingVisibilityDisabledHint:
+        "Only admins can see the ranking order of members and teams.",
+      sharedPlanProgressVisibilityLabel: "Show member/team progress",
+      sharedPlanProgressVisibilityEnabledHint:
+        "Church members can see the progress of members and teams.",
+      sharedPlanProgressVisibilityDisabledHint:
+        "Only admins can see the progress of members and teams.",
+      planProgressPrivateHint:
+        "Progress for this shared plan is hidden by the church settings.",
+      planRankingPrivateHint:
+        "Ranking for this shared plan is hidden by the church settings.",
+      planProgressAndRankingPrivateHint:
+        "Progress and ranking for this shared plan are hidden by the church settings.",
+      planProgressPrivateMessage:
+        "Other members' progress is currently private.",
       me: "Me",
       tabs: {
         members: "Members",

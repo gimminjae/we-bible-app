@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { ChurchProgressBar } from '@/components/churches/church-progress-bar';
 import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import {
   ChurchPrayerSheet,
@@ -277,6 +278,10 @@ export default function ChurchDetailScreen() {
     [churchDetail, dataUserId],
   );
   const canDeleteChurch = churchDetail?.church.isSuperAdmin && !hasOtherMembers;
+  const canViewSharedPlanProgress =
+    churchDetail?.church.isSuperAdmin ||
+    churchDetail?.church.isDeputyAdmin ||
+    churchDetail?.church.sharedPlanProgressPublic;
 
   if (error) {
     return <LoadingScreen message={error.message} />;
@@ -1116,28 +1121,41 @@ export default function ChurchDetailScreen() {
                   }
                   className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
                 >
-                  <View className="flex-row items-start justify-between gap-3">
-                    <View className="flex-1">
-                      <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {plan.planName}
-                      </Text>
-                      <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
-                      </Text>
-                      {plan.planDescription ? (
-                        <Text
-                          className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
-                          numberOfLines={2}
-                        >
-                          {plan.planDescription}
+                  <View>
+                    <View className="flex-row items-start justify-between gap-3">
+                      <View className="flex-1">
+                        <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {plan.planName}
                         </Text>
-                      ) : null}
-                    </View>
-                    <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
-                      <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                        {plan.averageGoalPercent.toFixed(1)}%
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                        </Text>
+                        {plan.planDescription ? (
+                          <Text
+                            className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                            numberOfLines={2}
+                          >
+                            {plan.planDescription}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text
+                        className={`text-sm font-semibold ${
+                          canViewSharedPlanProgress
+                            ? 'text-primary-600 dark:text-primary-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        {canViewSharedPlanProgress
+                          ? `${plan.averageGoalPercent.toFixed(1)}%`
+                          : t('church.privateValue')}
                       </Text>
                     </View>
+                    <ChurchProgressBar
+                      value={plan.averageGoalPercent}
+                      hidden={!canViewSharedPlanProgress}
+                      className="mt-4"
+                    />
                   </View>
                 </Pressable>
               ))
@@ -1354,28 +1372,41 @@ export default function ChurchDetailScreen() {
                             }
                             className="mb-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800"
                           >
-                            <View className="flex-row items-start justify-between gap-3">
-                              <View className="flex-1">
-                                <Text className="font-semibold text-gray-900 dark:text-white">
-                                  {plan.planName}
-                                </Text>
-                                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                  {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
-                                </Text>
-                                {plan.planDescription ? (
-                                  <Text
-                                    className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
-                                    numberOfLines={2}
-                                  >
-                                    {plan.planDescription}
+                            <View>
+                              <View className="flex-row items-start justify-between gap-3">
+                                <View className="flex-1">
+                                  <Text className="font-semibold text-gray-900 dark:text-white">
+                                    {plan.planName}
                                   </Text>
-                                ) : null}
-                              </View>
-                              <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
-                                <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                                  {plan.averageGoalPercent.toFixed(1)}%
+                                  <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {t('church.planCreatedBy').replace('{name}', plan.createdByName)}
+                                  </Text>
+                                  {plan.planDescription ? (
+                                    <Text
+                                      className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400"
+                                      numberOfLines={2}
+                                    >
+                                      {plan.planDescription}
+                                    </Text>
+                                  ) : null}
+                                </View>
+                                <Text
+                                  className={`text-sm font-semibold ${
+                                    canViewSharedPlanProgress
+                                      ? 'text-primary-600 dark:text-primary-400'
+                                      : 'text-gray-500 dark:text-gray-400'
+                                  }`}
+                                >
+                                  {canViewSharedPlanProgress
+                                    ? `${plan.averageGoalPercent.toFixed(1)}%`
+                                    : t('church.privateValue')}
                                 </Text>
                               </View>
+                              <ChurchProgressBar
+                                value={plan.averageGoalPercent}
+                                hidden={!canViewSharedPlanProgress}
+                                className="mt-4"
+                              />
                             </View>
                           </Pressable>
                         ))}
@@ -1504,6 +1535,8 @@ export default function ChurchDetailScreen() {
         mode="edit"
         initialName={churchDetail.church.name}
         initialDescription={churchDetail.church.description}
+        initialSharedPlanRankingPublic={churchDetail.church.sharedPlanRankingPublic}
+        initialSharedPlanProgressPublic={churchDetail.church.sharedPlanProgressPublic}
         isSubmitting={processingKey === 'update-church-info'}
         onClose={() => setEditChurchInfoVisible(false)}
         onSubmit={async (input) => {
@@ -1513,6 +1546,10 @@ export default function ChurchDetailScreen() {
               churchId: churchDetail.church.id,
               name: input.name,
               description: input.description,
+              sharedPlanRankingPublic:
+                input.sharedPlanRankingPublic ?? churchDetail.church.sharedPlanRankingPublic,
+              sharedPlanProgressPublic:
+                input.sharedPlanProgressPublic ?? churchDetail.church.sharedPlanProgressPublic,
             });
             setEditChurchInfoVisible(false);
             showToast(t('toast.churchUpdated'));

@@ -78,7 +78,9 @@ $$;
 create or replace function public.update_church_info(
   p_church_id bigint,
   p_name text,
-  p_description text
+  p_description text,
+  p_shared_plan_ranking_public boolean,
+  p_shared_plan_progress_public boolean
 )
 returns void
 language plpgsql
@@ -108,12 +110,45 @@ begin
 
   update public.churches church
   set name = v_name,
-      description = v_description
+      description = v_description,
+      shared_plan_ranking_public = coalesce(p_shared_plan_ranking_public, true),
+      shared_plan_progress_public = coalesce(p_shared_plan_progress_public, true)
   where church.id = p_church_id;
 
   if not found then
     raise exception 'CHURCH_NOT_FOUND';
   end if;
+end;
+$$;
+
+create or replace function public.update_church_info(
+  p_church_id bigint,
+  p_name text,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor_user_id uuid;
+  v_name text;
+  v_description text;
+begin
+  perform public.update_church_info(
+    p_church_id,
+    p_name,
+    p_description,
+    coalesce(
+      (select church.shared_plan_ranking_public from public.churches church where church.id = p_church_id),
+      true
+    ),
+    coalesce(
+      (select church.shared_plan_progress_public from public.churches church where church.id = p_church_id),
+      true
+    )
+  );
 end;
 $$;
 

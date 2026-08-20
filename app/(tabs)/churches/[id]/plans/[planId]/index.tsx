@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 
+import { ChurchProgressBar } from '@/components/churches/church-progress-bar';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { SharedPlanProgressSheet } from '@/components/churches/shared-plan-progress-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -31,6 +32,41 @@ export default function ChurchPlanDetailScreen() {
     () => sharedPlanDetail?.memberProgressList.find((item) => item.userId === selectedUserId) ?? null,
     [selectedUserId, sharedPlanDetail],
   );
+  const canViewAllRanking = sharedPlanDetail?.visibility.canViewAllRanking ?? false;
+  const canViewAllProgress = sharedPlanDetail?.visibility.canViewAllProgress ?? false;
+
+  const visibleMemberProgressList = useMemo(() => {
+    if (!sharedPlanDetail) return [];
+
+    const next = [...sharedPlanDetail.memberProgressList];
+    if (sharedPlanDetail.visibility.canViewAllRanking) {
+      next.sort((left, right) => {
+        const rankDiff = left.rank - right.rank;
+        if (rankDiff !== 0) return rankDiff;
+        return left.profile.displayName.localeCompare(right.profile.displayName, 'ko');
+      });
+      return next;
+    }
+
+    return next;
+  }, [sharedPlanDetail]);
+
+  const visibleTeamProgressList = useMemo(() => {
+    if (!sharedPlanDetail) return [];
+
+    const next = [...sharedPlanDetail.teamProgressList];
+    if (sharedPlanDetail.visibility.canViewAllRanking) {
+      next.sort((left, right) => {
+        const rankDiff = left.rank - right.rank;
+        if (rankDiff !== 0) return rankDiff;
+        return left.teamName.localeCompare(right.teamName, 'ko');
+      });
+      return next;
+    }
+
+    next.sort((left, right) => left.teamName.localeCompare(right.teamName, 'ko'));
+    return next;
+  }, [sharedPlanDetail]);
 
   if (error) {
     return <LoadingScreen message={error.message} />;
@@ -39,6 +75,15 @@ export default function ChurchPlanDetailScreen() {
   if (isLoading || !sharedPlanDetail) {
     return <LoadingScreen message="Loading plan..." />;
   }
+
+  const handleMemberPress = (userId: string, canOpenDetail: boolean) => {
+    if (!canOpenDetail) {
+      showToast(t('church.planProgressPrivateMessage'));
+      return;
+    }
+
+    setSelectedUserId(userId);
+  };
 
   const handleDeletePlan = () => {
     Alert.alert('', t('mypage.deletePlanConfirm'), [
@@ -132,8 +177,16 @@ export default function ChurchPlanDetailScreen() {
               {t('church.averageProgress')}
             </Text>
             <Text className="mt-3 text-2xl font-bold text-primary-600 dark:text-primary-400">
-              {sharedPlanDetail.averageGoalPercent.toFixed(2)}%
+              {canViewAllProgress
+                ? `${sharedPlanDetail.averageGoalPercent.toFixed(2)}%`
+                : t('church.privateValue')}
             </Text>
+            <ChurchProgressBar
+              value={sharedPlanDetail.averageGoalPercent}
+              hidden={!canViewAllProgress}
+              size="md"
+              className="mt-4"
+            />
           </View>
           <View className="flex-1 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
             <Text className="text-sm text-gray-500 dark:text-gray-400">{t('church.myProgress')}</Text>
@@ -142,8 +195,80 @@ export default function ChurchPlanDetailScreen() {
                 ? `${sharedPlanDetail.myProgress.plan.goalPercent.toFixed(2)}%`
                 : '-'}
             </Text>
+            <ChurchProgressBar
+              value={sharedPlanDetail.myProgress?.plan.goalPercent ?? 0}
+              size="md"
+              tone="emerald"
+              className="mt-4"
+            />
           </View>
         </View>
+
+        {!canViewAllProgress || !canViewAllRanking ? (
+          <View className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
+            <Text className="text-sm leading-6 text-amber-700 dark:text-amber-200">
+              {!canViewAllProgress && !canViewAllRanking
+                ? t('church.planProgressAndRankingPrivateHint')
+                : !canViewAllProgress
+                  ? t('church.planProgressPrivateHint')
+                  : t('church.planRankingPrivateHint')}
+            </Text>
+          </View>
+        ) : null}
+
+        {visibleTeamProgressList.length > 0 && (canViewAllRanking || canViewAllProgress) ? (
+          <View className="mb-4">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                {t('church.teamRankingList')}
+              </Text>
+              <Text className="text-sm text-gray-500 dark:text-gray-400">
+                {visibleTeamProgressList.length}
+              </Text>
+            </View>
+
+            {visibleTeamProgressList.map((team) => (
+              <View
+                key={team.teamId}
+                className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+              >
+                <View className="flex-row items-start justify-between gap-3">
+                  <View className="flex-1">
+                    <Text className="font-semibold text-gray-900 dark:text-white">{team.teamName}</Text>
+                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {t('church.memberCount').replace('{count}', String(team.memberCount))}
+                    </Text>
+                  </View>
+                  <View className="items-end gap-2">
+                    {canViewAllRanking ? (
+                      <View className="rounded-2xl bg-amber-100 px-3 py-2 dark:bg-amber-950/40">
+                        <Text className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                          {t('church.rankLabel').replace('{rank}', String(team.rank))}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text
+                      className={`text-sm font-semibold ${
+                        canViewAllProgress
+                          ? 'text-primary-600 dark:text-primary-400'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {canViewAllProgress
+                        ? `${team.averageGoalPercent.toFixed(1)}%`
+                        : t('church.privateValue')}
+                    </Text>
+                  </View>
+                </View>
+                <ChurchProgressBar
+                  value={team.averageGoalPercent}
+                  hidden={!canViewAllProgress}
+                  className="mt-4"
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View>
           <View className="mb-3 flex-row items-center justify-between">
@@ -151,41 +276,70 @@ export default function ChurchPlanDetailScreen() {
               {t('church.memberProgressList')}
             </Text>
             <Text className="text-sm text-gray-500 dark:text-gray-400">
-              {sharedPlanDetail.memberProgressList.length}
+              {visibleMemberProgressList.length}
             </Text>
           </View>
 
-          {sharedPlanDetail.memberProgressList.map((member) => (
-            <Pressable
-              key={member.userId}
-              onPress={() => setSelectedUserId(member.userId)}
-              className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-            >
-              <View className="flex-row items-start justify-between gap-3">
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="font-semibold text-gray-900 dark:text-white">
-                      {member.profile.displayName}
-                      {sharedPlanDetail.myProgress?.userId === member.userId
-                        ? ` · ${t('church.me')}`
-                        : ''}
+          {visibleMemberProgressList.map((member) => {
+            const canOpenDetail =
+              canViewAllProgress || sharedPlanDetail.myProgress?.userId === member.userId;
+            const canShowProgress =
+              canViewAllProgress || sharedPlanDetail.myProgress?.userId === member.userId;
+            const canShowRankBadge = canViewAllRanking && member.rank <= 10;
+
+            return (
+              <Pressable
+                key={member.userId}
+                onPress={() => handleMemberPress(member.userId, canOpenDetail)}
+                className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                accessibilityState={{ disabled: !canOpenDetail }}
+              >
+                <View className="flex-row items-start justify-between gap-3">
+                  <View className="flex-1">
+                    <View className="flex-row items-center gap-2">
+                      <Text className="font-semibold text-gray-900 dark:text-white">
+                        {member.profile.displayName}
+                        {sharedPlanDetail.myProgress?.userId === member.userId
+                          ? ` · ${t('church.me')}`
+                          : ''}
+                      </Text>
+                      <ChurchRoleBadge role={member.role} />
+                    </View>
+                    <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      {member.teamName
+                        ? `${t('church.teamLabel')} ${member.teamName}`
+                        : t('church.noTeamAssigned')}
                     </Text>
-                    <ChurchRoleBadge role={member.role} />
                   </View>
-                  <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    {member.teamName
-                      ? `${t('church.teamLabel')} ${member.teamName}`
-                      : t('church.noTeamAssigned')}
-                  </Text>
+                  <View className="items-end gap-2">
+                    {canShowRankBadge ? (
+                      <View className="rounded-2xl bg-amber-100 px-3 py-2 dark:bg-amber-950/40">
+                        <Text className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                          {t('church.rankLabel').replace('{rank}', String(member.rank))}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text
+                      className={`text-sm font-semibold ${
+                        canShowProgress
+                          ? 'text-primary-600 dark:text-primary-400'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {canShowProgress
+                        ? `${member.plan.goalPercent.toFixed(1)}%`
+                        : t('church.privateValue')}
+                    </Text>
+                  </View>
                 </View>
-                <View className="rounded-2xl bg-primary-100 px-3 py-2 dark:bg-primary-950/40">
-                  <Text className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                    {member.plan.goalPercent.toFixed(1)}%
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          ))}
+                <ChurchProgressBar
+                  value={member.plan.goalPercent}
+                  hidden={!canShowProgress}
+                  className="mt-4"
+                />
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
 

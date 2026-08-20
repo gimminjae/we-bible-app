@@ -151,7 +151,13 @@ export function useChurchActions() {
         await invalidateChurchQueries(churchId);
         return churchId;
       },
-      async updateChurchInfo(args: { churchId: string; name: string; description: string }) {
+      async updateChurchInfo(args: {
+        churchId: string;
+        name: string;
+        description: string;
+        sharedPlanRankingPublic: boolean;
+        sharedPlanProgressPublic: boolean;
+      }) {
         await updateChurchInfoRequest(args);
         await invalidateChurchQueries(args.churchId);
       },

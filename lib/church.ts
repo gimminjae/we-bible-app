@@ -154,6 +154,8 @@ export type ChurchDetail = {
     canManageMembers: boolean;
     canManagePlans: boolean;
     canManageTeams: boolean;
+    sharedPlanRankingPublic: boolean;
+    sharedPlanProgressPublic: boolean;
   };
   members: ChurchMembership[];
   pendingJoinRequests: ChurchJoinRequest[];
@@ -167,8 +169,24 @@ export type SharedPlanMemberProgress = {
   role: ChurchRole;
   teamId: string | null;
   teamName: string | null;
+  rank: number;
   profile: ChurchUserProfile;
   plan: PlanRecord;
+};
+
+export type SharedPlanTeamProgress = {
+  teamId: string;
+  teamName: string;
+  memberCount: number;
+  averageGoalPercent: number;
+  rank: number;
+};
+
+export type SharedPlanVisibility = {
+  rankingPublic: boolean;
+  progressPublic: boolean;
+  canViewAllRanking: boolean;
+  canViewAllProgress: boolean;
 };
 
 export type SharedPlanDetail = {
@@ -176,10 +194,12 @@ export type SharedPlanDetail = {
   team: ChurchTeam | null;
   summary: SharedPlanSummary;
   memberProgressList: SharedPlanMemberProgress[];
+  teamProgressList: SharedPlanTeamProgress[];
   averageGoalPercent: number;
   myProgress: SharedPlanMemberProgress | null;
   canEditPlan: boolean;
   canUpdateMyProgress: boolean;
+  visibility: SharedPlanVisibility;
 };
 
 export type MySharedPlanSummary = SharedPlanSummary & {
@@ -205,6 +225,8 @@ type ChurchRow = {
   super_admin_user_id: string | null;
   member_count: number | null;
   deputy_admin_user_ids: string | null;
+  shared_plan_ranking_public: boolean | null;
+  shared_plan_progress_public: boolean | null;
 };
 
 type MembershipRow = {
@@ -288,6 +310,11 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  return fallback;
+}
+
 function parseJsonText<T>(value: unknown, fallback: T): T {
   if (typeof value === "string") {
     try {
@@ -348,6 +375,34 @@ function roleOrder(role: ChurchRole) {
 
 function isChurchAdminRole(role: ChurchRole | null | undefined) {
   return role === "super_admin" || role === "deputy_admin";
+}
+
+function comparePlanProgress(left: PlanRecord, right: PlanRecord) {
+  const goalPercentDiff = right.goalPercent - left.goalPercent;
+  if (Math.abs(goalPercentDiff) > 0.0001) return goalPercentDiff;
+
+  const readCountDiff = right.currentReadCount - left.currentReadCount;
+  if (readCountDiff !== 0) return readCountDiff;
+
+  return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function assignDenseRanks<T>(items: T[], getScore: (item: T) => number) {
+  const rankMap = new Map<T, number>();
+  let previousScore: number | null = null;
+  let currentRank = 0;
+
+  items.forEach((item) => {
+    const score = getScore(item);
+    if (previousScore == null || Math.abs(score - previousScore) > 0.0001) {
+      currentRank += 1;
+      previousScore = score;
+    }
+
+    rankMap.set(item, currentRank);
+  });
+
+  return rankMap;
 }
 
 function createProgressPlanRecord(
@@ -567,12 +622,16 @@ export async function updateChurchInfo(args: {
   churchId: string;
   name: string;
   description: string;
+  sharedPlanRankingPublic: boolean;
+  sharedPlanProgressPublic: boolean;
 }) {
   const supabase = createSupabaseClient();
   const { error } = await supabase.rpc("update_church_info", {
     p_church_id: Number(args.churchId),
     p_name: args.name.trim(),
     p_description: args.description.trim(),
+    p_shared_plan_ranking_public: args.sharedPlanRankingPublic,
+    p_shared_plan_progress_public: args.sharedPlanProgressPublic,
   });
 
   if (error) throw error;
@@ -626,7 +685,7 @@ export async function fetchMyChurches(userId: string): Promise<ChurchSummary[]> 
   const [{ data: churchData, error: churchError }, { data: teamData, error: teamError }] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids, shared_plan_ranking_public, shared_plan_progress_public")
       .in("id", churchIds),
     teamIds.length
       ? supabase.from("teams").select("id, church_id, name, created_at, updated_at, created_by_user_id, leader_user_id").in("id", teamIds)
@@ -674,7 +733,7 @@ export async function fetchMySharedPlans(currentUserId: string): Promise<MyShare
   const [{ data: churchData, error: churchError }, { data: planData, error: planError }] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids, shared_plan_ranking_public, shared_plan_progress_public")
       .in("id", churchIds),
     supabase
       .from("plans")
@@ -760,7 +819,7 @@ export async function searchChurches(userId: string, searchTerm: string): Promis
   const supabase = createSupabaseClient();
   const { data: churchData, error: churchError } = await supabase
     .from("churches")
-    .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+    .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids, shared_plan_ranking_public, shared_plan_progress_public")
     .ilike("name", `%${keyword}%`)
     .order("name", { ascending: true })
     .limit(20);
@@ -824,7 +883,7 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
   ] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids")
+      .select("id, name, description, created_at, updated_at, created_by_user_id, super_admin_user_id, member_count, deputy_admin_user_ids, shared_plan_ranking_public, shared_plan_progress_public")
       .eq("id", numericChurchId)
       .maybeSingle(),
     supabase
@@ -1030,6 +1089,8 @@ export async function fetchChurchDetail(churchId: string, currentUserId: string)
       canManageMembers: myRole === "super_admin" || myRole === "deputy_admin",
       canManagePlans: myRole === "super_admin" || myRole === "deputy_admin",
       canManageTeams: myRole === "super_admin" || myRole === "deputy_admin",
+      sharedPlanRankingPublic: normalizeBoolean(church.shared_plan_ranking_public, true),
+      sharedPlanProgressPublic: normalizeBoolean(church.shared_plan_progress_public, true),
     },
     members: memberList,
     pendingJoinRequests,
@@ -1441,25 +1502,93 @@ export async function fetchSharedPlanDetail(
     role: member.role,
     teamId: member.teamId,
     teamName: member.teamName,
+    rank: 0,
     profile: member.profile,
     plan: createProgressPlanRecord(planRow, progressMap.get(member.userId) ?? null),
+  }));
+
+  const rankedMembers = [...memberProgressList].sort((left, right) => {
+    const progressDiff = comparePlanProgress(left.plan, right.plan);
+    if (progressDiff !== 0) return progressDiff;
+    return left.profile.displayName.localeCompare(right.profile.displayName, "ko");
+  });
+  const memberRankMap = new Map(
+    [...assignDenseRanks(rankedMembers, (member) => member.plan.goalPercent).entries()].map(
+      ([member, rank]) => [member.userId, rank],
+    ),
+  );
+  const rankedMemberProgressList = memberProgressList.map((member) => ({
+    ...member,
+    rank: memberRankMap.get(member.userId) ?? 1,
+  }));
+
+  const teamTotals = rankedMemberProgressList.reduce(
+    (map, member) => {
+      if (!member.teamId || !member.teamName) return map;
+
+      const existing = map.get(member.teamId) ?? {
+        teamId: member.teamId,
+        teamName: member.teamName,
+        memberCount: 0,
+        totalGoalPercent: 0,
+      };
+      existing.memberCount += 1;
+      existing.totalGoalPercent += member.plan.goalPercent;
+      map.set(member.teamId, existing);
+      return map;
+    },
+    new Map<string, { teamId: string; teamName: string; memberCount: number; totalGoalPercent: number }>(),
+  );
+  const teamProgressBase = [...teamTotals.values()].map((team) => ({
+    teamId: team.teamId,
+    teamName: team.teamName,
+    memberCount: team.memberCount,
+    averageGoalPercent:
+      team.memberCount > 0
+        ? Math.round((team.totalGoalPercent / team.memberCount) * 100) / 100
+        : 0,
+    rank: 0,
+  }));
+  const rankedTeams = [...teamProgressBase].sort((left, right) => {
+    const averageDiff = right.averageGoalPercent - left.averageGoalPercent;
+    if (Math.abs(averageDiff) > 0.0001) return averageDiff;
+    return left.teamName.localeCompare(right.teamName, "ko");
+  });
+  const teamRankMap = new Map(
+    [...assignDenseRanks(rankedTeams, (team) => team.averageGoalPercent).entries()].map(
+      ([team, rank]) => [team.teamId, rank],
+    ),
+  );
+  const teamProgressList = teamProgressBase.map((team) => ({
+    ...team,
+    rank: teamRankMap.get(team.teamId) ?? 1,
   }));
 
   const myRole = churchDetail.church.myRole;
   const canEditPlan =
     myRole === "super_admin" ||
     (myRole === "deputy_admin" && planRow.team_id != null);
-  const myProgress = memberProgressList.find((item) => item.userId === currentUserId) ?? null;
+  const myProgress = rankedMemberProgressList.find((item) => item.userId === currentUserId) ?? null;
+  const visibility = {
+    rankingPublic: churchDetail.church.sharedPlanRankingPublic,
+    progressPublic: churchDetail.church.sharedPlanProgressPublic,
+    canViewAllRanking:
+      isChurchAdminRole(myRole) || churchDetail.church.sharedPlanRankingPublic,
+    canViewAllProgress:
+      isChurchAdminRole(myRole) || churchDetail.church.sharedPlanProgressPublic,
+  } satisfies SharedPlanVisibility;
 
   return {
     church: churchDetail.church,
     team: churchDetail.teams.find((team) => team.id === String(planRow.team_id)) ?? null,
     summary,
-    memberProgressList,
+    memberProgressList: rankedMemberProgressList,
+    teamProgressList,
     averageGoalPercent: summary.averageGoalPercent,
     myProgress,
     canEditPlan,
     canUpdateMyProgress: Boolean(myProgress),
+    visibility,
   };
 }
 
