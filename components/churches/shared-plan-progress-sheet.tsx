@@ -29,6 +29,7 @@ type SharedPlanProgressSheetProps = {
 };
 
 const CHAPTER_BUTTON_LONG_PRESS_MS = 400;
+const BOOK_INDEX_BY_CODE = new Map(BIBLE_BOOKS.map((book, index) => [book.bookCode, index]));
 
 export function SharedPlanProgressSheet({
   visible,
@@ -41,41 +42,75 @@ export function SharedPlanProgressSheet({
   const { appLanguage } = useAppSettings();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'ot' | 'nt'>('ot');
+  const [expandedBookCode, setExpandedBookCode] = useState<string | null>(null);
   const [localGoalStatus, setLocalGoalStatus] = useState<GoalStatus>([]);
   const { isLoading, runWithLoading } = useLoading();
 
   useEffect(() => {
-    if (!memberProgress) {
+    if (!memberProgress || !canEdit) {
       setLocalGoalStatus([]);
       return;
     }
 
     setLocalGoalStatus(memberProgress.plan.goalStatus.map((row) => [...row]));
-  }, [memberProgress]);
+  }, [canEdit, memberProgress]);
+
+  useEffect(() => {
+    if (!memberProgress) {
+      setExpandedBookCode(null);
+      return;
+    }
+
+    setExpandedBookCode(null);
+  }, [activeTab, memberProgress]);
+
+  const selectedBookCodeSet = useMemo(
+    () => new Set(memberProgress?.plan.selectedBookCodes ?? []),
+    [memberProgress?.plan.selectedBookCodes],
+  );
+
+  const goalStatus = useMemo(() => {
+    if (!memberProgress) return [];
+    if (!canEdit || localGoalStatus.length === 0) {
+      return memberProgress.plan.goalStatus;
+    }
+    return localGoalStatus;
+  }, [canEdit, localGoalStatus, memberProgress]);
 
   const booksToRender = useMemo(() => {
     if (!memberProgress) return [];
-    const selectedBookCodes = memberProgress.plan.selectedBookCodes;
-    return BIBLE_BOOKS.filter(
-      (book) =>
-        selectedBookCodes.includes(book.bookCode) &&
-        (activeTab === 'ot' ? book.bookSeq <= 39 : book.bookSeq >= 40),
-    );
-  }, [activeTab, memberProgress]);
+    return BIBLE_BOOKS.filter((book) => {
+      if (!selectedBookCodeSet.has(book.bookCode)) return false;
+      return activeTab === 'ot' ? book.bookSeq <= 39 : book.bookSeq >= 40;
+    }).map((book) => {
+      const bookIndex = BOOK_INDEX_BY_CODE.get(book.bookCode) ?? -1;
+      const chapterRow = goalStatus[bookIndex] ?? [];
+      const readCount = countReadChapters(chapterRow);
+
+      return {
+        book,
+        bookIndex,
+        readCount,
+        allRead: readCount === book.maxChapter,
+      };
+    });
+  }, [activeTab, goalStatus, memberProgress, selectedBookCodeSet]);
 
   const localCurrentReadCount = useMemo(() => {
     if (!memberProgress) return 0;
+    if (!canEdit) return memberProgress.plan.currentReadCount;
 
     return BIBLE_BOOKS.reduce((sum, book, bookIndex) => {
-      if (!memberProgress.plan.selectedBookCodes.includes(book.bookCode)) return sum;
-      return sum + countReadChapters(localGoalStatus[bookIndex] ?? []);
+      if (!selectedBookCodeSet.has(book.bookCode)) return sum;
+      return sum + countReadChapters(goalStatus[bookIndex] ?? []);
     }, 0);
-  }, [localGoalStatus, memberProgress]);
+  }, [canEdit, goalStatus, memberProgress, selectedBookCodeSet]);
 
   const localGoalPercent = useMemo(() => {
     if (!memberProgress) return 0;
+    if (!canEdit) return memberProgress.plan.goalPercent;
     return calcGoalPercent(memberProgress.plan.totalReadCount, localCurrentReadCount);
-  }, [localCurrentReadCount, memberProgress]);
+  }, [canEdit, localCurrentReadCount, memberProgress]);
 
   return (
     <BottomSheet
@@ -163,33 +198,36 @@ export function SharedPlanProgressSheet({
                 </Text>
               </View>
             ) : (
-              booksToRender.map((book) => {
-                const bookIndex = BIBLE_BOOKS.findIndex((item) => item.bookCode === book.bookCode);
-                const chapters = Array.from(
-                  { length: book.maxChapter },
-                  (_entry, chapterIndex) =>
-                    normalizeChapterReadCount(localGoalStatus[bookIndex]?.[chapterIndex]),
-                );
-                const readCount = countReadChapters(chapters);
-                const allRead = chapters.every((value) => isChapterRead(value));
+              booksToRender.map(({ book, bookIndex, readCount, allRead }) => {
+                const isExpanded = expandedBookCode === book.bookCode;
+                const chapterRow = goalStatus[bookIndex] ?? [];
+                const chapters = isExpanded
+                  ? Array.from(
+                      { length: book.maxChapter },
+                      (_entry, chapterIndex) =>
+                        normalizeChapterReadCount(chapterRow[chapterIndex]),
+                    )
+                  : null;
 
                 const updateChapterCount = (
                   chapterIndex: number,
                   updater: (current: number) => number,
                 ) => {
                   setLocalGoalStatus((previous) =>
-                    previous.map((row, index) => {
-                      if (index !== bookIndex) return row;
+                    (() => {
+                      const next = previous.slice();
+                      const currentRow = next[bookIndex] ?? [];
                       const nextRow = Array.from(
                         { length: book.maxChapter },
-                        (_entry, rowIndex) => normalizeChapterReadCount(row[rowIndex]),
+                        (_entry, rowIndex) => normalizeChapterReadCount(currentRow[rowIndex]),
                       );
                       nextRow[chapterIndex] = Math.max(
                         0,
                         normalizeChapterReadCount(updater(nextRow[chapterIndex] ?? 0)),
                       );
-                      return nextRow;
-                    }),
+                      next[bookIndex] = nextRow;
+                      return next;
+                    })(),
                   );
                 };
 
@@ -198,29 +236,49 @@ export function SharedPlanProgressSheet({
                     key={book.bookCode}
                     className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
                   >
-                    <View className="mb-3 flex-row items-center justify-between">
-                      <View>
-                        <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                          {getBookName(book.bookCode, appLanguage)}
-                        </Text>
-                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                          {readCount}/{book.maxChapter}
-                        </Text>
-                      </View>
-                      {canEdit ? (
+                    <View className="flex-row items-center justify-between gap-3">
+                      <Pressable
+                        onPress={() =>
+                          setExpandedBookCode((current) =>
+                            current === book.bookCode ? null : book.bookCode,
+                          )
+                        }
+                        className="flex-1 flex-row items-center justify-between"
+                      >
+                        <View>
+                          <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                            {getBookName(book.bookCode, appLanguage)}
+                          </Text>
+                          <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {readCount}/{book.maxChapter}
+                          </Text>
+                        </View>
+                        <View className="ml-3 h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                          <Text className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+                            {isExpanded ? '-' : '+'}
+                          </Text>
+                        </View>
+                      </Pressable>
+                      {canEdit && isExpanded ? (
                         <Button
                           disabled={isLoading}
                           onPress={() =>
                             setLocalGoalStatus((previous) =>
-                              previous.map((row, index) =>
-                                index === bookIndex
-                                  ? Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
-                                      const current = normalizeChapterReadCount(row[chapterIndex]);
-                                      if (allRead) return 0;
-                                      return isChapterRead(current) ? current : 1;
-                                    })
-                                  : row,
-                              ),
+                              (() => {
+                                const next = previous.slice();
+                                const currentRow = next[bookIndex] ?? [];
+                                next[bookIndex] = Array.from(
+                                  { length: book.maxChapter },
+                                  (_entry, chapterIndex) => {
+                                    const current = normalizeChapterReadCount(
+                                      currentRow[chapterIndex],
+                                    );
+                                    if (allRead) return 0;
+                                    return isChapterRead(current) ? current : 1;
+                                  },
+                                );
+                                return next;
+                              })(),
                             )
                           }
                           action="secondary"
@@ -234,58 +292,64 @@ export function SharedPlanProgressSheet({
                       ) : null}
                     </View>
 
-                    {canEdit ? (
-                      <EditableChapterReadCountGrid
-                        maxChapter={book.maxChapter}
-                        chapters={chapters}
-                        disabled={isLoading}
-                        onIncrement={(chapterIndex) =>
-                          updateChapterCount(chapterIndex, (current) => current + 1)
-                        }
-                        onDecrement={(chapterIndex) =>
-                          updateChapterCount(chapterIndex, (current) => current - 1)
-                        }
-                        onChapterLongPress={(chapter) =>
-                          onChapterLongPress?.(book.bookCode, chapter)
-                        }
-                      />
-                    ) : (
-                      <View className="flex-row flex-wrap gap-2">
-                        {Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
-                          const chapterReadCount = chapters[chapterIndex] ?? 0;
-                          const read = isChapterRead(chapterReadCount);
-                          return (
-                            <Pressable
-                              key={`${book.bookCode}-${chapterIndex}`}
-                              onLongPress={() =>
-                                onChapterLongPress?.(book.bookCode, chapterIndex + 1)
-                              }
-                              delayLongPress={CHAPTER_BUTTON_LONG_PRESS_MS}
-                              className={`relative h-10 w-10 items-center justify-center rounded-2xl border ${
-                                read
-                                  ? 'border-emerald-500 bg-emerald-500'
-                                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
-                              }`}
-                            >
-                              <Text
-                                className={`text-sm font-semibold ${
-                                  read ? 'text-white' : 'text-gray-900 dark:text-white'
-                                }`}
-                              >
-                                {chapterIndex + 1}
-                              </Text>
-                              {chapterReadCount > 0 ? (
-                                <View className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-primary-500 px-1 py-0.5 items-center">
-                                  <Text className="text-[10px] font-bold text-white">
-                                    {formatReadCountBadge(chapterReadCount)}
+                    {isExpanded ? (
+                      <View className="mt-3">
+                        {canEdit && chapters ? (
+                          <EditableChapterReadCountGrid
+                            maxChapter={book.maxChapter}
+                            chapters={chapters}
+                            disabled={isLoading}
+                            onIncrement={(chapterIndex) =>
+                              updateChapterCount(chapterIndex, (current) => current + 1)
+                            }
+                            onDecrement={(chapterIndex) =>
+                              updateChapterCount(chapterIndex, (current) => current - 1)
+                            }
+                            onChapterLongPress={(chapter) =>
+                              onChapterLongPress?.(book.bookCode, chapter)
+                            }
+                          />
+                        ) : (
+                          <View className="flex-row flex-wrap gap-2">
+                            {Array.from({ length: book.maxChapter }, (_entry, chapterIndex) => {
+                              const chapterReadCount = normalizeChapterReadCount(
+                                chapterRow[chapterIndex],
+                              );
+                              const read = isChapterRead(chapterReadCount);
+                              return (
+                                <Pressable
+                                  key={`${book.bookCode}-${chapterIndex}`}
+                                  onLongPress={() =>
+                                    onChapterLongPress?.(book.bookCode, chapterIndex + 1)
+                                  }
+                                  delayLongPress={CHAPTER_BUTTON_LONG_PRESS_MS}
+                                  className={`relative h-10 w-10 items-center justify-center rounded-2xl border ${
+                                    read
+                                      ? 'border-emerald-500 bg-emerald-500'
+                                      : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+                                  }`}
+                                >
+                                  <Text
+                                    className={`text-sm font-semibold ${
+                                      read ? 'text-white' : 'text-gray-900 dark:text-white'
+                                    }`}
+                                  >
+                                    {chapterIndex + 1}
                                   </Text>
-                                </View>
-                              ) : null}
-                            </Pressable>
-                          );
-                        })}
+                                  {chapterReadCount > 0 ? (
+                                    <View className="absolute -right-1 -top-1 min-w-[18px] items-center rounded-full bg-primary-500 px-1 py-0.5">
+                                      <Text className="text-[10px] font-bold text-white">
+                                        {formatReadCountBadge(chapterReadCount)}
+                                      </Text>
+                                    </View>
+                                  ) : null}
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        )}
                       </View>
-                    )}
+                    ) : null}
                   </View>
                 );
               })
@@ -298,7 +362,7 @@ export function SharedPlanProgressSheet({
                 disabled={isLoading}
                 onPress={async () => {
                   await runWithLoading(async () => {
-                    await onSave(localGoalStatus);
+                    await onSave(goalStatus);
                     onClose();
                   });
                 }}
