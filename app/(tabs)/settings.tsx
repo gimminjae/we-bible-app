@@ -26,8 +26,8 @@ import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
-import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/lib/church';
-import { createDeveloperInquiry } from '@/lib/developer-inquiries';
+import { fetchUserProfile, updateMyDisplayName, updateMyEmailVisibility } from '@/services/church';
+import { createDeveloperInquiry } from '@/services/developer-inquiry';
 import { padNumber } from '@/lib/date';
 import { requestLocalNotificationPermissions } from '@/lib/theme-verse-notifications';
 import {
@@ -40,10 +40,10 @@ import {
 import {
   THEME_VERSE_NOTIFICATION_WEEKDAYS,
   type ThemeVerseNotificationWeekday,
-} from '@/utils/bible-storage';
+} from '@/services/bible-state';
 import { useI18n } from '@/utils/i18n';
 import { useToast } from '@/contexts/toast-context';
-import { getCurrentThemeVerseYear, getThemeVerseByYear } from '@/utils/theme-verse-db';
+import { getCurrentThemeVerseYear, getThemeVerseByYear } from '@/services/theme-verse';
 
 const LANGUAGE_OPTIONS = [
   { value: 'ko', label: '한국어' },

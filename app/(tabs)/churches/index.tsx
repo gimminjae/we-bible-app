@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchSearch, useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
-import type { ChurchSearchResult } from '@/lib/church';
+import type { ChurchSearchResult } from '@/services/church';
 import { useI18n } from '@/utils/i18n';
 
 const churchExplainerBackground = require('../../../assets/images/church-explainer-bg.png');

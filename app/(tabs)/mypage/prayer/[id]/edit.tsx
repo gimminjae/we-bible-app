@@ -12,7 +12,7 @@ import {
   persistPrayers,
   updatePrayer,
   updatePrayerContent,
-} from "@/utils/prayer-db"
+} from "@/services/prayer"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"

@@ -8,7 +8,7 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
-import { getPlanById, updatePlanInfo } from '@/utils/plan-db';
+import { getPlanById, updatePlanInfo } from '@/services/plan';
 import { useI18n } from '@/utils/i18n';
 
 export default function EditPlanScreen() {

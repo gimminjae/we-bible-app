@@ -17,7 +17,7 @@ import {
   getCurrentThemeVerseYear,
   getThemeVerseByYear,
   type ThemeVerseRecord,
-} from '@/utils/theme-verse-db';
+} from '@/services/theme-verse';
 
 export default function MyPageScreen() {
   const db = useSQLiteContext();

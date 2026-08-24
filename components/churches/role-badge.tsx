@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import type { ChurchRole } from '@/lib/church';
+import type { ChurchRole } from '@/services/church';
 import { useI18n } from '@/utils/i18n';
 
 export function ChurchRoleBadge({ role }: { role: ChurchRole }) {

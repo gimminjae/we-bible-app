@@ -7,7 +7,7 @@ import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { useAppSettings } from '@/contexts/app-settings';
 import { useLoading } from '@/hooks/use-loading';
-import type { SharedPlanMemberProgress } from '@/lib/church';
+import type { SharedPlanMemberProgress } from '@/services/church';
 import {
   BIBLE_BOOKS,
   calcGoalPercent,

@@ -12,12 +12,12 @@ import {
   setBibleMeditationNotificationScheduleIdsToDb,
   setThemeVerseNotificationPermissionRequestedToDb,
   setThemeVerseNotificationScheduleIdsToDb,
-} from '@/utils/bible-storage';
+} from '@/services/bible-state';
 import {
   formatThemeVerseNumbers,
   getCurrentThemeVerseYear,
   getThemeVerseByYear,
-} from '@/utils/theme-verse-db';
+} from '@/services/theme-verse';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';

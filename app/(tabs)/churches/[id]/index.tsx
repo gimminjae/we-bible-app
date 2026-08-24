@@ -29,7 +29,7 @@ import { useLoading } from '@/hooks/use-loading';
 import { useResponsive } from '@/hooks/use-responsive';
 import { formatShortDateTime } from '@/lib/date';
 import { buildPrayerLabel } from '@/lib/prayer';
-import type { ChurchPrayer } from '@/lib/church';
+import type { ChurchPrayer } from '@/services/church';
 import { useI18n } from '@/utils/i18n';
 
 type DetailTab = 'members' | 'plans' | 'prayers' | 'teams';

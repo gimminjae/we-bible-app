@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/toast-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
-import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
+import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/services/memo';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';

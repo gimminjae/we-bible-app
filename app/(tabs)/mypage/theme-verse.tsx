@@ -25,7 +25,7 @@ import {
   getCurrentThemeVerseYear,
   upsertThemeVerse,
   type ThemeVerseRecord,
-} from "@/utils/theme-verse-db"
+} from "@/services/theme-verse"
 
 function replaceToken(template: string, token: string, value: string) {
   return template.replace(`{${token}}`, value)

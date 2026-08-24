@@ -9,7 +9,7 @@ import {
   getPrayerById,
   type PrayContent,
   type PrayRecord,
-} from '@/utils/prayer-db';
+} from '@/services/prayer';
 import { useI18n } from '@/utils/i18n';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';

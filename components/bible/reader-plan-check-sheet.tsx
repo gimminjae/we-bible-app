@@ -1,6 +1,6 @@
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
-import type { PlanChapterSelectionItem } from '@/utils/plan-db';
+import type { PlanChapterSelectionItem } from '@/services/plan';
 import { useI18n } from '@/utils/i18n';
 import { ScrollView, Text, Pressable, View, ActivityIndicator } from 'react-native';
 

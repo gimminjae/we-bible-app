@@ -9,7 +9,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useBiblePlanTemplate } from '@/hooks/use-plan-templates';
-import { addPlan } from '@/utils/plan-db';
+import { addPlan } from '@/services/plan';
 import { useI18n } from '@/utils/i18n';
 
 export default function AddPlanScreen() {

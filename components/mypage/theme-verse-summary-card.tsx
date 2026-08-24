@@ -7,7 +7,7 @@ import { useAppSettings } from '@/contexts/app-settings';
 import { useResponsive } from '@/hooks/use-responsive';
 import { getBookName } from '@/services/bible';
 import { useI18n } from '@/utils/i18n';
-import { formatThemeVerseNumbers, type ThemeVerseRecord } from '@/utils/theme-verse-db';
+import { formatThemeVerseNumbers, type ThemeVerseRecord } from '@/services/theme-verse';
 
 type ThemeVerseSummaryCardProps = {
   year: number;

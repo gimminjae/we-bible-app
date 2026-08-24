@@ -3,7 +3,7 @@ import {
   getFavoritesForChapter,
   removeFavorites as dbRemoveFavorites,
   type FavoriteVerseInput,
-} from '@/utils/favorite-verses-db';
+} from '@/services/favorite-verse';
 import { useAuth } from '@/contexts/auth-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';

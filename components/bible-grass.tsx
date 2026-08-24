@@ -15,7 +15,7 @@ import {
   getGrassColorThemeFromDb,
   setGrassColorThemeWithoutPoint,
   type GrassColorTheme,
-} from "@/utils/bible-storage"
+} from "@/services/bible-state"
 import { useI18n } from "@/utils/i18n"
 
 import {
@@ -25,7 +25,7 @@ import {
   getStreakUpToYesterday,
   type GrassDataMap,
   type GrassDayEntry,
-} from "@/utils/grass-db"
+} from "@/services/bible-grass"
 
 import { Button, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"

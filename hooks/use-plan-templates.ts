@@ -3,7 +3,7 @@ import { useCustomQuery } from '@/hooks/use-custom-query';
 import {
   fetchBiblePlanTemplateById,
   fetchBiblePlanTemplates,
-} from '@/lib/plan-template';
+} from '@/services/plan-template';
 
 const planTemplateKeys = {
   all: (languageCode: string) => ['plan-templates', languageCode] as const,

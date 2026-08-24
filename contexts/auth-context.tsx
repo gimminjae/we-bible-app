@@ -22,12 +22,12 @@ import { setActiveUserId } from "@/lib/auth-state"
 import {
   deleteMyAccount as deleteMyAccountRequest,
   syncUserProfileFromAuthUser,
-} from "@/lib/church"
+} from "@/services/church"
 import {
   bootstrapSupabaseUserData,
   getLocalDataOwnerUserId,
   resetLocalPersistedState,
-} from "@/lib/sqlite-supabase-store"
+} from "@/services/persisted-state"
 import {
   pauseSQLiteStateSync,
   resumeSQLiteStateSync,
@@ -39,7 +39,21 @@ import {
   isSupabaseConfigured,
   type SocialProvider,
 } from "@/lib/supabase"
-import { createSupabaseClient } from "@/lib/supabase-client"
+import {
+  exchangeAuthCodeForSession,
+  getAuthenticatedUser,
+  parseAuthResultUrl,
+  setAuthSession,
+  signInWithOAuthProvider,
+  signInWithPassword as signInWithPasswordRequest,
+  signInWithProviderIdToken,
+  signOutAuth,
+  signUpWithPassword as signUpWithPasswordRequest,
+  startAuthAutoRefresh,
+  stopAuthAutoRefresh,
+  subscribeToAuthStateChanges,
+  updateAuthUserMetadata,
+} from "@/services/auth"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -66,27 +80,6 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message
   return "AUTH_OPERATION_FAILED"
-}
-
-function parseAuthResultUrl(url: string) {
-  const parsed = new URL(url)
-  const searchParams = new URLSearchParams(parsed.search)
-  const hashParams = new URLSearchParams(
-    parsed.hash.startsWith("#") ? parsed.hash.slice(1) : parsed.hash,
-  )
-
-  return {
-    code: searchParams.get("code"),
-    accessToken:
-      hashParams.get("access_token") ?? searchParams.get("access_token"),
-    refreshToken:
-      hashParams.get("refresh_token") ?? searchParams.get("refresh_token"),
-    errorDescription:
-      hashParams.get("error_description") ??
-      searchParams.get("error_description") ??
-      hashParams.get("error") ??
-      searchParams.get("error"),
-  }
 }
 
 function buildAppleUserMetadata(fullName: NativeAppleFullName | null) {
@@ -188,8 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDataUserId(null)
         setActiveUserId(null)
 
-        const supabase = createSupabaseClient()
-        const result = await supabase.auth.signOut()
+        const result = await signOutAuth()
         if (result.error) {
           console.warn(
             "Failed to sign out after authenticated user bootstrap error.",
@@ -242,11 +234,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const supabase = createSupabaseClient()
-
     const loadSession = async () => {
       setIsLoadingSession(true)
-      const { data, error } = await supabase.auth.getUser()
+      const { data, error } = await getAuthenticatedUser()
       if (error) {
         setLastError(getErrorMessage(error))
       }
@@ -257,7 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = subscribeToAuthStateChanges((_event, session) => {
       void enqueueUserSync(session?.user ?? null)
     })
 
@@ -270,31 +260,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!configured || Platform.OS === "web") return
 
-    const supabase = createSupabaseClient()
-    void supabase.auth.startAutoRefresh()
+    void startAuthAutoRefresh()
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        void supabase.auth.startAutoRefresh()
+        void startAuthAutoRefresh()
       } else {
-        void supabase.auth.stopAutoRefresh()
+        void stopAuthAutoRefresh()
       }
     })
 
     return () => {
       subscription.remove()
-      void supabase.auth.stopAutoRefresh()
+      void stopAuthAutoRefresh()
     }
   }, [configured])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const supabase = createSupabaseClient()
     setLastError(null)
     setIsLoadingSession(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
+    const { error } = await signInWithPasswordRequest(email, password)
     if (error) {
       setIsLoadingSession(false)
       throw error
@@ -302,13 +287,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const supabase = createSupabaseClient()
     setLastError(null)
     setIsLoadingSession(true)
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    })
+    const { data, error } = await signUpWithPasswordRequest(email, password)
     if (error) {
       setIsLoadingSession(false)
       throw error
@@ -322,10 +303,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    const supabase = createSupabaseClient()
     setLastError(null)
     setIsLoadingSession(true)
-    const { error } = await supabase.auth.signOut()
+    const { error } = await signOutAuth()
     if (error) {
       setIsLoadingSession(false)
       throw error
@@ -333,7 +313,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithOAuth = useCallback(async (provider: SocialProvider) => {
-    const supabase = createSupabaseClient()
     setLastError(null)
     setIsLoadingSession(true)
 
@@ -347,9 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...(credential.nonce ? { nonce: credential.nonce } : {}),
         }
 
-        const { error } = await supabase.auth.signInWithIdToken(
-          signInWithIdTokenCredentials,
-        )
+        const { error } = await signInWithProviderIdToken(signInWithIdTokenCredentials)
 
         if (error) {
           throw error
@@ -357,9 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const appleUserMetadata = buildAppleUserMetadata(credential.fullName)
         if (appleUserMetadata) {
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: appleUserMetadata,
-          })
+          const { error: updateError } = await updateAuthUserMetadata(appleUserMetadata)
 
           if (updateError) {
             console.warn("Failed to persist Apple profile metadata.", updateError)
@@ -372,12 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const redirectTo = getOAuthRedirectUrl(provider)
 
       if (Platform.OS === "web") {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo,
-          },
-        })
+        const { error } = await signInWithOAuthProvider(provider, redirectTo)
 
         if (error) {
           throw error
@@ -386,13 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-          // skipBrowserRedirect: true,
-        },
-      })
+      const { data, error } = await signInWithOAuthProvider(provider, redirectTo)
 
       if (error || !data?.url) {
         throw error ?? new Error("OAUTH_URL_MISSING")
@@ -410,8 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (code) {
-        const { error: exchangeError } =
-          await supabase.auth.exchangeCodeForSession(code)
+        const { error: exchangeError } = await exchangeAuthCodeForSession(code)
         if (exchangeError) {
           throw exchangeError
         }
@@ -422,10 +385,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("OAUTH_SESSION_MISSING")
       }
 
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      })
+      const { error: sessionError } = await setAuthSession(accessToken, refreshToken)
 
       if (sessionError) {
         throw sessionError
@@ -447,14 +407,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("AUTH_REQUIRED")
     }
 
-    const supabase = createSupabaseClient()
     setLastError(null)
     setIsLoadingSession(true)
 
     try {
       await deleteMyAccountRequest()
 
-      const { error: signOutError } = await supabase.auth.signOut({
+      const { error: signOutError } = await signOutAuth({
         scope: "local",
       })
       if (signOutError) {

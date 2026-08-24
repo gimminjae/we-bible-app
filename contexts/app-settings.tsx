@@ -29,7 +29,7 @@ import {
   type AppTheme,
   type BibleMeditationNotificationTime,
   type ThemeVerseNotificationSettings,
-} from '@/utils/bible-storage';
+} from '@/services/bible-state';
 import {
   getStoredAppLanguage,
   getStoredTheme,

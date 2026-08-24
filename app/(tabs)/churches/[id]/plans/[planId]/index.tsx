@@ -12,9 +12,9 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useSharedPlanDetail } from '@/hooks/use-churches';
-import { syncPlanGoalStatusToGrass } from '@/utils/grass-db';
+import { syncPlanGoalStatusToGrass } from '@/services/bible-grass';
 import { useI18n } from '@/utils/i18n';
-import { setPendingBibleNavigation } from '@/utils/bible-storage';
+import { setPendingBibleNavigation } from '@/services/bible-state';
 
 export default function ChurchPlanDetailScreen() {
   const params = useLocalSearchParams<{ id?: string; planId?: string }>();

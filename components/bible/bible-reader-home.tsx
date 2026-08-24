@@ -18,13 +18,13 @@ import { useI18n } from '@/utils/i18n';
 import {
   clearPendingBibleNavigation,
   getPendingBibleNavigation,
-} from '@/utils/bible-storage';
-import { syncGrassFromPlanSave } from '@/utils/grass-db';
+} from '@/services/bible-state';
+import { syncGrassFromPlanSave } from '@/services/bible-grass';
 import {
   getActivePlansForBookChapter,
   incrementPlanBookChapterReadCount,
   type PlanChapterSelectionItem,
-} from '@/utils/plan-db';
+} from '@/services/plan';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';

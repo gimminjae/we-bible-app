@@ -13,7 +13,7 @@ import {
   normalizeChapterReadCount,
 } from "@/lib/plan"
 import { getBookName } from "@/services/bible"
-import { setPendingBibleNavigation } from "@/utils/bible-storage"
+import { setPendingBibleNavigation } from "@/services/bible-state"
 import { useI18n } from "@/utils/i18n"
 import {
   BIBLE_BOOKS,
@@ -21,7 +21,7 @@ import {
   getPlanById,
   type GoalStatus,
   type PlanRecord,
-} from "@/utils/plan-db"
+} from "@/services/plan"
 import { useFocusEffect } from "@react-navigation/native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite"
@@ -519,8 +519,8 @@ function ChapterEditDrawer({
 
   const handleSave = async () => {
     await runWithLoading(async () => {
-      const { updateGoalStatus } = await import("@/utils/plan-db")
-      const { syncGrassFromPlanSave } = await import("@/utils/grass-db")
+      const { updateGoalStatus } = await import("@/services/plan")
+      const { syncGrassFromPlanSave } = await import("@/services/bible-grass")
       await updateGoalStatus(db, plan.id, localStatus)
       await syncGrassFromPlanSave(
         db,

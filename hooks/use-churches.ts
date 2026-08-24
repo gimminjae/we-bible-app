@@ -29,7 +29,7 @@ import {
   updateSharedPlan as updateSharedPlanRequest,
   updateSharedPlanProgress as updateSharedPlanProgressRequest,
   updateTeamLeader as updateTeamLeaderRequest,
-} from '@/lib/church';
+} from '@/services/church';
 import { useCustomQuery } from '@/hooks/use-custom-query';
 import type { GoalStatus } from '@/lib/plan';
 

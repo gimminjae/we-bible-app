@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
-import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/utils/memo-db';
+import { deleteMemo, getMemoById, type MemoRecord, updateMemo } from '@/services/memo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';

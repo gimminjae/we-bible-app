@@ -4,7 +4,7 @@ import { ScrollView, Text, TextInput, View } from 'react-native';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
-import type { ChurchPrayer } from '@/lib/church';
+import type { ChurchPrayer } from '@/services/church';
 import { useI18n } from '@/utils/i18n';
 
 export type ChurchPrayerAudienceOption = SelectionOption;

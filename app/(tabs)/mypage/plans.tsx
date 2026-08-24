@@ -13,7 +13,7 @@ import { useMySharedPlans } from "@/hooks/use-churches"
 import { formatShortDate } from "@/lib/date"
 import { getPlanGoalSummary } from "@/lib/plan"
 import { useI18n } from "@/utils/i18n"
-import { getAllPlans, type PlanListItem } from "@/utils/plan-db"
+import { getAllPlans, type PlanListItem } from "@/services/plan"
 
 export default function PlanListScreen() {
   const db = useSQLiteContext()

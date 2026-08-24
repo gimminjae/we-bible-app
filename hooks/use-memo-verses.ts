@@ -1,7 +1,7 @@
 import {
   addMemo as dbAddMemo,
   getMemoVerseNumbersForChapter,
-} from '@/utils/memo-db';
+} from '@/services/memo';
 import { useAuth } from '@/contexts/auth-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';

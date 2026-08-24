@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 import { useLoading } from '@/hooks/use-loading';
 import { useI18n } from '@/utils/i18n';
-import { addPrayer } from '@/utils/prayer-db';
+import { addPrayer } from '@/services/prayer';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';

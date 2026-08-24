@@ -3,8 +3,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
-import { createSupabaseClient } from '@/lib/supabase-client';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import {
+  exchangeAuthCodeForSession,
+  parseAuthResultUrl,
+  setAuthSession,
+} from '@/services/auth';
 
 function getParamValue(
   params: Record<string, string | string[]>,
@@ -13,30 +17,6 @@ function getParamValue(
   const value = params[key];
   if (typeof value === 'string') return value;
   return value?.[0] ?? null;
-}
-
-function parseAuthResultUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    const searchParams = new URLSearchParams(parsed.search);
-    const hashParams = new URLSearchParams(
-      parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash,
-    );
-
-    return {
-      code: searchParams.get('code') ?? hashParams.get('code'),
-      accessToken:
-        hashParams.get('access_token') ?? searchParams.get('access_token'),
-      refreshToken:
-        hashParams.get('refresh_token') ?? searchParams.get('refresh_token'),
-    };
-  } catch {
-    return {
-      code: null,
-      accessToken: null,
-      refreshToken: null,
-    };
-  }
 }
 
 export default function AuthCallbackScreen() {
@@ -63,16 +43,11 @@ export default function AuthCallbackScreen() {
         return;
       }
 
-      const supabase = createSupabaseClient();
-
       try {
         if (code) {
-          await supabase.auth.exchangeCodeForSession(code);
+          await exchangeAuthCodeForSession(code);
         } else if (accessToken && refreshToken) {
-          await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
+          await setAuthSession(accessToken, refreshToken);
         }
       } catch {
         // Ignore and let the auth context surface any error state.

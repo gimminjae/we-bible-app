@@ -5,7 +5,7 @@ import { useFavoriteVerses } from '@/hooks/use-favorite-verses';
 import { useMemoVerses } from '@/hooks/use-memo-verses';
 import { useI18n } from '@/utils/i18n';
 import { bibleInfos, getBookName, versions } from '@/services/bible';
-import { getBibleSearchInfo, setBibleSearchInfo } from '@/utils/bible-storage';
+import { getBibleSearchInfo, setBibleSearchInfo } from '@/services/bible-state';
 import { makeCopyBibles } from '@/utils/bible.util';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';

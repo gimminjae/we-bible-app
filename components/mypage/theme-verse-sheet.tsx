@@ -14,7 +14,7 @@ import { useI18n } from '@/utils/i18n';
 import {
   formatThemeVerseNumbers,
   type ThemeVerseRecord,
-} from '@/utils/theme-verse-db';
+} from '@/services/theme-verse';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
