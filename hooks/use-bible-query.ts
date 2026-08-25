@@ -57,12 +57,16 @@ async function fetchBibleVerses(params: UseBibleQueryParams): Promise<DisplayVer
   return normalizeToDisplayVerse(normalized);
 }
 
-export function useBibleQuery(params: UseBibleQueryParams) {
+export function useBibleQuery(
+  params: UseBibleQueryParams,
+  options: { enabled?: boolean } = {},
+) {
   const { bookCode, chapter, primaryLang, dualLang, secondaryLang } = params;
 
   return useCustomQuery({
     queryKey: ['bible', bookCode, chapter, primaryLang, dualLang, secondaryLang],
     queryFn: () => fetchBibleVerses(params),
+    enabled: options.enabled ?? true,
     staleTime: BIBLE_STALE_TIME,
     gcTime: BIBLE_GC_TIME,
   });

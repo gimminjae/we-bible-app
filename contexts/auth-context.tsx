@@ -132,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [lastError, setLastError] = useState<string | null>(null)
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve())
   const guestResetPromiseRef = useRef<Promise<void> | null>(null)
+  const bootstrappedUserIdRef = useRef<string | null>(null)
+  const initialSessionResolvedRef = useRef(false)
   const mountedRef = useRef(true)
   const configured = isSupabaseConfigured()
 
@@ -169,6 +171,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const syncAuthenticatedUser = useCallback(
     async (user: User) => {
+      // A sign-in can emit more than one auth event. Re-running the migration
+      // would repeat the remote checks and can delay the app unnecessarily.
+      if (bootstrappedUserIdRef.current === user.id) {
+        setCurrentUser(user)
+        setActiveUserId(user.id)
+        setDataUserId(user.id)
+        setIsLoadingSession(false)
+        return
+      }
+
       setCurrentUser(user)
       setIsSyncingData(true)
 
@@ -179,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await refreshSettings()
         if (!mountedRef.current) return
         setDataUserId(user.id)
+        bootstrappedUserIdRef.current = user.id
         setLastError(null)
       } catch (error) {
         if (!mountedRef.current) return
@@ -205,6 +218,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [db, refreshSettings],
   )
 
+  const restoreInitialSession = useCallback(
+    async (user: User | null) => {
+      if (initialSessionResolvedRef.current) return
+      initialSessionResolvedRef.current = true
+
+      if (!user) {
+        await resetToGuest()
+        if (!mountedRef.current) return
+        setIsSyncingData(false)
+        setIsLoadingSession(false)
+        return
+      }
+
+      // Returning users read account data directly from Supabase. Make that
+      // scope available immediately; guest-to-account migration only runs on
+      // a real SIGNED_IN event below.
+      setCurrentUser(user)
+      setActiveUserId(user.id)
+      setDataUserId(user.id)
+      setIsSyncingData(false)
+      setIsLoadingSession(false)
+      setLastError(null)
+
+      void Promise.all([
+        syncUserProfileFromAuthUser(user),
+        refreshSettings(),
+      ]).catch((error) => {
+        console.warn("Failed to refresh authenticated user startup metadata.", error)
+      })
+    },
+    [refreshSettings, resetToGuest],
+  )
+
   const enqueueUserSync = useCallback(
     (user: User | null) => {
       syncQueueRef.current = syncQueueRef.current
@@ -215,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mountedRef.current) return
 
           if (!user) {
+            bootstrappedUserIdRef.current = null
             await resetToGuest()
             if (!mountedRef.current) return
             setIsSyncingData(false)
@@ -246,26 +293,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loadSession = async () => {
       setIsLoadingSession(true)
-      const { data, error } = await supabase.auth.getUser()
+      const { data, error } = await supabase.auth.getSession()
       if (error) {
         setLastError(getErrorMessage(error))
       }
-      await enqueueUserSync(error ? null : (data.user ?? null))
+      await restoreInitialSession(error ? null : (data.session?.user ?? null))
     }
 
     void loadSession()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void enqueueUserSync(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") {
+        void restoreInitialSession(session?.user ?? null)
+        return
+      }
+
+      if (event === "SIGNED_OUT") {
+        void enqueueUserSync(null)
+        return
+      }
+
+      if (event === "SIGNED_IN") {
+        void enqueueUserSync(session?.user ?? null)
+        return
+      }
+
+      if (session?.user) {
+        setCurrentUser(session.user)
+        setActiveUserId(session.user.id)
+        setDataUserId(session.user.id)
+      }
     })
 
     return () => {
       mountedRef.current = false
       subscription.unsubscribe()
     }
-  }, [configured, enqueueUserSync, resetToGuest])
+  }, [configured, enqueueUserSync, resetToGuest, restoreInitialSession])
 
   useEffect(() => {
     if (!configured || Platform.OS === "web") return

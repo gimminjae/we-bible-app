@@ -63,6 +63,8 @@ export function useBibleReader() {
     }
     return 'guest';
   }, [currentUser, dataUserId, isAuthDataBusy]);
+  const isInitialLocationReady =
+    storageScope !== null && restoredScope === storageScope;
 
   const restoreBibleSearchInfoFromStorage = useCallback(() => {
     if (!storageScope || restoredScope === storageScope) return;
@@ -144,6 +146,9 @@ export function useBibleReader() {
     primaryLang,
     dualLang,
     secondaryLang,
+  }, {
+    // Do not request the default chapter before the saved reading location is known.
+    enabled: isInitialLocationReady,
   });
 
   const {
@@ -151,15 +156,21 @@ export function useBibleReader() {
     addVerses: addFavoriteVerses,
     removeVerses: removeFavoriteVerses,
     isHydrating: isHydratingFavorites,
-  } = useFavoriteVerses(bookCode, chapter, { enabled: canHydrateAccountData });
+  } = useFavoriteVerses(bookCode, chapter, {
+    enabled: canHydrateAccountData && isInitialLocationReady,
+  });
   const {
     memoVerseNumbers,
     addMemo: addMemoToDb,
     isHydrating: isHydratingMemos,
   } = useMemoVerses(bookCode, chapter, {
-    enabled: canHydrateAccountData,
+    enabled: canHydrateAccountData && isInitialLocationReady,
   });
-  const isAccountDataBusy = isAuthDataBusy || isHydratingFavorites || isHydratingMemos;
+  const isAccountDataBusy =
+    !isInitialLocationReady ||
+    isAuthDataBusy ||
+    isHydratingFavorites ||
+    isHydratingMemos;
   const canUseAccountDataFeatures = !isAccountDataBusy;
 
   const allSelectedAreFavorites =
@@ -382,7 +393,7 @@ export function useBibleReader() {
     dualLang,
     fontScale,
     verses,
-    loading,
+    loading: !isInitialLocationReady || loading,
     error,
     selectedVerseNumbers,
     favoriteVerseNumbers,
