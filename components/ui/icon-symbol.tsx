@@ -36,6 +36,9 @@ const MAPPING = {
   'hands.sparkles': 'volunteer-activism',
   'calendar': 'event',
   'questionmark.circle': 'help-outline',
+  'rectangle.grid.2x2': 'grid-view',
+  'list.bullet': 'view-list',
+  'ellipsis.circle': 'more-horiz',
 } as IconMapping;
 
 /**

@@ -26,6 +26,11 @@ import { useToast } from '@/contexts/toast-context';
 import { useChurchActions, useChurchSearch, useMyChurches } from '@/hooks/use-churches';
 import { useResponsive } from '@/hooks/use-responsive';
 import type { ChurchSearchResult } from '@/lib/church';
+import {
+  getStoredCommunityListView,
+  setStoredCommunityListView,
+  type CommunityListView,
+} from '@/utils/app-settings-storage';
 import { useI18n } from '@/utils/i18n';
 
 const churchExplainerBackground = require('../../../assets/images/church-explainer-bg.png');
@@ -289,6 +294,9 @@ export default function ChurchesScreen() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [isAboutChurchModalOpen, setIsAboutChurchModalOpen] = useState(false);
+  const [churchListView, setChurchListView] = useState<CommunityListView>(
+    () => getStoredCommunityListView() ?? 'list',
+  );
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
   const [submittingJoinChurchId, setSubmittingJoinChurchId] = useState<string | null>(null);
@@ -303,7 +311,7 @@ export default function ChurchesScreen() {
   }
 
   if (isLoading) {
-    return <LoadingScreen message="Loading churches..." />;
+    return <LoadingScreen message="Loading communities..." />;
   }
 
   const canUseChurchFeature = Boolean(isConfigured && currentUser);
@@ -328,6 +336,11 @@ export default function ChurchesScreen() {
     setIsSearchDrawerOpen(false);
     setSearchKeyword('');
     setSubmittingJoinChurchId(null);
+  };
+
+  const changeChurchListView = (view: CommunityListView) => {
+    setChurchListView(view);
+    setStoredCommunityListView(view);
   };
 
   const handleCreateChurchSubmit = async (input: { name: string; description: string }) => {
@@ -369,18 +382,42 @@ export default function ChurchesScreen() {
       <ScreenHeader
         title={t('church.title')}
         titleAccessory={
-          <Pressable
-            onPress={() => setIsAboutChurchModalOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('church.aboutOpen')}
-            className="h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800"
-          >
-            <IconSymbol name="questionmark.circle" size={18} color="#9ca3af" />
-          </Pressable>
+          // 공동체 소개 버튼은 추후 다시 노출할 수 있도록 관련 모달 로직을 유지한다.
+          undefined
         }
         right={
           canUseChurchFeature ? (
             <>
+              <View className="flex-row items-center rounded-full border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+                <Pressable
+                  onPress={() => changeChurchListView('grid')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('church.gridView')}
+                  className={`h-8 w-8 items-center justify-center rounded-full ${
+                    churchListView === 'grid' ? 'bg-primary-100 dark:bg-primary-950/50' : ''
+                  }`}
+                >
+                  <IconSymbol
+                    name="rectangle.grid.2x2"
+                    size={17}
+                    color={churchListView === 'grid' ? '#2563eb' : '#9ca3af'}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => changeChurchListView('list')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('church.listView')}
+                  className={`h-8 w-8 items-center justify-center rounded-full ${
+                    churchListView === 'list' ? 'bg-primary-100 dark:bg-primary-950/50' : ''
+                  }`}
+                >
+                  <IconSymbol
+                    name="list.bullet"
+                    size={18}
+                    color={churchListView === 'list' ? '#2563eb' : '#9ca3af'}
+                  />
+                </Pressable>
+              </View>
               <HeaderActionButton label={t('church.searchButton')} onPress={openSearchDrawer} />
               <HeaderActionButton label={t('church.createButton')} onPress={openCreateDrawer} />
             </>
@@ -425,35 +462,43 @@ export default function ChurchesScreen() {
                 </Text>
               </View>
             ) : (
-              myChurches.map((church) => (
-                <Pressable
-                  key={church.id}
-                  onPress={() => router.push(`/churches/${church.id}` as never)}
-                  className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <View className="flex-row items-start justify-between gap-3">
-                    <View className="flex-1">
-                      <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {church.name}
-                      </Text>
-                      {church.description ? (
-                        <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400" numberOfLines={2}>
-                          {church.description}
+              <View className={churchListView === 'grid' ? 'flex-row flex-wrap gap-3' : ''}>
+                {myChurches.map((church) => (
+                  <Pressable
+                    key={church.id}
+                    onPress={() => router.push(`/churches/${church.id}` as never)}
+                    style={churchListView === 'grid' ? { width: '48%' } : undefined}
+                    className={`${churchListView === 'grid' ? 'min-h-44 p-4' : 'mb-3 p-5'} rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900`}
+                  >
+                    <View className="flex-row items-start justify-between gap-2">
+                      <View className="min-w-0 flex-1">
+                        <Text className="text-lg font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
+                          {church.name}
                         </Text>
-                      ) : null}
-                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        {church.description ? (
+                          <Text
+                            className="mt-2 text-sm text-gray-500 dark:text-gray-400"
+                            numberOfLines={churchListView === 'grid' ? 3 : 2}
+                          >
+                            {church.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
+                    </View>
+                    <View className="mt-auto pt-3">
+                      <Text className="text-sm text-gray-500 dark:text-gray-400">
                         {t('church.memberCount').replace('{count}', String(church.memberCount))}
                       </Text>
                       {church.myTeamName ? (
-                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400" numberOfLines={1}>
                           {t('church.teamLabel')} {church.myTeamName}
                         </Text>
                       ) : null}
                     </View>
-                    {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
-                  </View>
-                </Pressable>
-              ))
+                  </Pressable>
+                ))}
+              </View>
             )}
           </View>
 

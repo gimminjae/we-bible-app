@@ -1,5 +1,6 @@
 const APP_THEME_KEY = 'appTheme';
 const APP_LANGUAGE_KEY = 'appLanguage';
+const COMMUNITY_LIST_VIEW_KEY = 'communityListView';
 const MAX_AGE = 60 * 60 * 24 * 365;
 
 function getCookie(key: string): string | null {
@@ -22,6 +23,7 @@ function setCookie(key: string, value: string): void {
 
 export type AppTheme = 'light' | 'dark';
 export type AppLanguage = 'ko' | 'en';
+export type CommunityListView = 'list' | 'grid';
 
 export function getStoredTheme(): AppTheme | null {
   const raw = getCookie(APP_THEME_KEY);
@@ -41,4 +43,14 @@ export function getStoredAppLanguage(): AppLanguage | null {
 
 export function setStoredAppLanguage(lang: AppLanguage): void {
   setCookie(APP_LANGUAGE_KEY, lang);
+}
+
+export function getStoredCommunityListView(): CommunityListView | null {
+  const raw = getCookie(COMMUNITY_LIST_VIEW_KEY);
+  if (raw === 'list' || raw === 'grid') return raw;
+  return null;
+}
+
+export function setStoredCommunityListView(view: CommunityListView): void {
+  setCookie(COMMUNITY_LIST_VIEW_KEY, view);
 }

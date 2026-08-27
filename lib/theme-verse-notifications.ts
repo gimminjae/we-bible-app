@@ -50,7 +50,7 @@ function hasGrantedNotificationPermission(
 }
 
 function buildThemeVerseNotificationTitle(appLanguage: AppLanguage): string {
-  return appLanguage === 'en' ? "Remember Your Theme Verse" : '당신의 푯대말씀을 기억하세요';
+  return appLanguage === 'en' ? 'Theme Verse Reminder' : '푯대말씀 리마인더';
 }
 
 function buildThemeVerseNotificationChannelName(appLanguage: AppLanguage): string {
@@ -335,8 +335,8 @@ function buildBibleMeditationNotificationTitle(appLanguage: AppLanguage): string
 
 function buildBibleMeditationNotificationBody(appLanguage: AppLanguage): string {
   return appLanguage === 'en'
-    ? 'Feed your soul with the Word of God every day!'
-    : '마음의 양식도 채우는 것도 아주 중요합니다!';
+    ? 'Thy word is a lamp unto my feet, and a light unto my path. (Psalm 119:105)'
+    : '주의 말씀은 내 발의 등이요 내 길에 빛이니이다 (시 119:105)';
 }
 
 export async function syncBibleMeditationNotificationSchedule(

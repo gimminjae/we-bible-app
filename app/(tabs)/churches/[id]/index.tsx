@@ -18,6 +18,7 @@ import {
 } from '@/components/churches/church-prayer-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { Button, ButtonText } from '@/components/ui/button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SelectionSheet, type SelectionOption } from '@/components/ui/selection-sheet';
@@ -29,13 +30,13 @@ import { useLoading } from '@/hooks/use-loading';
 import { useResponsive } from '@/hooks/use-responsive';
 import { formatShortDateTime } from '@/lib/date';
 import { buildPrayerLabel } from '@/lib/prayer';
-import type { ChurchPrayer } from '@/lib/church';
+import type { ChurchMembership, ChurchPrayer } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
 
 type DetailTab = 'members' | 'plans' | 'prayers' | 'teams';
 type PickerState =
   | {
-      kind: 'request' | 'member' | 'leader';
+      kind: 'request' | 'member' | 'leader' | 'memberAction';
       key: string;
       title: string;
       options: SelectionOption[];
@@ -288,7 +289,7 @@ export default function ChurchDetailScreen() {
   }
 
   if (isLoading || !churchDetail) {
-    return <LoadingScreen message="Loading church..." />;
+    return <LoadingScreen message="Loading community..." />;
   }
 
   const confirmDestructive = (message: string, action: () => void | Promise<void>) => {
@@ -312,6 +313,68 @@ export default function ChurchDetailScreen() {
     }
     if (pickerState.kind === 'member') {
       setSelectedMemberTeamIds((previous) => ({ ...previous, [pickerState.key]: value }));
+      return;
+    }
+    if (pickerState.kind === 'memberAction') {
+      const member = churchDetail.members.find((item) => item.userId === pickerState.key);
+      if (!member) return;
+
+      if (value === 'transfer') {
+        confirmDestructive(
+          t('church.transferSuperAdminConfirm').replace('{name}', member.profile.displayName),
+          async () => {
+            setProcessingKey(`transfer-super-admin-${member.userId}`);
+            try {
+              await transferSuperAdmin({
+                churchId: churchDetail.church.id,
+                targetUserId: member.userId,
+              });
+              showToast(t('toast.superAdminTransferred'));
+            } catch (transferError) {
+              showToast(getChurchActionErrorMessage(transferError, t, 'church.transferSuperAdminFailed'));
+            } finally {
+              setProcessingKey(null);
+            }
+          },
+        );
+        return;
+      }
+
+      if (value === 'deputy') {
+        void (async () => {
+          setProcessingKey(`role-${member.userId}`);
+          try {
+            await updateMemberRole({
+              churchId: churchDetail.church.id,
+              userId: member.userId,
+              role: member.role === 'deputy_admin' ? 'member' : 'deputy_admin',
+            });
+            showToast(member.role === 'deputy_admin' ? t('toast.deputyRevoked') : t('toast.deputyGranted'));
+          } catch (roleError) {
+            showToast(roleError instanceof Error ? roleError.message : t('church.roleUpdateFailed'));
+          } finally {
+            setProcessingKey(null);
+          }
+        })();
+        return;
+      }
+
+      if (value === 'remove') {
+        confirmDestructive(
+          t('church.removeMemberConfirm').replace('{name}', member.profile.displayName),
+          async () => {
+            setProcessingKey(`remove-${member.userId}`);
+            try {
+              await removeMember({ churchId: churchDetail.church.id, userId: member.userId });
+              showToast(t('toast.memberRemoved'));
+            } catch (removeError) {
+              showToast(removeError instanceof Error ? removeError.message : t('church.memberRemoveFailed'));
+            } finally {
+              setProcessingKey(null);
+            }
+          },
+        );
+      }
       return;
     }
     setSelectedTeamLeaderIds((previous) => ({ ...previous, [pickerState.key]: value }));
@@ -340,6 +403,36 @@ export default function ChurchDetailScreen() {
         { value: '', label: t('church.noTeam') },
         ...churchDetail.teams.map((team) => ({ value: team.id, label: team.name })),
       ],
+    });
+  };
+
+  const openMemberActionPicker = (
+    member: ChurchMembership,
+    canTransferSuperAdmin: boolean,
+    canToggleDeputy: boolean,
+    canRemoveMember: boolean,
+  ) => {
+    const options: SelectionOption[] = [];
+    if (canTransferSuperAdmin) {
+      options.push({ value: 'transfer', label: t('church.transferSuperAdmin') });
+    }
+    if (canToggleDeputy) {
+      options.push({
+        value: 'deputy',
+        label: member.role === 'deputy_admin' ? t('church.revokeDeputy') : t('church.grantDeputy'),
+      });
+    }
+    if (canRemoveMember) {
+      options.push({ value: 'remove', label: t('church.removeMember') });
+    }
+    if (!options.length) return;
+
+    setPickerState({
+      kind: 'memberAction',
+      key: member.userId,
+      title: t('church.memberActions'),
+      value: '',
+      options,
     });
   };
 
@@ -931,120 +1024,24 @@ export default function ChurchDetailScreen() {
                       </Text>
                     </View>
 
-                    <View className="items-end gap-2">
-                      {canTransferSuperAdmin ? (
-                        <ActionTextButton
-                          onPress={() =>
-                            confirmDestructive(
-                              t('church.transferSuperAdminConfirm').replace(
-                                '{name}',
-                                member.profile.displayName,
-                              ),
-                              async () => {
-                                setProcessingKey(`transfer-super-admin-${member.userId}`);
-                                try {
-                                  await transferSuperAdmin({
-                                    churchId: churchDetail.church.id,
-                                    targetUserId: member.userId,
-                                  });
-                                  showToast(t('toast.superAdminTransferred'));
-                                } catch (transferError) {
-                                  showToast(
-                                    getChurchActionErrorMessage(
-                                      transferError,
-                                      t,
-                                      'church.transferSuperAdminFailed',
-                                    ),
-                                  );
-                                } finally {
-                                  setProcessingKey(null);
-                                }
-                              },
-                            )
-                          }
-                          disabled={processingKey === `transfer-super-admin-${member.userId}`}
-                          label={t('church.transferSuperAdmin')}
-                          action="primary"
-                          variant="outline"
-                          className="rounded-2xl border-primary-200 px-4 py-3 dark:border-primary-900"
-                          textClassName="font-semibold text-primary-600 dark:text-primary-400"
-                        />
-                      ) : null}
-                      {canToggleDeputy ? (
-                        <ActionTextButton
-                          onPress={async () => {
-                            setProcessingKey(`role-${member.userId}`);
-                            try {
-                              await updateMemberRole({
-                                churchId: churchDetail.church.id,
-                                userId: member.userId,
-                                role: member.role === 'deputy_admin' ? 'member' : 'deputy_admin',
-                              });
-                              showToast(
-                                member.role === 'deputy_admin'
-                                  ? t('toast.deputyRevoked')
-                                  : t('toast.deputyGranted'),
-                              );
-                            } catch (roleError) {
-                              showToast(
-                                roleError instanceof Error
-                                  ? roleError.message
-                                  : t('church.roleUpdateFailed'),
-                              );
-                            } finally {
-                              setProcessingKey(null);
-                            }
-                          }}
-                          disabled={processingKey === `role-${member.userId}`}
-                          label={
-                            member.role === 'deputy_admin'
-                              ? t('church.revokeDeputy')
-                              : t('church.grantDeputy')
-                          }
-                          action="secondary"
-                          variant="outline"
-                          className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
-                          textClassName="font-semibold text-gray-900 dark:text-white"
-                        />
-                      ) : null}
-
-                      {canRemoveMember ? (
-                        <ActionTextButton
-                          onPress={() =>
-                            confirmDestructive(
-                              t('church.removeMemberConfirm').replace(
-                                '{name}',
-                                member.profile.displayName,
-                              ),
-                              async () => {
-                                setProcessingKey(`remove-${member.userId}`);
-                                try {
-                                  await removeMember({
-                                    churchId: churchDetail.church.id,
-                                    userId: member.userId,
-                                  });
-                                  showToast(t('toast.memberRemoved'));
-                                } catch (removeError) {
-                                  showToast(
-                                    removeError instanceof Error
-                                      ? removeError.message
-                                      : t('church.memberRemoveFailed'),
-                                  );
-                                } finally {
-                                  setProcessingKey(null);
-                                }
-                              },
-                            )
-                          }
-                          disabled={processingKey === `remove-${member.userId}`}
-                          label={t('church.removeMember')}
-                          action="negative"
-                          variant="outline"
-                          className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
-                          textClassName="font-semibold text-red-500"
-                        />
-                      ) : null}
-                    </View>
+                    {canTransferSuperAdmin || canToggleDeputy || canRemoveMember ? (
+                      <Pressable
+                        onPress={() =>
+                          openMemberActionPicker(
+                            member,
+                            canTransferSuperAdmin,
+                            canToggleDeputy,
+                            canRemoveMember,
+                          )
+                        }
+                        disabled={processingKey !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('church.memberActions')}
+                        className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+                      >
+                        <IconSymbol name="ellipsis.circle" size={21} color="#6b7280" />
+                      </Pressable>
+                    ) : null}
                   </View>
 
                   {canManageMemberTeam ? (
@@ -1197,9 +1194,9 @@ export default function ChurchDetailScreen() {
               <>
                 {!isPrayerSearching || filteredChurchWidePrayers.length > 0 ? (
                   <View className="mb-5">
-                    <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                    {/* <Text className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
                       {t('church.churchPrayerSection')}
-                    </Text>
+                    </Text> */}
                     {filteredChurchWidePrayers.length === 0 ? (
                       <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
                         <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
