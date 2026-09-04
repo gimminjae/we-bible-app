@@ -8,7 +8,7 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useI18n } from '@/utils/i18n';
 import { addMemoWithoutVerse, getAllMemos, type MemoRecord } from '@/utils/memo-db';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';

@@ -10,7 +10,7 @@ import { setPendingBibleNavigation } from "@/utils/bible-storage"
 import { copyToClipboard } from "@/utils/clipboard"
 import { getAllFavorites, removeFavorites } from "@/utils/favorite-verses-db"
 import { useI18n } from "@/utils/i18n"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useState } from "react"

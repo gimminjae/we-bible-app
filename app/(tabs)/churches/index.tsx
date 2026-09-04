@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Image,
   ImageBackground,
   Modal,
   Pressable,
@@ -11,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -232,9 +232,9 @@ function ChurchAboutModal({ visible, onClose }: ChurchAboutModalProps) {
             style={{ minHeight: 500 }}
           >
             <View className="flex-1 justify-between overflow-hidden px-6 py-7">
-              <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.22)' }]} />
-                <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.22)' }]} />
+                <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
                   <Defs>
                     <RadialGradient id="churchAboutVignette" cx="50%" cy="44%" rx="78%" ry="78%">
                       <Stop offset="0%" stopColor="#000000" stopOpacity="0.04" />
@@ -296,7 +296,7 @@ export default function ChurchesScreen() {
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [isAboutChurchModalOpen, setIsAboutChurchModalOpen] = useState(false);
   const [churchListView, setChurchListView] = useState<CommunityListView>(
-    () => getStoredCommunityListView() ?? 'list',
+    () => getStoredCommunityListView() ?? 'grid',
   );
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -464,50 +464,89 @@ export default function ChurchesScreen() {
               </View>
             ) : (
               <View className={churchListView === 'grid' ? 'flex-row flex-wrap gap-3' : ''}>
-                {myChurches.map((church) => (
-                  <Pressable
-                    key={church.id}
-                    onPress={() => router.push(`/churches/${church.id}` as never)}
-                    style={churchListView === 'grid' ? { width: '48%' } : undefined}
-                    className={`${churchListView === 'grid' ? 'min-h-44 p-4' : 'mb-3 p-5'} rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900`}
-                  >
-                    <View className="flex-row items-start justify-between gap-2">
-                      <View className="min-w-0 flex-1 flex-row gap-3">
-                        {church.imageUrl ? (
-                          <Image
-                            source={{ uri: church.imageUrl }}
-                            resizeMode="cover"
-                            style={{ width: 56, height: 56, borderRadius: 16 }}
-                          />
-                        ) : null}
-                        <View className="min-w-0 flex-1">
-                        <Text className="text-lg font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
-                          {church.name}
-                        </Text>
-                        {church.description ? (
-                          <Text
-                            className="mt-2 text-sm text-gray-500 dark:text-gray-400"
-                            numberOfLines={churchListView === 'grid' ? 3 : 2}
-                          >
-                            {church.description}
-                          </Text>
-                        ) : null}
+                {myChurches.map((church) => {
+                  const isGridView = churchListView === 'grid';
+                  const hasImage = Boolean(church.imageUrl);
+
+                  return (
+                    <Pressable
+                      key={church.id}
+                      onPress={() => router.push(`/churches/${church.id}` as never)}
+                      style={isGridView ? { width: '48%' } : undefined}
+                      className={`flex flex-col rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${
+                        isGridView
+                          ? hasImage
+                            ? 'min-h-56 overflow-hidden'
+                            : 'min-h-44 p-4'
+                          : 'mb-3 p-5'
+                      }`}
+                    >
+                      {isGridView && church.imageUrl ? (
+                        <ExpoImage
+                          source={{ uri: church.imageUrl }}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          style={{ width: '100%', height: 112 }}
+                        />
+                      ) : null}
+
+                      <View className={`flex-1 ${isGridView && hasImage ? 'px-4 pb-4 pt-3' : ''}`}>
+                        <View className="flex-row items-start justify-between gap-2">
+                          <View className={`min-w-0 flex-1 ${isGridView ? '' : 'flex-row gap-3'}`}>
+                            {!isGridView && church.imageUrl ? (
+                              <View className="h-[72px] w-[88px] items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
+                                <ExpoImage
+                                  source={{ uri: church.imageUrl }}
+                                  contentFit="contain"
+                                  cachePolicy="memory-disk"
+                                  style={{ width: 88, height: 72 }}
+                                />
+                              </View>
+                            ) : null}
+                            <View className="min-w-0 flex-1">
+                              <Text
+                                className="text-lg font-semibold text-gray-900 dark:text-white"
+                                numberOfLines={2}
+                              >
+                                {church.name}
+                              </Text>
+                              {!isGridView ? (
+                                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                  {t('church.memberCount').replace('{count}', String(church.memberCount))}
+                                </Text>
+                              ) : null}
+                              {church.description ? (
+                                <Text
+                                  className="mt-2 text-sm text-gray-500 dark:text-gray-400"
+                                  numberOfLines={2}
+                                >
+                                  {church.description}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </View>
+                          {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
+                        </View>
+
+                        <View className="mt-auto pt-3">
+                          {isGridView ? (
+                            <Text className="text-sm text-gray-500 dark:text-gray-400">
+                              {t('church.memberCount').replace('{count}', String(church.memberCount))}
+                            </Text>
+                          ) : null}
+                          {church.myTeamName ? (
+                            <Text
+                              className="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                              numberOfLines={1}
+                            >
+                              {t('church.teamLabel')} {church.myTeamName}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
-                      {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
-                    </View>
-                    <View className="mt-auto pt-3">
-                      <Text className="text-sm text-gray-500 dark:text-gray-400">
-                        {t('church.memberCount').replace('{count}', String(church.memberCount))}
-                      </Text>
-                      {church.myTeamName ? (
-                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400" numberOfLines={1}>
-                          {t('church.teamLabel')} {church.myTeamName}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </Pressable>
-                ))}
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </View>

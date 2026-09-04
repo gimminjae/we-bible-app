@@ -1,4 +1,4 @@
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"

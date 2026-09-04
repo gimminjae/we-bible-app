@@ -25,7 +25,7 @@ import {
   incrementPlanBookChapterReadCount,
   type PlanChapterSelectionItem,
 } from '@/utils/plan-db';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';

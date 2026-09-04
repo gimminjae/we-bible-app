@@ -12,7 +12,7 @@ import {
 } from '@/utils/prayer-db';
 import { useI18n } from '@/utils/i18n';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';

@@ -147,9 +147,9 @@ export function ThemeVerseSummaryCard({
               style={{ minHeight: scale(500) }}
             >
               <View className="flex-1 justify-between overflow-hidden px-6 py-7">
-                <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-                  <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.22)' }]} />
-                  <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.22)' }]} />
+                  <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
                     <Defs>
                       <RadialGradient id="themeVerseVignette" cx="50%" cy="42%" rx="80%" ry="80%">
                         <Stop offset="0%" stopColor="#000000" stopOpacity="0.05" />

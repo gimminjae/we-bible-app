@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -813,9 +813,10 @@ export default function ChurchDetailScreen() {
         <View style={{ width: '100%', maxWidth: widePageMaxWidth, alignSelf: 'center' }}>
         <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           {churchDetail.church.imageUrl ? (
-            <Image
+            <ExpoImage
               source={{ uri: churchDetail.church.imageUrl }}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               style={{ width: '100%', height: 192, borderRadius: 20, marginBottom: 20 }}
             />
           ) : null}

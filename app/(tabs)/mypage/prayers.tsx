@@ -7,7 +7,7 @@ import { useResponsive } from "@/hooks/use-responsive"
 import { formatShortDateTime } from "@/lib/date"
 import { useI18n } from "@/utils/i18n"
 import { getAllPrayers, type PrayListItem } from "@/utils/prayer-db"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useMemo, useState } from "react"

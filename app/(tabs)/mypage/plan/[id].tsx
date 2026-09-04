@@ -22,7 +22,7 @@ import {
   type GoalStatus,
   type PlanRecord,
 } from "@/utils/plan-db"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect } from 'expo-router';
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"

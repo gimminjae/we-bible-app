@@ -10,7 +10,7 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useI18n();
   const { moderateScale, isTablet } = useResponsive();
   const iconSize = isTablet ? moderateScale(24, 0.3) : moderateScale(28);
@@ -18,7 +18,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: Colors[colorScheme].tint,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {

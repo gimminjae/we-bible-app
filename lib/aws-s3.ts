@@ -1,3 +1,5 @@
+import './aws-crypto-polyfill';
+
 import { S3Client } from '@aws-sdk/client-s3';
 import Constants from 'expo-constants';
 

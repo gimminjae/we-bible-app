@@ -1394,7 +1394,7 @@ async function loadPersistedSlicesFromSupabase(
     if (result.error) throwSupabaseError(result.error);
   }
 
-  const stateRow = ((stateResult.data ?? null) as StateRecord | null) ?? null;
+  const stateRow = (stateResult.data ?? null) as StateRecord | null;
   const favoritesRows = (favoritesResult.data ?? []) as FavoriteRow[];
   const memoRows = (memosResult.data ?? []) as LocalMemoRow[];
   const memoVerseRows = (memoVersesResult.data ?? []) as LocalMemoVerseRow[];
