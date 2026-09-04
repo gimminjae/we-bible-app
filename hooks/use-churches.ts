@@ -23,6 +23,7 @@ import {
   searchChurches,
   transferChurchSuperAdmin as transferChurchSuperAdminRequest,
   updateChurchInfo as updateChurchInfoRequest,
+  updateChurchImage as updateChurchImageRequest,
   updateChurchMemberRole,
   updateChurchMemberTeam,
   updateChurchPrayer as updateChurchPrayerRequest,
@@ -160,6 +161,10 @@ export function useChurchActions() {
       }) {
         await updateChurchInfoRequest(args);
         await invalidateChurchQueries(args.churchId);
+      },
+      async updateChurchImage(churchId: string, imageUrl: string) {
+        await updateChurchImageRequest(churchId, imageUrl);
+        await invalidateChurchQueries(churchId);
       },
       async requestJoin(churchId: string) {
         await requestChurchJoin(churchId, requireUserId(dataUserId));

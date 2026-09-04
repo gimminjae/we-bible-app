@@ -84,4 +84,10 @@ create index if not exists developer_inquiries_status_created_at_idx
 create index if not exists developer_inquiries_author_user_id_created_at_idx
   on public.developer_inquiries (author_user_id, created_at desc, id desc);
 
+create index if not exists image_infos_user_id_uploaded_at_idx
+  on public.image_infos (user_id, uploaded_at desc, id desc);
+
+create unique index if not exists image_infos_object_key_idx
+  on public.image_infos (object_key);
+
 commit;

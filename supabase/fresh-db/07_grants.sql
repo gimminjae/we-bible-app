@@ -13,6 +13,8 @@ revoke all on function public.update_church_info(bigint, text, text) from public
 grant execute on function public.update_church_info(bigint, text, text) to authenticated;
 revoke all on function public.update_church_info(bigint, text, text, boolean, boolean) from public;
 grant execute on function public.update_church_info(bigint, text, text, boolean, boolean) to authenticated;
+revoke all on function public.set_church_image_url(bigint, text) from public;
+grant execute on function public.set_church_image_url(bigint, text) to authenticated;
 
 revoke all on function public.set_team_leader(bigint, uuid) from public;
 grant execute on function public.set_team_leader(bigint, uuid) to authenticated;

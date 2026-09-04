@@ -22,6 +22,7 @@ alter table public.prayer_contents enable row level security;
 alter table public.bible_grass enable row level security;
 alter table public.theme_verses enable row level security;
 alter table public.developer_inquiries enable row level security;
+alter table public.image_infos enable row level security;
 
 drop policy if exists "bible_state_owner" on public.bible_state;
 create policy "bible_state_owner"
@@ -151,15 +152,16 @@ create policy "user_profiles_self_delete"
 
 drop policy if exists "churches_read_authenticated" on public.churches;
 drop policy if exists "churches_update_super_admin" on public.churches;
+drop policy if exists "churches_update_admins" on public.churches;
 create policy "churches_read_authenticated"
   on public.churches
   for select
   using (auth.role() = 'authenticated');
-create policy "churches_update_super_admin"
+create policy "churches_update_admins"
   on public.churches
   for update
-  using (public.is_church_super_admin(id, auth.uid()))
-  with check (public.is_church_super_admin(id, auth.uid()));
+  using (public.is_church_admin(id, auth.uid()))
+  with check (public.is_church_admin(id, auth.uid()));
 
 drop policy if exists "teams_read_members" on public.teams;
 drop policy if exists "teams_manage_admins" on public.teams;
@@ -354,5 +356,12 @@ create policy "developer_inquiries_insert_public"
     auth.role() in ('anon', 'authenticated')
     and (author_user_id is null or author_user_id = auth.uid())
   );
+
+drop policy if exists "image_infos_owner" on public.image_infos;
+create policy "image_infos_owner"
+  on public.image_infos
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 commit;

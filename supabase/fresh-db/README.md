@@ -32,6 +32,7 @@
 - `supabase/migrations/202604010002_add_user_profile_show_email.sql`
 - `supabase/migrations/202604090001_add_developer_inquiries.sql`
 - `supabase/migrations/202604100001_add_theme_verses.sql`
+- `supabase/migrations/202609010001_add_image_infos.sql`
 
 ## 참고
 

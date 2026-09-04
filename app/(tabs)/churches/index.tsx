@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Image,
   ImageBackground,
   Modal,
   Pressable,
@@ -471,7 +472,15 @@ export default function ChurchesScreen() {
                     className={`${churchListView === 'grid' ? 'min-h-44 p-4' : 'mb-3 p-5'} rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900`}
                   >
                     <View className="flex-row items-start justify-between gap-2">
-                      <View className="min-w-0 flex-1">
+                      <View className="min-w-0 flex-1 flex-row gap-3">
+                        {church.imageUrl ? (
+                          <Image
+                            source={{ uri: church.imageUrl }}
+                            resizeMode="cover"
+                            style={{ width: 56, height: 56, borderRadius: 16 }}
+                          />
+                        ) : null}
+                        <View className="min-w-0 flex-1">
                         <Text className="text-lg font-semibold text-gray-900 dark:text-white" numberOfLines={2}>
                           {church.name}
                         </Text>
@@ -483,6 +492,7 @@ export default function ChurchesScreen() {
                             {church.description}
                           </Text>
                         ) : null}
+                        </View>
                       </View>
                       {church.myRole ? <ChurchRoleBadge role={church.myRole} /> : null}
                     </View>

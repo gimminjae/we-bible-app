@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -29,6 +31,7 @@ import { useChurchActions, useChurchDetail } from '@/hooks/use-churches';
 import { useLoading } from '@/hooks/use-loading';
 import { useResponsive } from '@/hooks/use-responsive';
 import { formatShortDateTime } from '@/lib/date';
+import { uploadImageAndSave } from '@/lib/image-storage';
 import { buildPrayerLabel } from '@/lib/prayer';
 import type { ChurchMembership, ChurchPrayer } from '@/lib/church';
 import { useI18n } from '@/utils/i18n';
@@ -171,6 +174,7 @@ export default function ChurchDetailScreen() {
     leaveChurch,
     deleteChurch,
     updateChurchInfo,
+    updateChurchImage,
     createTeam,
     createChurchPrayer,
     updateChurchPrayer,
@@ -753,6 +757,47 @@ export default function ChurchDetailScreen() {
 
   const tabLabel = (tab: DetailTab) => t(`church.tabs.${tab}`);
 
+  const handleChangeChurchImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showToast(t('church.imagePermissionRequired'));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setProcessingKey('update-church-image');
+
+    try {
+      const image = await uploadImageAndSave({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        fileSize: asset.fileSize,
+        objectKeyPrefix: 'we-bible/churches',
+        datePathFormat: 'month',
+      });
+      await updateChurchImage(churchDetail.church.id, image.url);
+      showToast(t('toast.churchImageUpdated'));
+    } catch (imageError) {
+      showToast(
+        imageError instanceof Error ? imageError.message : t('church.imageUpdateFailed'),
+      );
+    } finally {
+      setProcessingKey(null);
+    }
+  };
+
   return (
     <SafeAreaView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
@@ -767,6 +812,13 @@ export default function ChurchDetailScreen() {
       >
         <View style={{ width: '100%', maxWidth: widePageMaxWidth, alignSelf: 'center' }}>
         <View className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          {churchDetail.church.imageUrl ? (
+            <Image
+              source={{ uri: churchDetail.church.imageUrl }}
+              resizeMode="cover"
+              style={{ width: '100%', height: 192, borderRadius: 20, marginBottom: 20 }}
+            />
+          ) : null}
           <View className="flex-row items-start justify-between gap-3">
             <View className="flex-1">
               <Text className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -797,6 +849,17 @@ export default function ChurchDetailScreen() {
                 <ActionTextButton
                   onPress={() => setEditChurchInfoVisible(true)}
                   label={t('church.editInfo')}
+                  action="secondary"
+                  variant="outline"
+                  className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
+                  textClassName="font-semibold text-gray-900 dark:text-white"
+                />
+              ) : null}
+              {churchDetail.church.isSuperAdmin || churchDetail.church.isDeputyAdmin ? (
+                <ActionTextButton
+                  onPress={() => void handleChangeChurchImage()}
+                  disabled={processingKey === 'update-church-image'}
+                  label={t('church.changeImage')}
                   action="secondary"
                   variant="outline"
                   className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
