@@ -154,6 +154,8 @@ const CHURCH_PRAYER_COLUMN_WIDTHS = {
   createdAt: 116,
 } as const
 
+const SELECTION_SHEET_CLOSE_DELAY_MS = 350;
+
 export default function ChurchDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const churchId = params.id ?? '';
@@ -400,18 +402,21 @@ export default function ChurchDetailScreen() {
       }
 
       if (value === 'team') {
-        setTimeout(() => openMemberTeamPicker(member.userId, member.teamId ?? ''), 0);
+        setTimeout(
+          () => openMemberTeamPicker(member.userId, member.teamId ?? ''),
+          SELECTION_SHEET_CLOSE_DELAY_MS,
+        );
       }
       return;
     }
     if (pickerState.kind === 'churchAction') {
       if (value === 'edit') {
-        setTimeout(() => setEditChurchInfoVisible(true), 0);
+        setTimeout(() => setEditChurchInfoVisible(true), SELECTION_SHEET_CLOSE_DELAY_MS);
         return;
       }
 
       if (value === 'image') {
-        setTimeout(() => void handleChangeChurchImage(), 0);
+        setTimeout(() => void handleChangeChurchImage(), SELECTION_SHEET_CLOSE_DELAY_MS);
       }
       return;
     }
