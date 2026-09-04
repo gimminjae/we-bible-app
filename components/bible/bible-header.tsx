@@ -5,6 +5,7 @@ import { View } from "react-native"
 type BibleHeaderProps = {
   bookName: string
   chapter: number
+  isInitialLocationReady: boolean
   langLabel: string
   onOpenBookPicker: () => void
   onOpenLangPicker: () => void
@@ -14,6 +15,7 @@ type BibleHeaderProps = {
 export function BibleHeader({
   bookName,
   chapter,
+  isInitialLocationReady,
   langLabel,
   onOpenBookPicker,
   onOpenLangPicker,
@@ -30,20 +32,24 @@ export function BibleHeader({
     >
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center" style={{ gap: scale(8) }}>
-          <Button
-            variant="solid"
-            className="rounded-xl bg-primary-50 dark:bg-primary-950/40"
-            // style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
-            onPress={onOpenBookPicker}
-            action="primary"
-          >
-            <ButtonText
-              className="font-semibold text-primary-600 dark:text-primary-400"
-              // style={{ fontSize: moderateScale(14) }}
+          {isInitialLocationReady ? (
+            <Button
+              variant="solid"
+              className="rounded-xl bg-primary-50 dark:bg-primary-950/40"
+              // style={{ paddingHorizontal: scale(16), paddingVertical: scale(10) }}
+              onPress={onOpenBookPicker}
+              action="primary"
             >
-              {bookName} {chapter}
-            </ButtonText>
-          </Button>
+              <ButtonText
+                className="font-semibold text-primary-600 dark:text-primary-400"
+                // style={{ fontSize: moderateScale(14) }}
+              >
+                {bookName} {chapter}
+              </ButtonText>
+            </Button>
+          ) : (
+            <View className="h-10 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
+          )}
           <Button
             variant="solid"
             className="rounded-xl bg-primary-50 dark:bg-primary-950/40"

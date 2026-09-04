@@ -39,7 +39,7 @@ import { useI18n } from '@/utils/i18n';
 type DetailTab = 'members' | 'plans' | 'prayers' | 'teams';
 type PickerState =
   | {
-      kind: 'request' | 'member' | 'leader' | 'memberAction';
+      kind: 'request' | 'memberTeam' | 'leader' | 'memberAction' | 'churchAction';
       key: string;
       title: string;
       options: SelectionOption[];
@@ -186,7 +186,6 @@ export default function ChurchDetailScreen() {
   const [creatingTeamName, setCreatingTeamName] = useState('');
   const [processingKey, setProcessingKey] = useState<string | null>(null);
   const [selectedRequestTeamIds, setSelectedRequestTeamIds] = useState<Record<string, string>>({});
-  const [selectedMemberTeamIds, setSelectedMemberTeamIds] = useState<Record<string, string>>({});
   const [selectedTeamLeaderIds, setSelectedTeamLeaderIds] = useState<Record<string, string>>({});
   const [expandedPrayerId, setExpandedPrayerId] = useState<string | null>(null);
   const [selectedPrayer, setSelectedPrayer] = useState<ChurchPrayer | null>(null);
@@ -315,8 +314,27 @@ export default function ChurchDetailScreen() {
       setSelectedRequestTeamIds((previous) => ({ ...previous, [pickerState.key]: value }));
       return;
     }
-    if (pickerState.kind === 'member') {
-      setSelectedMemberTeamIds((previous) => ({ ...previous, [pickerState.key]: value }));
+    if (pickerState.kind === 'memberTeam') {
+      const member = churchDetail.members.find((item) => item.userId === pickerState.key);
+      if (!member) return;
+
+      void (async () => {
+        setProcessingKey(`member-team-${member.userId}`);
+        try {
+          await updateMemberTeam({
+            churchId: churchDetail.church.id,
+            userId: member.userId,
+            teamId: value || null,
+          });
+          showToast(t('toast.memberTeamUpdated'));
+        } catch (teamError) {
+          showToast(
+            teamError instanceof Error ? teamError.message : t('church.memberTeamUpdateFailed'),
+          );
+        } finally {
+          setProcessingKey(null);
+        }
+      })();
       return;
     }
     if (pickerState.kind === 'memberAction') {
@@ -378,6 +396,22 @@ export default function ChurchDetailScreen() {
             }
           },
         );
+        return;
+      }
+
+      if (value === 'team') {
+        setTimeout(() => openMemberTeamPicker(member.userId, member.teamId ?? ''), 0);
+      }
+      return;
+    }
+    if (pickerState.kind === 'churchAction') {
+      if (value === 'edit') {
+        setTimeout(() => setEditChurchInfoVisible(true), 0);
+        return;
+      }
+
+      if (value === 'image') {
+        setTimeout(() => void handleChangeChurchImage(), 0);
       }
       return;
     }
@@ -399,9 +433,9 @@ export default function ChurchDetailScreen() {
 
   const openMemberTeamPicker = (userId: string, currentValue: string) => {
     setPickerState({
-      kind: 'member',
+      kind: 'memberTeam',
       key: userId,
-      title: t('church.saveTeamAssignment'),
+      title: t('church.setMemberTeam'),
       value: currentValue,
       options: [
         { value: '', label: t('church.noTeam') },
@@ -414,6 +448,7 @@ export default function ChurchDetailScreen() {
     member: ChurchMembership,
     canTransferSuperAdmin: boolean,
     canToggleDeputy: boolean,
+    canManageMemberTeam: boolean,
     canRemoveMember: boolean,
   ) => {
     const options: SelectionOption[] = [];
@@ -426,6 +461,9 @@ export default function ChurchDetailScreen() {
         label: member.role === 'deputy_admin' ? t('church.revokeDeputy') : t('church.grantDeputy'),
       });
     }
+    if (canManageMemberTeam) {
+      options.push({ value: 'team', label: t('church.setMemberTeam') });
+    }
     if (canRemoveMember) {
       options.push({ value: 'remove', label: t('church.removeMember') });
     }
@@ -435,6 +473,26 @@ export default function ChurchDetailScreen() {
       kind: 'memberAction',
       key: member.userId,
       title: t('church.memberActions'),
+      value: '',
+      options,
+    });
+  };
+
+  const openChurchActionPicker = () => {
+    const options: SelectionOption[] = [];
+
+    if (churchDetail.church.isSuperAdmin) {
+      options.push({ value: 'edit', label: t('church.editInfo') });
+    }
+    if (churchDetail.church.isSuperAdmin || churchDetail.church.isDeputyAdmin) {
+      options.push({ value: 'image', label: t('church.changeImage') });
+    }
+    if (!options.length) return;
+
+    setPickerState({
+      kind: 'churchAction',
+      key: churchDetail.church.id,
+      title: t('church.manageChurch'),
       value: '',
       options,
     });
@@ -829,11 +887,7 @@ export default function ChurchDetailScreen() {
                 <Text className="mt-3 text-sm text-gray-600 dark:text-gray-300">
                   {churchDetail.church.description}
                 </Text>
-              ) : (
-                <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  {t('church.noDescription')}
-                </Text>
-              )}
+              ): null}
               <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {t('church.memberCount').replace('{count}', String(churchDetail.church.memberCount))}
               </Text>
@@ -846,26 +900,16 @@ export default function ChurchDetailScreen() {
 
             <View className="items-end gap-2">
               {churchDetail.church.myRole ? <ChurchRoleBadge role={churchDetail.church.myRole} /> : null}
-              {churchDetail.church.isSuperAdmin ? (
-                <ActionTextButton
-                  onPress={() => setEditChurchInfoVisible(true)}
-                  label={t('church.editInfo')}
-                  action="secondary"
-                  variant="outline"
-                  className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
-                  textClassName="font-semibold text-gray-900 dark:text-white"
-                />
-              ) : null}
               {churchDetail.church.isSuperAdmin || churchDetail.church.isDeputyAdmin ? (
-                <ActionTextButton
-                  onPress={() => void handleChangeChurchImage()}
-                  disabled={processingKey === 'update-church-image'}
-                  label={t('church.changeImage')}
-                  action="secondary"
-                  variant="outline"
-                  className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
-                  textClassName="font-semibold text-gray-900 dark:text-white"
-                />
+                <Pressable
+                  onPress={openChurchActionPicker}
+                  disabled={processingKey !== null}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('church.manageChurch')}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+                >
+                  <IconSymbol name="ellipsis.circle" size={21} color="#6b7280" />
+                </Pressable>
               ) : null}
               {dataUserId &&
               churchDetail.church.myRole &&
@@ -927,13 +971,7 @@ export default function ChurchDetailScreen() {
               ) : null}
             </View>
           </View>
-          {churchDetail.church.isSuperAdmin && hasOtherMembers ? (
-            <Text className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              {t('church.deleteRequiresNoOtherMembers')}
-            </Text>
-          ) : null}
         </View>
-
         <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
           {(['members', 'plans', 'prayers', 'teams'] as const).map((tab) => {
             const active = activeTab === tab;
@@ -1050,7 +1088,6 @@ export default function ChurchDetailScreen() {
             ) : null}
 
             {churchDetail.members.map((member) => {
-              const teamSelectValue = selectedMemberTeamIds[member.userId] ?? member.teamId ?? '';
               const canTransferSuperAdmin =
                 churchDetail.church.isSuperAdmin && member.userId !== dataUserId;
               const canToggleDeputy =
@@ -1088,13 +1125,14 @@ export default function ChurchDetailScreen() {
                       </Text>
                     </View>
 
-                    {canTransferSuperAdmin || canToggleDeputy || canRemoveMember ? (
+                    {canTransferSuperAdmin || canToggleDeputy || canManageMemberTeam || canRemoveMember ? (
                       <Pressable
                         onPress={() =>
                           openMemberActionPicker(
                             member,
                             canTransferSuperAdmin,
                             canToggleDeputy,
+                            canManageMemberTeam,
                             canRemoveMember,
                           )
                         }
@@ -1107,48 +1145,6 @@ export default function ChurchDetailScreen() {
                       </Pressable>
                     ) : null}
                   </View>
-
-                  {canManageMemberTeam ? (
-                    <View className="mt-4 flex-row flex-wrap gap-2">
-                      <ActionTextButton
-                        onPress={() => openMemberTeamPicker(member.userId, teamSelectValue)}
-                        label={
-                          teamSelectValue
-                            ? churchDetail.teams.find((team) => team.id === teamSelectValue)?.name ?? t('church.noTeam')
-                            : t('church.noTeam')
-                        }
-                        action="secondary"
-                        variant="outline"
-                        className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
-                        textClassName="font-semibold text-gray-900 dark:text-white"
-                      />
-                      <ActionTextButton
-                        onPress={async () => {
-                          setProcessingKey(`member-team-${member.userId}`);
-                          try {
-                            await updateMemberTeam({
-                              churchId: churchDetail.church.id,
-                              userId: member.userId,
-                              teamId: teamSelectValue || null,
-                            });
-                            showToast(t('toast.memberTeamUpdated'));
-                          } catch (teamError) {
-                            showToast(
-                              teamError instanceof Error
-                                ? teamError.message
-                                : t('church.memberTeamUpdateFailed'),
-                            );
-                          } finally {
-                            setProcessingKey(null);
-                          }
-                        }}
-                        disabled={processingKey === `member-team-${member.userId}`}
-                        label={t('church.saveTeamAssignment')}
-                        className="rounded-2xl bg-primary-500 px-4 py-3"
-                        textClassName="font-semibold text-white dark:text-gray-900"
-                      />
-                    </View>
-                  ) : null}
                 </View>
               );
             })}

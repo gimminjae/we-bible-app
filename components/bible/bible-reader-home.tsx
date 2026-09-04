@@ -223,6 +223,7 @@ export function BibleReaderHome() {
           <BibleHeader
             bookName={bible.bookName}
             chapter={bible.chapter}
+            isInitialLocationReady={bible.isInitialLocationReady}
             langLabel={bible.langLabel}
             onOpenBookPicker={bible.openBookPicker}
             onOpenLangPicker={bible.openLangPicker}

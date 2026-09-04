@@ -393,6 +393,7 @@ export function useBibleReader() {
     dualLang,
     fontScale,
     verses,
+    isInitialLocationReady,
     loading: !isInitialLocationReady || loading,
     error,
     selectedVerseNumbers,
