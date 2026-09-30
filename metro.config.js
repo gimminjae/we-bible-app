@@ -4,6 +4,9 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// expo-sqlite's web worker loads its WebAssembly engine as an asset.
+if (!config.resolver.assetExts.includes('wasm')) config.resolver.assetExts.push('wasm');
+
 // @tanstack/react-query ESM 빌드의 .js 서브패스 해석 이슈 회피: legacy CJS 사용
 const reactQueryLegacy = path.resolve(
   __dirname,

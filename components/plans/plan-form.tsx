@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Button, ButtonText } from '@/components/ui/button';
+import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import { useAppSettings } from '@/contexts/app-settings';
-import { useResponsive } from '@/hooks/use-responsive';
 import { BIBLE_BOOKS, calcTotalReadCount, createDefaultPlanDates } from '@/lib/plan';
 import { getBookName } from '@/services/bible';
 import {
@@ -39,7 +38,6 @@ export function PlanForm({
 }: PlanFormProps) {
   const { appLanguage } = useAppSettings();
   const { t } = useI18n();
-  const { dialogMaxWidth } = useResponsive();
   const defaultDates = useMemo(() => createDefaultPlanDates(), []);
   const initialSelectedBookCodesKey = useMemo(
     () => (initialValues?.selectedBookCodes ?? []).join(','),
@@ -266,42 +264,21 @@ export function PlanForm({
         </Button>
       </ScrollView>
 
-      <Modal
+      <DatePickerModal
         visible={calendarOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCalendarOpen(false)}
-      >
-        <Pressable className="flex-1 justify-center bg-black/40 px-5" onPress={() => setCalendarOpen(false)}>
-          <Pressable
-            className="overflow-hidden rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
-            style={{ width: '100%', maxWidth: dialogMaxWidth, alignSelf: 'center' }}
-            onPress={(event) => event.stopPropagation()}
-          >
-            <View className="px-4 pb-2 pt-4">
-              <Text className="text-base font-semibold text-gray-900 dark:text-white">
-                {dateField === 'start' ? t('planDrawer.startDateLabel') : t('planDrawer.endDateLabel')}
-              </Text>
-            </View>
-            <Calendar
-              current={selectedDay || startDate}
-              onDayPress={({ dateString }) => {
-                if (dateField === 'start') setStartDate(dateString);
-                else setEndDate(dateString);
-                setCalendarOpen(false);
-              }}
-              markedDates={{
-                ...(startDate ? { [startDate]: { selected: true } } : {}),
-                ...(endDate ? { [endDate]: { selected: true } } : {}),
-              }}
-              theme={{
-                selectedDayBackgroundColor: '#3b82f6',
-                todayTextColor: '#2563eb',
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        title={dateField === 'start' ? t('planDrawer.startDateLabel') : t('planDrawer.endDateLabel')}
+        value={selectedDay}
+        initialDate={startDate}
+        onSelect={(date) => {
+          if (dateField === 'start') setStartDate(date);
+          else setEndDate(date);
+        }}
+        onClose={() => setCalendarOpen(false)}
+        markedDates={{
+          ...(startDate ? { [startDate]: { selected: true } } : {}),
+          ...(endDate ? { [endDate]: { selected: true } } : {}),
+        }}
+      />
     </View>
   );
 }

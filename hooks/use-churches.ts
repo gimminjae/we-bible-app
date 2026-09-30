@@ -135,7 +135,9 @@ export function useChurchActions() {
 
   return useMemo(() => {
     async function invalidateChurchQueries(churchId?: string, planId?: string) {
-      await queryClient.invalidateQueries({ queryKey: churchKeys.all });
+      await queryClient.cancelQueries({ queryKey: churchId ? ['churches', 'metadata', churchId] : ['churches', 'metadata'] });
+      await queryClient.resetQueries({ queryKey: churchId ? ['churches', 'metadata', churchId] : ['churches', 'metadata'] });
+      await queryClient.invalidateQueries({ queryKey: churchKeys.all, predicate: query => query.queryKey[1] !== 'metadata' });
 
       if (churchId && dataUserId) {
         await queryClient.invalidateQueries({ queryKey: churchKeys.detail(churchId, dataUserId) });

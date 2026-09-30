@@ -90,4 +90,10 @@ create index if not exists image_infos_user_id_uploaded_at_idx
 create unique index if not exists image_infos_object_key_idx
   on public.image_infos (object_key);
 
+-- Community member metadata
+create unique index if not exists church_metadata_field_label_idx
+  on public.church_member_metadata_fields(church_id, lower(btrim(label)));
+create index if not exists church_metadata_field_order_idx
+  on public.church_member_metadata_fields(church_id, is_active, sort_order, id);
+
 commit;

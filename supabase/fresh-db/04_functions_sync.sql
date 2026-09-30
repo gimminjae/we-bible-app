@@ -209,4 +209,26 @@ begin
 end;
 $church_prayer_touch$;
 
+-- Community member metadata
+create or replace function church_metadata_private._seed_church_member_metadata_fields(p_church_id bigint, p_creator uuid default null)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.church_member_metadata_fields
+    (church_id, system_key, label, data_type, options, is_copyable, sort_order, created_by_user_id)
+  values
+    (p_church_id, 'birth_date', '생년월일', 'date', null, false, 0, p_creator),
+    (p_church_id, 'email', '이메일', 'email', null, true, 1, p_creator),
+    (p_church_id, 'gender', '성별', 'binary', '[{"value":"option_1","label":"남"},{"value":"option_2","label":"여"}]', false, 2, p_creator),
+    (p_church_id, 'phone', '연락처', 'phone', null, true, 3, p_creator),
+    (p_church_id, 'address', '주소', 'text', null, true, 4, p_creator)
+  on conflict (church_id, system_key) do nothing;
+$$;
+
+create or replace function church_metadata_private._metadata_on_church_created()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  perform church_metadata_private._seed_church_member_metadata_fields(new.id, new.created_by_user_id);
+  return new;
+end;
+$$;
+
 commit;

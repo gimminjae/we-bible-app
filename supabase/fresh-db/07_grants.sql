@@ -35,4 +35,24 @@ grant execute on function public.transfer_church_super_admin(bigint, uuid) to au
 grant execute on function public.delete_church_as_super_admin(bigint) to authenticated;
 grant execute on function public.delete_my_account() to authenticated;
 
+-- Community member metadata
+revoke all on schema church_metadata_private from public, anon, authenticated;
+grant usage on schema church_metadata_private to authenticated;
+revoke all on public.church_member_metadata_fields, public.church_member_metadata from public, anon, authenticated;
+grant select on public.church_member_metadata_fields, public.church_member_metadata to authenticated;
+revoke all on sequence public.church_member_metadata_fields_id_seq from public, anon, authenticated;
+do $$
+declare f record;
+begin
+  for f in select oid::regprocedure as signature, proname from pg_proc where pronamespace in ('public'::regnamespace, 'church_metadata_private'::regnamespace)
+    and proname in ('_metadata_can_read', '_metadata_can_edit', '_metadata_field_json', '_metadata_validate_definition',
+      '_metadata_validate_value', '_metadata_guard_field', '_seed_church_member_metadata_fields', '_metadata_on_church_created',
+      'get_church_member_metadata_fields', 'create_church_member_metadata_field', 'update_church_member_metadata_field',
+      'get_church_member_metadata', 'save_church_member_metadata', 'search_church_members_by_metadata') loop
+    execute format('revoke all on function %s from public, anon, authenticated', f.signature);
+    if left(f.proname, 1) <> '_' then execute format('grant execute on function %s to authenticated', f.signature); end if;
+  end loop;
+end;
+$$;
+
 commit;

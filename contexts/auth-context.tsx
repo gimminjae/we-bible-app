@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query"
 import type { SignInWithIdTokenCredentials, User } from "@supabase/supabase-js"
 import { useSQLiteContext } from "expo-sqlite"
 import * as WebBrowser from "expo-web-browser"
@@ -123,6 +124,7 @@ function getOAuthRedirectUrl(provider: SocialProvider) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const db = useSQLiteContext()
   const { refreshSettings } = useAppSettings()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -136,6 +138,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialSessionResolvedRef = useRef(false)
   const mountedRef = useRef(true)
   const configured = isSupabaseConfigured()
+
+  useEffect(() => {
+    const actor = currentUser?.id
+    const filters = {
+      queryKey: ["churches", "metadata"],
+      predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[3] !== actor || actor !== dataUserId,
+    }
+    void queryClient.cancelQueries(filters)
+    queryClient.removeQueries(filters)
+  }, [currentUser?.id, dataUserId, queryClient])
 
   const resetToGuest = useCallback(async () => {
     if (guestResetPromiseRef.current) {

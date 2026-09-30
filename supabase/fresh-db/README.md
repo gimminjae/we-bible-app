@@ -33,9 +33,11 @@
 - `supabase/migrations/202604090001_add_developer_inquiries.sql`
 - `supabase/migrations/202604100001_add_theme_verses.sql`
 - `supabase/migrations/202609010001_add_image_infos.sql`
+- `supabase/migrations/202609080001_add_church_member_metadata.sql`
 
 ## 참고
 
 - `auth.users` 는 Supabase Auth 기본 테이블이 이미 존재한다고 가정합니다.
-- 별도 seed 데이터는 현재 프로젝트 기준으로 포함하지 않았습니다.
+- 공동체 생성 시 회원 메타데이터 기본 항목 5개를 생성하는 트리거와 기존 공동체 초기화를 포함합니다.
+- 메타데이터 DB 검증 방법과 적용 순서는 [검증 기록](../tests/README.md)을 참고하세요.
 - 이 폴더는 "최종 정리본"이고, migration 이력 보존용 폴더는 아닙니다.

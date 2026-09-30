@@ -6,9 +6,10 @@ export async function copyToClipboard(text: string): Promise<void> {
   if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
   } else {
-    await Clipboard.setStringAsync(text);
+    const copied = await Clipboard.setStringAsync(text);
+    if (!copied) throw new Error('CLIPBOARD_WRITE_FAILED');
   }
   if (Platform.OS !== 'web') {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }
 }

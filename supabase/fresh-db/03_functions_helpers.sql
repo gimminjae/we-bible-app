@@ -253,4 +253,111 @@ begin
 end;
 $$;
 
+-- Community member metadata
+create or replace function church_metadata_private._metadata_can_read(p_role text, p_actor uuid, p_target uuid, p_policy text)
+returns boolean language sql immutable set search_path = '' as $$
+  select coalesce(p_role in ('super_admin', 'deputy_admin') or p_actor = p_target
+    or (p_role = 'member' and p_policy = 'all_members'), false);
+$$;
+
+create or replace function church_metadata_private._metadata_can_edit(p_role text, p_actor uuid, p_target uuid, p_policy text)
+returns boolean language sql immutable set search_path = '' as $$
+  select coalesce(case p_policy
+    when 'super_admin_only' then p_role = 'super_admin'
+    when 'admins_only' then p_role in ('super_admin', 'deputy_admin')
+    when 'self_and_admins' then p_role in ('super_admin', 'deputy_admin') or (p_role = 'member' and p_actor = p_target)
+    when 'all_members' then p_role in ('super_admin', 'deputy_admin', 'member')
+    else false end, false);
+$$;
+
+create or replace function church_metadata_private._metadata_field_json(p_field public.church_member_metadata_fields)
+returns jsonb language sql stable set search_path = '' as $$
+  select to_jsonb(p_field) || jsonb_build_object('id', p_field.id::text, 'church_id', p_field.church_id::text);
+$$;
+
+create or replace function church_metadata_private._metadata_validate_definition(p_type text, p_options jsonb)
+returns void language plpgsql set search_path = '' as $$
+begin
+  if p_type is null or p_type not in ('text', 'number', 'phone', 'binary', 'date', 'email') then
+    raise exception 'METADATA_INVALID_TYPE';
+  end if;
+  if p_type <> 'binary' then
+    if p_options is not null then raise exception 'METADATA_INVALID_OPTIONS'; end if;
+    return;
+  end if;
+  if p_options is null or jsonb_typeof(p_options) <> 'array' then raise exception 'METADATA_INVALID_OPTIONS'; end if;
+  if jsonb_array_length(p_options) <> 2 then raise exception 'METADATA_INVALID_OPTIONS'; end if;
+  for i in 0..1 loop
+    if jsonb_typeof(p_options->i) <> 'object'
+      or p_options->i->>'value' is distinct from 'option_' || (i + 1)::text
+      or jsonb_typeof(p_options->i->'label') is distinct from 'string'
+      or char_length(btrim(p_options->i->>'label')) not between 1 and 40
+      or p_options->i->>'label' <> btrim(p_options->i->>'label') then
+      raise exception 'METADATA_INVALID_OPTIONS';
+    end if;
+  end loop;
+  if lower(p_options->0->>'label') = lower(p_options->1->>'label') then
+    raise exception 'METADATA_INVALID_OPTIONS';
+  end if;
+end;
+$$;
+
+create or replace function church_metadata_private._metadata_validate_value(p_field public.church_member_metadata_fields, p_value jsonb)
+returns jsonb language plpgsql set search_path = '' as $$
+declare v_text text; v_date date;
+begin
+  if p_value is null or p_value = 'null'::jsonb then return 'null'::jsonb; end if;
+  if p_field.data_type = 'number' then
+    if jsonb_typeof(p_value) <> 'number' then raise exception 'METADATA_INVALID_NUMBER'; end if;
+    if abs((p_value #>> '{}')::numeric) > 9007199254740991 then raise exception 'METADATA_INVALID_NUMBER'; end if;
+    begin
+      if (p_value #>> '{}')::numeric is distinct from ((p_value #>> '{}')::double precision)::text::numeric then
+        raise exception 'METADATA_INVALID_NUMBER';
+      end if;
+    exception when numeric_value_out_of_range then raise exception 'METADATA_INVALID_NUMBER'; end;
+    return p_value;
+  end if;
+  if jsonb_typeof(p_value) <> 'string' then raise exception 'METADATA_INVALID_VALUE'; end if;
+  v_text := regexp_replace(p_value #>> '{}', '^\s+|\s+$', '', 'g');
+  if v_text = '' then return 'null'::jsonb; end if;
+  if char_length(v_text) > 1000 then raise exception 'METADATA_VALUE_TOO_LONG'; end if;
+  case p_field.data_type
+    when 'binary' then
+      if not exists(select 1 from jsonb_array_elements(p_field.options) o where o->>'value' = v_text) then
+        raise exception 'METADATA_INVALID_OPTIONS';
+      end if;
+    when 'phone' then
+      if char_length(v_text) > 40 or v_text !~ '^[+0-9 ()-]+$' or v_text !~ '[0-9]' then
+        raise exception 'METADATA_INVALID_PHONE';
+      end if;
+    when 'email' then
+      if char_length(v_text) > 254 or v_text !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+        raise exception 'METADATA_INVALID_EMAIL';
+      end if;
+    when 'date' then
+      if v_text !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'METADATA_INVALID_DATE'; end if;
+      begin v_date := v_text::date;
+      exception when others then raise exception 'METADATA_INVALID_DATE'; end;
+      if to_char(v_date, 'YYYY-MM-DD') <> v_text or (p_field.system_key = 'birth_date' and v_date > (now() at time zone 'Asia/Seoul')::date) then
+        raise exception 'METADATA_INVALID_DATE';
+      end if;
+    else null;
+  end case;
+  return to_jsonb(v_text);
+end;
+$$;
+
+-- A trigger also protects immutable field identity from privileged accidental updates.
+create or replace function church_metadata_private._metadata_guard_field()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  perform church_metadata_private._metadata_validate_definition(new.data_type, new.options);
+  if tg_op = 'UPDATE' then
+    if (new.id, new.church_id, new.system_key, new.data_type) is distinct from
+       (old.id, old.church_id, old.system_key, old.data_type) then raise exception 'METADATA_IMMUTABLE_FIELD'; end if;
+  end if;
+  return new;
+end;
+$$;
+
 commit;

@@ -69,4 +69,14 @@ before update on public.developer_inquiries
 for each row
 execute function public.touch_updated_at();
 
+-- Community member metadata
+drop trigger if exists church_metadata_field_guard on public.church_member_metadata_fields;
+create trigger church_metadata_field_guard before insert or update on public.church_member_metadata_fields
+  for each row execute function church_metadata_private._metadata_guard_field();
+drop trigger if exists church_metadata_seed on public.churches;
+create trigger church_metadata_seed after insert on public.churches
+  for each row execute function church_metadata_private._metadata_on_church_created();
+
+select church_metadata_private._seed_church_member_metadata_fields(id) from public.churches;
+
 commit;

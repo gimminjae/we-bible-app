@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { MemberMetadataSearch } from '@/components/churches/member-metadata-search';
+import { useMetadataDefinitions } from '@/hooks/use-church-metadata';
 import { ChurchProgressBar } from '@/components/churches/church-progress-bar';
 import { ChurchInfoSheet } from '@/components/churches/church-info-sheet';
 import {
@@ -185,6 +187,9 @@ export default function ChurchDetailScreen() {
     deleteChurchPrayerContent,
   } = useChurchActions();
   const [activeTab, setActiveTab] = useState<DetailTab>('members');
+  const metadataDefinitions = useMetadataDefinitions(churchId, activeTab === 'members');
+  const canReadOtherMetadata =
+    metadataDefinitions.data?.fields.some(field => field.editPolicy === 'all_members') ?? false;
   const [creatingTeamName, setCreatingTeamName] = useState('');
   const [processingKey, setProcessingKey] = useState<string | null>(null);
   const [selectedRequestTeamIds, setSelectedRequestTeamIds] = useState<Record<string, string>>({});
@@ -343,6 +348,14 @@ export default function ChurchDetailScreen() {
       const member = churchDetail.members.find((item) => item.userId === pickerState.key);
       if (!member) return;
 
+      if (value === 'metadata') {
+        setTimeout(
+          () => router.push(`/churches/${churchId}/members/${member.userId}/metadata` as never),
+          SELECTION_SHEET_CLOSE_DELAY_MS,
+        );
+        return;
+      }
+
       if (value === 'transfer') {
         confirmDestructive(
           t('church.transferSuperAdminConfirm').replace('{name}', member.profile.displayName),
@@ -410,6 +423,13 @@ export default function ChurchDetailScreen() {
       return;
     }
     if (pickerState.kind === 'churchAction') {
+      if (value === 'metadataFields') {
+        setTimeout(
+          () => router.push(`/churches/${churchId}/metadata-fields` as never),
+          SELECTION_SHEET_CLOSE_DELAY_MS,
+        );
+        return;
+      }
       if (value === 'edit') {
         setTimeout(() => setEditChurchInfoVisible(true), SELECTION_SHEET_CLOSE_DELAY_MS);
         return;
@@ -457,6 +477,9 @@ export default function ChurchDetailScreen() {
     canRemoveMember: boolean,
   ) => {
     const options: SelectionOption[] = [];
+    if (churchDetail.church.canManageMembers || member.userId === dataUserId || canReadOtherMetadata) {
+      options.push({ value: 'metadata', label: t('metadata.memberInfo') });
+    }
     if (canTransferSuperAdmin) {
       options.push({ value: 'transfer', label: t('church.transferSuperAdmin') });
     }
@@ -491,6 +514,7 @@ export default function ChurchDetailScreen() {
     }
     if (churchDetail.church.isSuperAdmin || churchDetail.church.isDeputyAdmin) {
       options.push({ value: 'image', label: t('church.changeImage') });
+      options.push({ value: 'metadataFields', label: t('metadata.manage') });
     }
     if (!options.length) return;
 
@@ -1092,67 +1116,79 @@ export default function ChurchDetailScreen() {
               </View>
             ) : null}
 
-            {churchDetail.members.map((member) => {
-              const canTransferSuperAdmin =
-                churchDetail.church.isSuperAdmin && member.userId !== dataUserId;
-              const canToggleDeputy =
-                churchDetail.church.isSuperAdmin &&
-                member.userId !== churchDetail.church.superAdminUserId &&
-                member.userId !== churchDetail.church.createdByUserId;
-              const canManageMemberTeam =
-                churchDetail.church.isSuperAdmin ||
-                (churchDetail.church.isDeputyAdmin && member.role === 'member');
-              const canRemoveMember =
-                member.userId !== dataUserId &&
-                (churchDetail.church.isSuperAdmin ||
-                  (churchDetail.church.isDeputyAdmin && member.role === 'member'));
+            {dataUserId ? (
+              <ActionTextButton
+                label={t('metadata.myInfo')}
+                onPress={() => router.push(`/churches/${churchId}/members/${dataUserId}/metadata` as never)}
+                variant="outline"
+                className="mb-4 rounded-xl py-3"
+              />
+            ) : null}
+            <MemberMetadataSearch churchId={churchId} definitions={metadataDefinitions}>
+              {churchDetail.members.map((member) => {
+                const canTransferSuperAdmin =
+                  churchDetail.church.isSuperAdmin && member.userId !== dataUserId;
+                const canToggleDeputy =
+                  churchDetail.church.isSuperAdmin &&
+                  member.userId !== churchDetail.church.superAdminUserId &&
+                  member.userId !== churchDetail.church.createdByUserId;
+                const canManageMemberTeam =
+                  churchDetail.church.isSuperAdmin ||
+                  (churchDetail.church.isDeputyAdmin && member.role === 'member');
+                const canRemoveMember =
+                  member.userId !== dataUserId &&
+                  (churchDetail.church.isSuperAdmin ||
+                    (churchDetail.church.isDeputyAdmin && member.role === 'member'));
+                const canReadMemberMetadata =
+                  churchDetail.church.canManageMembers || member.userId === dataUserId || canReadOtherMetadata;
 
-              return (
-                <View
-                  key={member.userId}
-                  className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <View className="flex-row items-start justify-between gap-3">
-                    <View className="flex-1">
-                      <View className="flex-row items-center gap-2">
-                        <Text className="font-semibold text-gray-900 dark:text-white">
-                          {member.profile.displayName}
+                return (
+                  <View
+                    key={member.userId}
+                    className="mb-4 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                  >
+                    <View className="flex-row items-start justify-between gap-3">
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-2">
+                          <Text className="font-semibold text-gray-900 dark:text-white">
+                            {member.profile.displayName}
+                          </Text>
+                          <ChurchRoleBadge role={member.role} />
+                        </View>
+                        <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          {member.profile.email ?? t('church.emailHidden')}
                         </Text>
-                        <ChurchRoleBadge role={member.role} />
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {member.teamName
+                            ? `${t('church.teamLabel')} ${member.teamName}`
+                            : t('church.noTeamAssigned')}
+                        </Text>
                       </View>
-                      <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {member.profile.email ?? t('church.emailHidden')}
-                      </Text>
-                      <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {member.teamName
-                          ? `${t('church.teamLabel')} ${member.teamName}`
-                          : t('church.noTeamAssigned')}
-                      </Text>
-                    </View>
 
-                    {canTransferSuperAdmin || canToggleDeputy || canManageMemberTeam || canRemoveMember ? (
-                      <Pressable
-                        onPress={() =>
-                          openMemberActionPicker(
-                            member,
-                            canTransferSuperAdmin,
-                            canToggleDeputy,
-                            canManageMemberTeam,
-                            canRemoveMember,
-                          )
-                        }
-                        disabled={processingKey !== null}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('church.memberActions')}
-                        className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
-                      >
-                        <IconSymbol name="ellipsis.circle" size={21} color="#6b7280" />
-                      </Pressable>
-                    ) : null}
+                      {canTransferSuperAdmin || canToggleDeputy || canManageMemberTeam || canRemoveMember || canReadMemberMetadata ? (
+                        <Pressable
+                          onPress={() =>
+                            openMemberActionPicker(
+                              member,
+                              canTransferSuperAdmin,
+                              canToggleDeputy,
+                              canManageMemberTeam,
+                              canRemoveMember,
+                            )
+                          }
+                          disabled={processingKey !== null}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('church.memberActions')}
+                          className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+                        >
+                          <IconSymbol name="ellipsis.circle" size={21} color="#6b7280" />
+                        </Pressable>
+                      ) : null}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })}
+            </MemberMetadataSearch>
           </>
         ) : null}
         {activeTab === 'plans' ? (

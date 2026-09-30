@@ -364,4 +364,14 @@ create policy "image_infos_owner"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Community member metadata
+alter table public.church_member_metadata_fields enable row level security;
+alter table public.church_member_metadata enable row level security;
+drop policy if exists church_metadata_fields_read on public.church_member_metadata_fields;
+create policy church_metadata_fields_read on public.church_member_metadata_fields for select to authenticated
+  using (public.is_church_member(church_id, (select auth.uid())));
+drop policy if exists church_metadata_values_read on public.church_member_metadata;
+create policy church_metadata_values_read on public.church_member_metadata for select to authenticated
+  using (public.is_church_member(church_id, (select auth.uid())) and (user_id = (select auth.uid()) or public.is_church_admin(church_id, (select auth.uid()))));
+
 commit;

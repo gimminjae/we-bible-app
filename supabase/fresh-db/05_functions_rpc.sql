@@ -652,4 +652,218 @@ begin
 end;
 $$;
 
+-- Community member metadata
+create or replace function church_metadata_private.get_church_member_metadata_fields(p_church_id bigint)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_fields jsonb;
+begin
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid();
+  if v_role is null then raise exception 'PERMISSION_DENIED'; end if;
+  select coalesce(jsonb_agg(church_metadata_private._metadata_field_json(f) order by sort_order, id), '[]'::jsonb)
+    into v_fields from public.church_member_metadata_fields f where church_id = p_church_id;
+  return jsonb_build_object('role', v_role, 'fields', v_fields);
+end;
+$$;
+
+create or replace function church_metadata_private.create_church_member_metadata_field(
+  p_church_id bigint, p_label text, p_data_type text, p_options jsonb,
+  p_is_copyable boolean, p_edit_policy text default 'self_and_admins'
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_field public.church_member_metadata_fields;
+begin
+  -- Keep the parent alive without blocking membership cache updates on churches.
+  perform 1 from public.churches where id = p_church_id for key share;
+  perform pg_advisory_xact_lock(hashtextextended('church-metadata-fields:' || p_church_id::text, 0));
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid() for share;
+  if v_role is null or v_role not in ('super_admin', 'deputy_admin') then raise exception 'PERMISSION_DENIED'; end if;
+  if v_role <> 'super_admin' and p_edit_policy is distinct from 'self_and_admins' then raise exception 'PERMISSION_DENIED'; end if;
+  if p_label is null or char_length(btrim(p_label)) not between 1 and 80 then raise exception 'METADATA_INVALID_LABEL'; end if;
+  if p_edit_policy is null or p_edit_policy not in ('super_admin_only', 'admins_only', 'self_and_admins', 'all_members') or p_is_copyable is null then
+    raise exception 'METADATA_INVALID_SETTINGS';
+  end if;
+  if (select count(*) from public.church_member_metadata_fields where church_id = p_church_id) >= 100 then raise exception 'METADATA_FIELD_LIMIT'; end if;
+  perform church_metadata_private._metadata_validate_definition(p_data_type, p_options);
+  insert into public.church_member_metadata_fields
+    (church_id, label, data_type, options, is_copyable, edit_policy, sort_order, created_by_user_id, updated_by_user_id)
+  select p_church_id, btrim(p_label), p_data_type, p_options, p_is_copyable, p_edit_policy,
+    coalesce(max(sort_order), -1) + 1, auth.uid(), auth.uid()
+    from public.church_member_metadata_fields where church_id = p_church_id
+  returning * into v_field;
+  return church_metadata_private._metadata_field_json(v_field);
+exception when unique_violation then raise exception 'METADATA_DUPLICATE_LABEL';
+end;
+$$;
+
+create or replace function church_metadata_private.update_church_member_metadata_field(
+  p_church_id bigint, p_field_id bigint, p_expected_version integer,
+  p_label text, p_options jsonb, p_is_active boolean, p_is_copyable boolean, p_edit_policy text
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_field public.church_member_metadata_fields;
+begin
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid() for share;
+  if v_role is null or v_role not in ('super_admin', 'deputy_admin') then raise exception 'PERMISSION_DENIED'; end if;
+  select * into v_field from public.church_member_metadata_fields where church_id = p_church_id and id = p_field_id for update;
+  if not found then raise exception 'METADATA_FIELD_NOT_FOUND'; end if;
+  if v_field.version is distinct from p_expected_version then raise exception 'METADATA_CONFLICT'; end if;
+  if v_role <> 'super_admin' and p_edit_policy is distinct from v_field.edit_policy then raise exception 'PERMISSION_DENIED'; end if;
+  if p_label is null or char_length(btrim(p_label)) not between 1 and 80 then raise exception 'METADATA_INVALID_LABEL'; end if;
+  if p_is_active is null or p_is_copyable is null or p_edit_policy is null or p_edit_policy not in ('super_admin_only', 'admins_only', 'self_and_admins', 'all_members') then
+    raise exception 'METADATA_INVALID_SETTINGS';
+  end if;
+  perform church_metadata_private._metadata_validate_definition(v_field.data_type, p_options);
+  update public.church_member_metadata_fields set label = btrim(p_label), options = p_options,
+    is_active = p_is_active, is_copyable = p_is_copyable, edit_policy = p_edit_policy,
+    version = version + 1, updated_by_user_id = auth.uid(), updated_at = now()
+    where id = p_field_id returning * into v_field;
+  return church_metadata_private._metadata_field_json(v_field);
+exception when unique_violation then raise exception 'METADATA_DUPLICATE_LABEL';
+end;
+$$;
+
+create or replace function church_metadata_private.get_church_member_metadata(p_church_id bigint, p_user_id uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_fields jsonb; v_values jsonb; v_version integer;
+begin
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid();
+  if v_role is null or not public.is_church_member(p_church_id, p_user_id) then raise exception 'PERMISSION_DENIED'; end if;
+  select "values", version into v_values, v_version from public.church_member_metadata where church_id = p_church_id and user_id = p_user_id;
+  select coalesce(jsonb_agg(church_metadata_private._metadata_field_json(f) || jsonb_build_object(
+      'can_edit', f.is_active and church_metadata_private._metadata_can_edit(v_role, auth.uid(), p_user_id, f.edit_policy),
+      'value', coalesce(v_values->f.id::text, 'null'::jsonb)) order by f.sort_order, f.id), '[]'::jsonb)
+    into v_fields from public.church_member_metadata_fields f where f.church_id = p_church_id
+      and church_metadata_private._metadata_can_read(v_role, auth.uid(), p_user_id, f.edit_policy);
+  return jsonb_build_object('fields', v_fields, 'version', coalesce(v_version, 0), 'role', v_role);
+end;
+$$;
+
+create or replace function church_metadata_private.save_church_member_metadata(
+  p_church_id bigint, p_user_id uuid, p_expected_version integer, p_field_versions jsonb, p_patch jsonb
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_field public.church_member_metadata_fields; v_key text; v_input jsonb; v_value jsonb;
+  v_values jsonb; v_version integer;
+begin
+  if p_patch is null or jsonb_typeof(p_patch) <> 'object' or octet_length(p_patch::text) > 262144
+    or p_field_versions is null or jsonb_typeof(p_field_versions) <> 'object' then raise exception 'METADATA_INVALID_VALUE'; end if;
+  -- Lock both memberships in UUID order, including the missing metadata-row case.
+  perform 1 from public.church_memberships where church_id = p_church_id and user_id in (auth.uid(), p_user_id) order by user_id for update;
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid();
+  if v_role is null or not public.is_church_member(p_church_id, p_user_id) then raise exception 'PERMISSION_DENIED'; end if;
+  select "values", version into v_values, v_version from public.church_member_metadata where church_id = p_church_id and user_id = p_user_id for update;
+  v_values := coalesce(v_values, '{}'::jsonb);
+  if coalesce(v_version, 0) is distinct from p_expected_version then raise exception 'METADATA_CONFLICT'; end if;
+  for v_key, v_input in select key, value from jsonb_each(p_patch) order by key loop
+    select * into v_field from public.church_member_metadata_fields where church_id = p_church_id and id::text = v_key for share;
+    if not found then raise exception 'METADATA_FIELD_NOT_FOUND'; end if;
+    if not v_field.is_active then raise exception 'METADATA_FIELD_INACTIVE'; end if;
+    if not church_metadata_private._metadata_can_edit(v_role, auth.uid(), p_user_id, v_field.edit_policy) then raise exception 'PERMISSION_DENIED'; end if;
+    if p_field_versions->v_key is distinct from to_jsonb(v_field.version) then raise exception 'METADATA_CONFLICT'; end if;
+    begin
+      v_value := church_metadata_private._metadata_validate_value(v_field, v_input);
+    exception when others then raise exception using message = sqlerrm, detail = v_key; end;
+    if v_value = 'null'::jsonb then v_values := v_values - v_key;
+    else v_values := jsonb_set(v_values, array[v_key], v_value); end if;
+  end loop;
+  if p_patch <> '{}'::jsonb then
+    insert into public.church_member_metadata(church_id, user_id, "values", updated_by_user_id)
+      values(p_church_id, p_user_id, v_values, auth.uid())
+    on conflict (church_id, user_id) do update set "values" = excluded."values",
+      version = church_member_metadata.version + 1, updated_by_user_id = auth.uid(), updated_at = now();
+  end if;
+  return church_metadata_private.get_church_member_metadata(p_church_id, p_user_id);
+end;
+$$;
+
+create or replace function church_metadata_private.search_church_members_by_metadata(
+  p_church_id bigint, p_field_id bigint, p_value jsonb, p_limit integer default 30, p_offset integer default 0
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_role text; v_field public.church_member_metadata_fields; v_value jsonb; v_query text; v_result jsonb;
+begin
+  select role into v_role from public.church_memberships where church_id = p_church_id and user_id = auth.uid();
+  if v_role is null then raise exception 'PERMISSION_DENIED'; end if;
+  select * into v_field from public.church_member_metadata_fields where church_id = p_church_id and id = p_field_id;
+  if not found then raise exception 'METADATA_FIELD_NOT_FOUND'; end if;
+  if not v_field.is_active then raise exception 'METADATA_FIELD_INACTIVE'; end if;
+  if p_limit is null or p_limit not between 1 and 100 or p_offset is null or p_offset < 0 then raise exception 'METADATA_INVALID_VALUE'; end if;
+  if v_field.data_type in ('text', 'email', 'phone') then
+    if p_value is null or jsonb_typeof(p_value) <> 'string' then raise exception 'METADATA_INVALID_VALUE'; end if;
+    v_query := regexp_replace(p_value #>> '{}', '^\s+|\s+$', '', 'g');
+    if char_length(v_query) not between 1 and 1000 then raise exception 'METADATA_INVALID_VALUE'; end if;
+    if v_field.data_type = 'phone' then
+      v_query := regexp_replace(v_query, '[^0-9]', '', 'g');
+      if v_query = '' then raise exception 'METADATA_INVALID_PHONE'; end if;
+    end if;
+  else
+    v_value := church_metadata_private._metadata_validate_value(v_field, p_value);
+    if v_value = 'null'::jsonb then raise exception 'METADATA_INVALID_VALUE'; end if;
+  end if;
+  with matches as materialized (
+    select m.user_id, m."values"->p_field_id::text as value,
+      case ms.role when 'super_admin' then 0 when 'deputy_admin' then 1 else 2 end as role_order,
+      coalesce(nullif(prof.display_name, ''), left(m.user_id::text, 8) || '...') as display_name,
+      ms.role, team.name as team_name
+    from public.church_member_metadata m
+    join public.church_memberships ms on (ms.church_id, ms.user_id) = (m.church_id, m.user_id)
+    left join public.user_profiles prof on prof.user_id = m.user_id
+    left join public.teams team on team.id = ms.team_id and team.church_id = ms.church_id
+    where m.church_id = p_church_id
+      and church_metadata_private._metadata_can_read(v_role, auth.uid(), m.user_id, v_field.edit_policy)
+      and m."values" ? p_field_id::text
+      and case v_field.data_type
+        when 'text' then strpos(lower(m."values"->>p_field_id::text), lower(v_query)) > 0
+        when 'email' then strpos(lower(m."values"->>p_field_id::text), lower(v_query)) > 0
+        when 'phone' then strpos(regexp_replace(m."values"->>p_field_id::text, '[^0-9]', '', 'g'), v_query) > 0
+        else m."values"->p_field_id::text = v_value end
+  ), page as (select * from matches order by role_order, display_name, user_id limit p_limit offset p_offset)
+  select jsonb_build_object('total', (select count(*) from matches),
+    'field', church_metadata_private._metadata_field_json(v_field),
+    'items', coalesce((select jsonb_agg(jsonb_build_object('user_id', user_id, 'value', value, 'display_name', display_name, 'role', role, 'team_name', team_name) order by role_order, display_name, user_id) from page), '[]'::jsonb)) into v_result;
+  return v_result;
+end;
+$$;
+
+-- Public Data API entry points. Privileged implementations live outside exposed schemas.
+create or replace function public.get_church_member_metadata_fields(p_church_id bigint)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.get_church_member_metadata_fields(p_church_id);
+$$;
+
+create or replace function public.create_church_member_metadata_field(
+  p_church_id bigint, p_label text, p_data_type text, p_options jsonb,
+  p_is_copyable boolean, p_edit_policy text default 'self_and_admins'
+)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.create_church_member_metadata_field(p_church_id, p_label, p_data_type, p_options, p_is_copyable, p_edit_policy);
+$$;
+
+create or replace function public.update_church_member_metadata_field(
+  p_church_id bigint, p_field_id bigint, p_expected_version integer,
+  p_label text, p_options jsonb, p_is_active boolean, p_is_copyable boolean, p_edit_policy text
+)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.update_church_member_metadata_field(p_church_id, p_field_id, p_expected_version, p_label, p_options, p_is_active, p_is_copyable, p_edit_policy);
+$$;
+
+create or replace function public.get_church_member_metadata(p_church_id bigint, p_user_id uuid)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.get_church_member_metadata(p_church_id, p_user_id);
+$$;
+
+create or replace function public.save_church_member_metadata(
+  p_church_id bigint, p_user_id uuid, p_expected_version integer, p_field_versions jsonb, p_patch jsonb
+)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.save_church_member_metadata(p_church_id, p_user_id, p_expected_version, p_field_versions, p_patch);
+$$;
+
+create or replace function public.search_church_members_by_metadata(
+  p_church_id bigint, p_field_id bigint, p_value jsonb, p_limit integer default 30, p_offset integer default 0
+)
+returns jsonb language sql security invoker set search_path = '' as $$
+  select church_metadata_private.search_church_members_by_metadata(p_church_id, p_field_id, p_value, p_limit, p_offset);
+$$;
+
 commit;
