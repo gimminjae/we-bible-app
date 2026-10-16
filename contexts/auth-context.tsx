@@ -142,8 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const actor = currentUser?.id
     const filters = {
-      queryKey: ["churches", "metadata"],
-      predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey[3] !== actor || actor !== dataUserId,
+      queryKey: ["churches"],
+      predicate: (query: { queryKey: readonly unknown[] }) =>
+        ["metadata", "community"].includes(String(query.queryKey[1])) &&
+        (query.queryKey[3] !== actor || actor !== dataUserId),
     }
     void queryClient.cancelQueries(filters)
     queryClient.removeQueries(filters)

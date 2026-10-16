@@ -137,6 +137,8 @@ export function useChurchActions() {
     async function invalidateChurchQueries(churchId?: string, planId?: string) {
       await queryClient.cancelQueries({ queryKey: churchId ? ['churches', 'metadata', churchId] : ['churches', 'metadata'] });
       await queryClient.resetQueries({ queryKey: churchId ? ['churches', 'metadata', churchId] : ['churches', 'metadata'] });
+      await queryClient.cancelQueries({ queryKey: churchId ? ['churches', 'community', churchId] : ['churches', 'community'] });
+      await queryClient.resetQueries({ queryKey: churchId ? ['churches', 'community', churchId] : ['churches', 'community'] });
       await queryClient.invalidateQueries({ queryKey: churchKeys.all, predicate: query => query.queryKey[1] !== 'metadata' });
 
       if (churchId && dataUserId) {

@@ -22,6 +22,7 @@
 6. `06_triggers.sql`
 7. `07_grants.sql`
 8. `08_rls.sql`
+9. `../migrations/20261016041414_add_church_community.sql` — 커뮤니티 테이블·RPC·권한·3개 번역본 구절 목록을 함께 적용합니다. 이 단계는 별도 seed 실행이 필요하지 않습니다.
 
 ## 기준
 
@@ -34,6 +35,7 @@
 - `supabase/migrations/202604100001_add_theme_verses.sql`
 - `supabase/migrations/202609010001_add_image_infos.sql`
 - `supabase/migrations/202609080001_add_church_member_metadata.sql`
+- `supabase/migrations/20261016041414_add_church_community.sql`
 
 ## 참고
 

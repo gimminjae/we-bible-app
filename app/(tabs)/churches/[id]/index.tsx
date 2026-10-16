@@ -1001,6 +1001,12 @@ export default function ChurchDetailScreen() {
             </View>
           </View>
         </View>
+        <ActionTextButton
+          onPress={() => router.push(`/churches/${churchDetail.church.id}/community` as never)}
+          label="공동체 이야기 · 글과 묵상 나누기"
+          className="mb-4 rounded-2xl bg-primary-600 px-5 py-4"
+          textClassName="font-semibold text-white"
+        />
         <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
           {(['members', 'plans', 'prayers', 'teams'] as const).map((tab) => {
             const active = activeTab === tab;

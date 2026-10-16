@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedHeaders": ["Content-Type"],
+    "AllowedMethods": ["GET", "HEAD", "POST"],
+    "AllowedOrigins": ["https://YOUR-WEB-APP-ORIGIN"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 300
+  }
+]

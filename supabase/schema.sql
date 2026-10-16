@@ -1989,3 +1989,6 @@ create policy church_metadata_values_read on public.church_member_metadata for s
 select church_metadata_private._seed_church_member_metadata_fields(id) from public.churches;
 
 commit;
+-- Community feature is supplied as a self-contained additive migration:
+-- supabase/migrations/20261016041414_add_church_community.sql
+-- Apply it after this snapshot when provisioning a new database.

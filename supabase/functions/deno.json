@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "nodeModulesDir": "auto",
+  "imports": {
+    "file-type": "npm:file-type@21.3.0",
+    "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@3.1123.0",
+    "@aws-sdk/s3-presigned-post": "npm:@aws-sdk/s3-presigned-post@3.1123.0",
+    "@aws-sdk/s3-request-presigner": "npm:@aws-sdk/s3-request-presigner@3.1123.0",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.101.0"
+  }
+}

@@ -45,3 +45,6 @@ app-example
 /android
 
 /plan/
+
+# Supabase CLI local state
+/supabase/.temp/

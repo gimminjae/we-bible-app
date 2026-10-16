@@ -1,0 +1,9 @@
+project_id = "we-bible-app"
+
+[functions.community-attachments]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.community-attachment-cleanup]
+verify_jwt = false
+import_map = "./functions/deno.json"
