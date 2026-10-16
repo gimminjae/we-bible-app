@@ -17,14 +17,12 @@ export function VersePicker({
   ranges,
   version,
   value,
-  onVersion,
   onChange,
 }: {
   churchId: string;
   ranges: ReadingRange[];
   version: BibleVersion;
   value: VerseReference[];
-  onVersion: (version: BibleVersion) => void;
   onChange: (verses: VerseReference[]) => void;
 }) {
   const choices = ranges.flatMap((range) =>
@@ -91,18 +89,9 @@ export function VersePicker({
   }
   return (
     <View className="gap-3">
-      <Choice
-        label="성경 번역본"
-        value={version}
-        options={Object.entries(VERSION_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        }))}
-        onChange={(next) => {
-          onVersion(next as BibleVersion);
-          onChange([]);
-        }}
-      />
+      <Text className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        성경 번역본 · {VERSION_LABELS[version]}
+      </Text>
       <Choice
         label="묵상할 성경 장"
         value={`${current?.book}:${current?.chapter}`}

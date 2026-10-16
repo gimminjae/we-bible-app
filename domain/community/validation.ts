@@ -2,8 +2,9 @@ import books from "./books.json";
 import type { ReadingRange, RichNode } from "./types";
 
 export const COMMUNITY_BOOKS = books;
+export const COMMUNITY_BIBLE_VERSION = "ko-krv" as const;
 export const VERSION_LABELS = {
-  "ko-krv": "개역한글",
+  "ko-krv": "개역한글판",
   "en-kjv": "KJV",
   "de-luther1912": "Luther 1912",
 } as const;

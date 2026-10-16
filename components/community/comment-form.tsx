@@ -1,13 +1,11 @@
 import { useRef, useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { randomUUID } from "expo-crypto";
-import type {
-  BibleVersion,
-  Comment,
-  Post,
-  VerseReference,
-} from "@/domain/community/types";
-import { communityError } from "@/domain/community/validation";
+import type { Comment, Post, VerseReference } from "@/domain/community/types";
+import {
+  COMMUNITY_BIBLE_VERSION,
+  communityError,
+} from "@/domain/community/validation";
 import { saveComment } from "@/lib/church-community";
 import { CommunityButton, inputClass, Label } from "./ui";
 import { VersePicker } from "./verse-picker";
@@ -27,9 +25,7 @@ export function CommentForm(
   const [content, setContent] = useState(
     comment?.content ?? comment?.meditation?.meditation_content ?? "",
   );
-  const [version, setVersion] = useState<BibleVersion>(
-    comment?.meditation?.bible_version ?? "ko-krv",
-  );
+  const version = comment?.meditation?.bible_version ?? COMMUNITY_BIBLE_VERSION;
   const [verses, setVerses] = useState<VerseReference[]>(
     comment?.meditation?.verses ?? [],
   );
@@ -134,7 +130,6 @@ export function CommentForm(
               ranges={post.ranges}
               version={version}
               value={verses}
-              onVersion={setVersion}
               onChange={setVerses}
             />
           )
