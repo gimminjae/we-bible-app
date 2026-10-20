@@ -1,7 +1,12 @@
 import { test } from "node:test";
+import { Buffer } from "node:buffer";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
+import {
+  generateBibleSql,
+  renderBibleValidators,
+} from "./generate-community-bible-sql.mjs";
 const books = await readFile(
   new URL("../domain/community/books.json", import.meta.url),
   "utf8",
@@ -101,4 +106,54 @@ test("Bible catalogue has 66 books and complete chapter IDs for each edition", a
       }
     }
   }
+});
+
+test("static verse lookup preserves edition-specific IDs without RPC or shared mutation", async () => {
+  const catalogue = await readFile(
+    new URL("../domain/community/bible-catalog.json", import.meta.url),
+    "utf8",
+  );
+  const referenceSource = (await readFile(
+    new URL("../domain/community/bible-reference.ts", import.meta.url),
+    "utf8",
+  ))
+    .replace(/import catalogue from [^;]+;/, `const catalogue=${catalogue};`);
+  const output = ts.transpileModule(referenceSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const { getCommunityVerseIds } = await import(
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
+  );
+  for (const chapter of JSON.parse(catalogue).chapters) {
+    assert.deepEqual(
+      getCommunityVerseIds(chapter.version, chapter.book, chapter.chapter),
+      chapter.verses,
+    );
+  }
+  assert.deepEqual(getCommunityVerseIds("ko-krv", "john", 0), []);
+  assert.deepEqual(getCommunityVerseIds("ko-krv", "john", 22), []);
+  assert.deepEqual(getCommunityVerseIds("ko-krv", "fake", 1), []);
+  const verses = getCommunityVerseIds("ko-krv", "john", 3);
+  verses.pop();
+  assert.equal(getCommunityVerseIds("ko-krv", "john", 3).length, 36);
+});
+
+test("SQL validators match the committed static data", async () => {
+  await generateBibleSql({ check: true });
+});
+
+test("SQL generator rejects incomplete catalogues", () => {
+  const sampleBooks = [{ bookCode: "sample", bookSeq: 1, maxChapter: 1 }];
+  const chapters = ["ko-krv", "en-kjv", "de-luther1912"].map((version) => ({
+    version,
+    book: "sample",
+    chapter: 1,
+    verses: [1, 3],
+  }));
+  assert.throws(() =>
+    renderBibleValidators(sampleBooks, { chapters: chapters.slice(1) })
+  );
 });

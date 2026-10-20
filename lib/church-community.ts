@@ -1,7 +1,6 @@
 import { createSupabaseClient } from "@/lib/supabase-client";
 import type {
   Attachment,
-  BibleVersion,
   Comment,
   Cursor,
   Meditation,
@@ -81,19 +80,6 @@ export const saveComment = (
     comment_id: existing?.id,
     expected_version: existing?.version,
   });
-export const verseIds = (
-  church: string,
-  bible_version: BibleVersion,
-  book_code: string,
-  chapter: number,
-  signal?: AbortSignal,
-) =>
-  communityRpc<number[]>(church, "verse_ids", {
-    bible_version,
-    book_code,
-    chapter,
-  }, signal);
-
 export async function attachmentRequest<T>(
   churchId: string,
   action: string,

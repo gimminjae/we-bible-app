@@ -8,7 +8,7 @@ import type {
 } from "@/domain/community/types";
 import { COMMUNITY_BOOKS, VERSION_LABELS } from "@/domain/community/validation";
 import { fetchCommunityVerses } from "@/lib/community-bible";
-import { verseIds } from "@/lib/church-community";
+import { getCommunityVerseIds } from "@/domain/community/bible-reference";
 import { communityKeys, useCommunitySession } from "@/hooks/use-community";
 import { Choice, CommunityButton } from "./ui";
 
@@ -49,9 +49,10 @@ export function VersePicker({
       current?.book,
       current?.chapter,
     ],
-    queryFn: ({ signal }) =>
-      verseIds(churchId, version, current.book, current.chapter, signal),
+    queryFn: () =>
+      getCommunityVerseIds(version, current.book, current.chapter),
     enabled: session.enabled && !!current,
+    staleTime: Infinity,
     retry: false,
   });
   const text = useQuery({

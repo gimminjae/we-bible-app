@@ -1991,4 +1991,5 @@ select church_metadata_private._seed_church_member_metadata_fields(id) from publ
 commit;
 -- Community feature is supplied as a self-contained additive migration:
 -- supabase/migrations/20261016041414_add_church_community.sql
--- Apply it after this snapshot when provisioning a new database.
+-- supabase/migrations/20261020040857_use_static_community_bible_catalog.sql
+-- Apply these in order after this snapshot when provisioning a new database.

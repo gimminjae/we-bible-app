@@ -82,9 +82,6 @@ await Promise.all(Array.from({ length: 12 }, async () => {
     }
   }
 }));
-await mkdir(new URL("../supabase/seeds/", import.meta.url), {
-  recursive: true,
-});
 const data = {
   generated_at: new Date().toISOString(),
   sources: [
@@ -97,34 +94,6 @@ await writeFile(
   new URL("../domain/community/bible-catalog.json", import.meta.url),
   JSON.stringify(data) + "\n",
 );
-const quote = (s) => "'" + s.replaceAll("'", "''") + "'";
-const sql =
-  "-- Verified verse identifiers; regenerate with scripts/build-community-bible-catalog.mjs\n" +
-  results.map((r) =>
-    `insert into church_community_private.bible_reference_verses(bible_version,book_code,chapter,verse) select ${
-      quote(r.version)
-    },${quote(r.book)},${r.chapter},unnest(array[${
-      r.verses.join(",")
-    }]) on conflict do nothing;`
-  ).join("\n") + "\n";
-await writeFile(
-  new URL("../supabase/seeds/community-bible.sql", import.meta.url),
-  sql,
+console.log(
+  `${done} chapters complete. Review static catalogue changes before generating SQL validators.`,
 );
-// Keep the deployable migration self-contained; no extra seed step in production.
-const migrationURL = new URL(
-  "../supabase/migrations/20261016041414_add_church_community.sql",
-  import.meta.url,
-);
-const migration = (await readFile(migrationURL, "utf8")).replace(
-  /\n-- BEGIN VERIFIED BIBLE REFERENCES[\s\S]*?-- END VERIFIED BIBLE REFERENCES\n/,
-  "\n",
-);
-await writeFile(
-  migrationURL,
-  migration.replace(
-    /\ncommit;\s*$/,
-    `\n-- BEGIN VERIFIED BIBLE REFERENCES\n${sql}-- END VERIFIED BIBLE REFERENCES\ncommit;\n`,
-  ),
-);
-console.log(`${done} chapters complete`);

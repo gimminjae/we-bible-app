@@ -1,23 +1,15 @@
 import { CryptoDigestAlgorithm, digestStringAsync } from "expo-crypto";
-import catalogue from "@/domain/community/bible-catalog.json";
+import { getCommunityChapter } from "@/domain/community/bible-reference";
 import { COMMUNITY_BOOKS } from "@/domain/community/validation";
 import type { BibleVersion } from "@/domain/community/types";
 
-const chapters = new Map(
-  catalogue.chapters.map(
-    (chapter) => [
-      `${chapter.version}:${chapter.book}:${chapter.chapter}`,
-      chapter,
-    ],
-  ),
-);
 export async function fetchCommunityVerses(
   version: BibleVersion,
   book: string,
   chapter: number,
   signal?: AbortSignal,
 ): Promise<{ verse: number; text: string }[]> {
-  const reference = chapters.get(`${version}:${book}:${chapter}`);
+  const reference = getCommunityChapter(version, book, chapter);
   const info = COMMUNITY_BOOKS.find((value) => value.bookCode === book);
   if (!reference || !info) throw new Error("유효하지 않은 성경 범위입니다.");
   const url = version === "ko-krv"

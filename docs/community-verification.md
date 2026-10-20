@@ -2,6 +2,28 @@
 
 검증일: 2026-10-16. 대상: `develop`의 공동체 커뮤니티 추가 작업.
 
+## 성경 기준 데이터 정적 전환 — 2026-10-20
+
+- 성경 책/절 기준 테이블 및 93,306개 절 번호를 적재하는 시드를 제거했습니다. 앱은 기존 정적 JSON을 `domain/community/bible-reference.ts`에서 읽으며 구절 선택용 DB 요청이 없습니다.
+- 서버의 장·절 검증과 정렬은 같은 JSON에서 생성한 불변 함수로 전환했습니다. 묵상·읽기 범위 행에는 `CHECK` 제약을 두고, 회원 권한·복합 외래 키·읽기 범위 잠금을 유지했습니다. 이전 앱의 `verse_ids` RPC도 호환됩니다.
+- 입력/정적 데이터 테스트 **8개**, TypeScript 및 변경 파일 ESLint, `git diff --check`가 통과했습니다.
+- PGlite DB 검증은 **새 마이그레이션 설치 98개**, **이전 시드 방식에서 업그레이드 98개** assertion이 각각 통과했습니다. 3개 번역본의 3,567장 전체 절 목록 일치, 잘못된 장/절 거절, 기준 테이블 제거, 기존 세 번역본 묵상의 보존·수정, 없는 절 번호를 생성하지 않는 동작을 확인했습니다.
+- 운영 Supabase DB에는 적용하지 않았습니다. 실제 앱 화면·실기기·배포 번들·Supabase Advisor는 이번 리팩터링에서 실행하지 않았습니다. 아래 이전 검증 기록과 구분합니다.
+
+재실행:
+
+```sh
+npm run test:community
+node scripts/generate-community-bible-sql.mjs --check
+PGLITE_MODULE=/private/tmp/we-bible-community-tools/node_modules/@electric-sql/pglite/dist/index.js npm run test:community:db
+
+# 커밋에 보존된 이전 SQL에서 시작하는 업그레이드 검증
+git show 3a27a93176e4668dcb3e902ba83b792f416edb9d:supabase/migrations/20261016041414_add_church_community.sql > /private/tmp/we-bible-community-before-static.sql
+PGLITE_MODULE=/private/tmp/we-bible-community-tools/node_modules/@electric-sql/pglite/dist/index.js COMMUNITY_BASELINE_MIGRATION=/private/tmp/we-bible-community-before-static.sql npm run test:community:db
+```
+
+PGlite가 없다면 [DB 테스트 안내](../supabase/tests/README.md)의 임시 설치 절차를 따르고 `PGLITE_MODULE`을 해당 경로로 지정합니다. 배포 시 기존 커뮤니티 SQL이 적용된 DB에는 `20261020040857_use_static_community_bible_catalog.sql`만 추가 적용합니다.
+
 ## 개역한글판 기준 적용
 
 - 새 묵상 댓글의 구절 선택·본문 조회·저장 번역본을 개역한글판(`ko-krv`)으로 통일했습니다. 화면에 번역본을 표시하고, 기존 다른 번역본의 묵상은 조회·수정 시 저장된 번역본을 유지합니다.

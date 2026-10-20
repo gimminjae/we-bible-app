@@ -22,7 +22,8 @@
 6. `06_triggers.sql`
 7. `07_grants.sql`
 8. `08_rls.sql`
-9. `../migrations/20261016041414_add_church_community.sql` — 커뮤니티 테이블·RPC·권한·3개 번역본 구절 목록을 함께 적용합니다. 이 단계는 별도 seed 실행이 필요하지 않습니다.
+9. `../migrations/20261016041414_add_church_community.sql` — 커뮤니티 테이블·RPC·권한과 정적 성경 검증 함수를 적용합니다. 성경 기준 테이블이나 시드는 생성하지 않습니다.
+10. `../migrations/20261020040857_use_static_community_bible_catalog.sql` — 이전 시드 방식 DB를 정적 검증 방식으로 전환하는 호환 마이그레이션입니다. 새 DB에도 적용할 수 있습니다.
 
 ## 기준
 
@@ -36,6 +37,7 @@
 - `supabase/migrations/202609010001_add_image_infos.sql`
 - `supabase/migrations/202609080001_add_church_member_metadata.sql`
 - `supabase/migrations/20261016041414_add_church_community.sql`
+- `supabase/migrations/20261020040857_use_static_community_bible_catalog.sql`
 
 ## 참고
 

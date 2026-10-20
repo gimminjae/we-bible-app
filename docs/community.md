@@ -31,7 +31,7 @@ erDiagram
 
 공개 테이블에 RLS를 켜고 `anon`/`authenticated`의 직접 테이블 접근은 차단했습니다. `public.church_community`는 invoker wrapper이며 `church_community_private.api`에서 매 요청 현재 회원 자격과 작성자/관리자 권한을 검사합니다. 내부 helper 실행 권한도 차단합니다. 모든 bigint 식별자는 클라이언트에 문자열로 반환합니다.
 
-RPC action은 `list_posts`, `get_post`, `save_post`, `delete_post`, `like_post`, `list_comments`, `save_comment`, `delete_comment`, `like_comment`, `suggest_tags`, `verse_ids`입니다. 개별 public 함수 대신 한 진입점에서 동일한 인증·멱등성·오류 정책을 적용합니다. 글·댓글 저장은 트랜잭션이고, 수정 시 `expected_version`, 묵상 저장 시 `expected_reading_version`을 검사합니다. 저장 요청 ID와 payload SHA-256을 보관하며 삭제된 글의 내용은 멱등성 저장소에 복제하지 않습니다.
+RPC action은 `list_posts`, `get_post`, `save_post`, `delete_post`, `like_post`, `list_comments`, `save_comment`, `delete_comment`, `like_comment`, `suggest_tags`입니다. 이전 앱 호환용 `verse_ids`도 유지하지만 현재 앱은 정적 JSON에서 절 번호를 읽습니다. 개별 public 함수 대신 한 진입점에서 동일한 인증·멱등성·오류 정책을 적용합니다. 글·댓글 저장은 트랜잭션이고, 수정 시 `expected_version`, 묵상 저장 시 `expected_reading_version`을 검사합니다. 저장 요청 ID와 payload SHA-256을 보관하며 삭제된 글의 내용은 멱등성 저장소에 복제하지 않습니다.
 
 목록은 `(created_at,id)` cursor를 사용합니다. 캐시 키에 공동체와 현재 사용자를 포함하고, 로그아웃·사용자 변경·회원 탈퇴 시 취소/초기화합니다. 접근 오류 시 이전 캐시 내용을 숨깁니다.
 
@@ -41,9 +41,15 @@ RPC action은 `list_posts`, `get_post`, `save_post`, `delete_post`, `like_post`,
 
 기존에 다른 번역본으로 저장한 묵상은 조회·수정할 때 원래 번역본을 유지합니다. 이를 위해 DB/API와 구절 목록에는 기존 앱의 개역한글판, KJV(`en-kjv`), Luther 1912(`de-luther1912`)를 계속 지원합니다. 각 번역본의 66권·1,189장, 전체 3,567장에서 실제 구절 ID를 확인했습니다.
 
+- `domain/community/books.json`: 66권의 이름·순서·최대 장 수
 - `domain/community/bible-catalog.json`: 번역본·성경·장별 유효한 절 목록 및 원문 SHA-256
-- `supabase/seeds/community-bible.sql`: DB 검증용 절 번호; 마이그레이션 안에도 포함되어 있어 별도 실행 불필요
-- `scripts/build-community-bible-catalog.mjs`: 원본 재검증 및 파일 생성. 임시 폴더 캐시로 중단 후 재개 가능
+- `domain/community/bible-reference.ts`: 앱의 정적 장·절 조회. 구절 선택 시 Supabase 요청이 필요하지 않습니다.
+- `scripts/build-community-bible-catalog.mjs`: 원본 재검증 및 정적 JSON 생성. 임시 폴더 캐시로 중단 후 재개 가능하며 SQL이나 시드를 변경하지 않습니다.
+- `scripts/generate-community-bible-sql.mjs`: 위 JSON에서 서버용 불변 검증 함수를 생성합니다. `--check` 옵션은 파일을 수정하지 않고 생성 결과의 일치를 검사합니다.
+
+성경 기준 테이블과 시드는 사용하지 않습니다. DB에는 사용자가 작성한 글·묵상·선택한 구절 참조를 저장합니다. 서버에서는 앱을 거치지 않은 잘못된 입력도 차단해야 하므로, 같은 정적 JSON에서 만든 작은 함수 상수를 사용합니다. 연속된 절은 장별 절 수로 압축하고, 누락된 번호가 있는 장은 실제 번호를 그대로 보존합니다. RPC 검증과 테이블 `CHECK` 제약이 모두 이 함수를 사용하며 회원 권한·읽기 범위·번역본 일치 검증도 유지합니다.
+
+현재 두 마이그레이션의 생성 영역을 재생성하려면 `node scripts/generate-community-bible-sql.mjs`를 실행합니다. 고정된 판본이라 평소 재생성할 필요는 없습니다. 향후 원본 교정이나 판본 추가로 JSON이 달라지면 이미 적용된 마이그레이션을 다시 쓰는 대신 새 마이그레이션에 변경된 함수와 기존 행의 제약 재검증을 포함해야 합니다.
 
 원본의 동일한 중복 행만 정규화하고, 다른 내용의 중복 절은 오류로 처리합니다. 독일어 역대상 경로는 upstream 실제 경로 `1.chonik`을 사용합니다. 배열 순번으로 없는 절 번호를 만들어내지 않습니다. 화면에서 원문을 읽을 때 SHA-256을 대조하며 변경/네트워크 오류 시 구절 참조와 묵상은 유지하고 본문 오류를 표시합니다.
 
@@ -66,7 +72,7 @@ RPC action은 `list_posts`, `get_post`, `save_post`, `delete_post`, `like_post`,
 
 Git 브랜치 배포와 외부 DB/S3 배포는 별개입니다. 이번 구현에서 운영 DB나 S3 설정은 변경하지 않았습니다.
 
-1. 대상 Supabase 프로젝트를 확인하고 기존 DB에 `supabase/migrations/20261016041414_add_church_community.sql`을 적용합니다. 새 DB는 `supabase/fresh-db/README.md` 순서를 따릅니다. 이 마이그레이션에는 구절 seed가 포함되어 있습니다.
+1. 대상 Supabase 프로젝트를 확인하고 미적용 마이그레이션을 순서대로 적용합니다. 커뮤니티 미설치 DB는 `20261016041414_add_church_community.sql` → `20261020040857_use_static_community_bible_catalog.sql` 순서입니다. 이전 커뮤니티 SQL을 이미 적용했다면 **후속 파일만** 적용합니다. 후속 파일은 기존 글·묵상을 보존하면서 성경 기준 테이블/FK를 제거하고 정적 검증 함수/제약으로 전환합니다. 새 DB는 `supabase/fresh-db/README.md` 순서를 따릅니다. 별도 성경 시드는 없습니다.
 2. 공개 접근 차단을 모두 켠 전용 S3 버킷을 생성합니다. 버킷 소유자 적용(ACL 비활성), 기본 암호화 사용, **버전 관리 비활성**을 기준으로 구현했습니다. 버전 관리를 활성화한다면 이전 버전과 삭제 마커의 보존/정리 정책도 별도로 설정해야 합니다.
 3. `supabase/operations/community-s3-iam.json`의 버킷명을 실제 이름으로 치환해 서버 전용 IAM 자격 증명을 구성합니다. CORS 예제의 origin을 실제 웹 앱 주소로 교체합니다. 로컬 검증 origin은 테스트 버킷에만 추가합니다.
 4. `community-s3-lifecycle.json`의 `staging/` 만료 규칙을 설정합니다. 이미 발급된 업로드 URL로 재업로드한 임시 객체도 이 규칙이 제거합니다. `attachments/` 전체에 시간 기반 삭제 규칙을 설정하면 안 됩니다.

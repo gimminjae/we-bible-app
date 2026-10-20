@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { renderBibleValidators } from "./generate-community-bible-sql.mjs";
 const { PGlite } = await import(
   process.env.PGLITE_MODULE
     ? pathToFileURL(process.env.PGLITE_MODULE).href
@@ -101,7 +102,7 @@ await db.exec(migration);
 
 await db.exec(
   await readFile(
-    new URL(
+    process.env.COMMUNITY_BASELINE_MIGRATION ?? new URL(
       "../supabase/migrations/20261016041414_add_church_community.sql",
       import.meta.url,
     ),
@@ -299,6 +300,160 @@ const med = await rpc(other, "save_comment", medInput);
 check(med.meditation.verses.length, 2);
 check(med.content, null);
 check((await rpc(other, "save_comment", medInput)).id, med.id);
+// Upgrade a populated database, including installations of the original seed SQL.
+const legacyComments = [];
+for (const version of ["en-kjv", "de-luther1912"]) {
+  const legacyInput = {
+    ...medInput,
+    request_id: request(),
+    meditation: { ...medInput.meditation, bible_version: version },
+  };
+  legacyComments.push({
+    legacyInput,
+    legacy: await rpc(other, "save_comment", legacyInput),
+  });
+}
+const savedReading = await rpc(member, "get_post", { post_id: reading.id });
+await db.exec(
+  await readFile(
+    new URL(
+      "../supabase/migrations/20261020040857_use_static_community_bible_catalog.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+check(await rpc(member, "get_post", { post_id: reading.id }), savedReading);
+check(await rpc(other, "save_comment", medInput), med);
+check(
+  (await db.query(`select
+  to_regclass('church_community_private.bible_reference_books') as books,
+  to_regclass('church_community_private.bible_reference_verses') as verses`))
+    .rows[0],
+  {
+    books: null,
+    verses: null,
+  },
+);
+const catalogue = JSON.parse(
+  await readFile(
+    new URL(
+      "../domain/community/bible-catalog.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+check(
+  (await db.query(
+    `select count(*)::integer as mismatches
+  from jsonb_to_recordset($1::jsonb) as r(version text,book text,chapter integer,verses jsonb)
+  where to_jsonb(church_community_private.bible_verse_ids(version,book,chapter)) is distinct from verses`,
+    [JSON.stringify(catalogue.chapters)],
+  )).rows[0].mismatches,
+  0,
+);
+for (
+  const [version, book, chapter, verse] of [
+    ["unknown", "john", 3, 16],
+    ["ko-krv", "fake", 3, 16],
+    ["ko-krv", "john", 0, 16],
+    ["ko-krv", "john", -1, 16],
+    ["ko-krv", "john", 22, 1],
+    ["ko-krv", "john", 3, 0],
+    ["ko-krv", "john", 3, 37],
+    ["ko-krv", "john", null, 16],
+    ["ko-krv", "john", 3, null],
+  ]
+) {
+  check(
+    await scalar(
+      "select church_community_private.bible_valid_verse($1,$2,$3,$4) as result",
+      [version, book, chapter, verse],
+    ),
+    false,
+  );
+}
+for (
+  const range of [
+    { book_code: "fake", chapter_start: 1, chapter_end: 1 },
+    { book_code: "john", chapter_start: 0, chapter_end: 1 },
+    { book_code: "john", chapter_start: 1, chapter_end: 22 },
+  ]
+) {
+  await denied(() =>
+    rpc(member, "save_post", {
+      ...input(),
+      post_type: "bible_reading",
+      ranges: [range],
+    }), /INVALID_INPUT/);
+}
+await denied(() =>
+  db.query(
+    "update church_post_reading_ranges set chapter_end=22 where post_id=$1",
+    [reading.id],
+  ), /church_reading_range_reference/);
+await denied(() =>
+  db.query(
+    "update church_comment_meditation_verses set verse=999 where comment_id=$1",
+    [med.id],
+  ), /church_meditation_verse_reference_check/);
+await denied(() =>
+  asUser(member, () =>
+    db.query(
+      "select church_community_private.bible_verse_ids('ko-krv','john',3)",
+    ))
+);
+// Existing non-Korean editions remain readable/editable after the upgrade.
+for (const { legacyInput, legacy } of legacyComments) {
+  check(await rpc(other, "save_comment", legacyInput), legacy);
+  const edited = await rpc(other, "save_comment", {
+    ...legacyInput,
+    request_id: request(),
+    comment_id: legacy.id,
+    expected_version: 1,
+    meditation: {
+      ...legacyInput.meditation,
+      meditation_content: "Updated meditation",
+    },
+  });
+  check(edited.meditation.bible_version, legacyInput.meditation.bible_version);
+  check(edited.meditation.verses, legacy.meditation.verses);
+  await rpc(other, "delete_comment", {
+    post_id: reading.id,
+    comment_id: legacy.id,
+    expected_version: 2,
+  });
+}
+// A future catalogue with skipped verse numbers must not invent missing IDs.
+await db.exec("begin");
+try {
+  await db.exec(renderBibleValidators(
+    [{ bookCode: "sample", bookSeq: 1, maxChapter: 1 }],
+    {
+      chapters: ["ko-krv", "en-kjv", "de-luther1912"].map((version) => ({
+        version,
+        book: "sample",
+        chapter: 1,
+        verses: [1, 3],
+      })),
+    },
+  ));
+  check(
+    await scalar(
+      "select church_community_private.bible_verse_ids('ko-krv','sample',1) as result",
+    ),
+    [1, 3],
+  );
+  check(
+    await scalar(
+      "select church_community_private.bible_valid_verse('ko-krv','sample',1,2) as result",
+    ),
+    false,
+  );
+} finally {
+  await db.exec("rollback");
+}
 await denied(
   () =>
     rpc(other, "save_comment", {
@@ -524,12 +679,6 @@ const flags = (await db.query(
   "select bool_and(relrowsecurity) enabled from pg_class where relname in ('church_posts','church_comments','church_post_attachments','church_comment_meditations')",
 )).rows[0];
 check(flags.enabled, true);
-check(
-  (await db.query(
-    "select count(*)::int n from church_community_private.bible_reference_verses",
-  )).rows[0].n > 90000,
-  true,
-);
 await denied(
   () =>
     db.exec(
