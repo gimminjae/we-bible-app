@@ -1,3 +1,4 @@
+import { AppIcon, FeatureIcon } from "@/components/ui/feature";
 import { useState } from 'react';
 import { ActivityIndicator, ImageBackground, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -42,7 +43,7 @@ export function ThemeVerseSummaryCard({
         disabled={isLoading}
         accessibilityRole="button"
         accessibilityLabel={t('themeVerse.openDetail')}
-        className="mb-4 rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+        className="mb-4 rounded-3xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-gray-900"
         style={{
           paddingHorizontal: scale(18),
           paddingVertical: scale(18),
@@ -50,8 +51,9 @@ export function ThemeVerseSummaryCard({
       >
         <View className="flex-row items-start justify-between" style={{ gap: scale(12) }}>
           <View className="min-w-0 flex-1">
+            <View className="mb-3"><FeatureIcon name="sparkles-outline" size={38} /></View>
             <Text
-              className="text-sm p-3 font-semibold text-primary-600 dark:text-primary-400"
+              className="text-sm font-semibold text-primary-600 dark:text-primary-400"
               style={{ fontSize: moderateScale(14) }}
             >
               {replaceToken(t('themeVerse.summaryLabel'), 'year', String(year))}
@@ -181,12 +183,7 @@ export function ThemeVerseSummaryCard({
                       accessibilityLabel={t('themeVerse.infoClose')}
                       className="h-10 w-10 items-center justify-center rounded-full bg-white/12"
                     >
-                      <Text
-                        className="text-white"
-                        style={{ fontSize: moderateScale(18) }}
-                      >
-                        ✕
-                      </Text>
+                      <AppIcon name="close" color="#FFFFFF" size={22} />
                     </Pressable>
                   </View>
 

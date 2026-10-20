@@ -1,3 +1,4 @@
+import { AppIcon, type AppIconName } from "@/components/ui/feature";
 import { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
@@ -22,6 +23,7 @@ import {
 } from '@/components/churches/church-prayer-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { Button, ButtonText } from '@/components/ui/button';
+import { DetailActionButton } from '@/components/ui/detail-action-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -78,6 +80,7 @@ type ActionTextButtonProps = {
   variant?: 'solid' | 'outline' | 'link';
   className?: string;
   textClassName?: string;
+  icon?: AppIconName;
 };
 
 function ActionTextButton({
@@ -88,6 +91,7 @@ function ActionTextButton({
   variant = 'solid',
   className = '',
   textClassName = '',
+  icon,
 }: ActionTextButtonProps) {
   return (
     <Button
@@ -97,6 +101,7 @@ function ActionTextButton({
       variant={variant}
       className={`h-auto ${className}`.trim()}
     >
+      {icon ? <AppIcon name={icon} onPrimary={variant === "solid" && action === "primary"} tone="community" size={20} /> : null}
       <ButtonText className={textClassName}>{label}</ButtonText>
     </Button>
   );
@@ -593,22 +598,20 @@ export default function ChurchDetailScreen() {
             }}
             label={t('church.addPrayerContent')}
             className="rounded-2xl bg-primary-500 px-4 py-3"
-            textClassName="font-semibold text-white"
+            textClassName="font-semibold text-white dark:text-gray-900"
           />
           {prayer.canManagePrayer ? (
             <>
-              <ActionTextButton
+              <DetailActionButton
                 onPress={() => {
                   setSelectedPrayer(prayer);
                   setEditPrayerVisible(true);
                 }}
                 label={t('church.editPrayer')}
-                action="secondary"
+                action="edit"
                 variant="outline"
-                className="rounded-2xl border-gray-200 px-4 py-3 dark:border-gray-800"
-                textClassName="font-semibold text-gray-900 dark:text-white"
               />
-              <ActionTextButton
+              <DetailActionButton
                 onPress={() =>
                   confirmDestructive(t('church.deletePrayerConfirm'), async () => {
                     setProcessingKey(`delete-prayer-${prayer.id}`);
@@ -637,10 +640,8 @@ export default function ChurchDetailScreen() {
                 }
                 disabled={processingKey === `delete-prayer-${prayer.id}`}
                 label={t('church.deletePrayer')}
-                action="negative"
+                action="delete"
                 variant="outline"
-                className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
-                textClassName="font-semibold text-red-500"
               />
             </>
           ) : null}
@@ -672,7 +673,7 @@ export default function ChurchDetailScreen() {
                     </Text>
                   </View>
                   {content.canManage ? (
-                    <ActionTextButton
+                    <DetailActionButton
                       onPress={() =>
                         confirmDestructive(t('church.deletePrayerContentConfirm'), async () => {
                           setProcessingKey(`delete-prayer-content-${content.id}`);
@@ -695,10 +696,8 @@ export default function ChurchDetailScreen() {
                       }
                       disabled={processingKey === `delete-prayer-content-${content.id}`}
                       label={t('mypage.deleteConfirm')}
-                      action="negative"
+                      action="delete"
                       variant="outline"
-                      className="rounded-2xl border-red-200 px-3 py-2 dark:border-red-900"
-                      textClassName="text-sm font-semibold text-red-500"
                     />
                   ) : null}
                 </View>
@@ -842,7 +841,7 @@ export default function ChurchDetailScreen() {
     );
   };
 
-  const tabLabel = (tab: DetailTab) => t(`church.tabs.${tab}`);
+  const tabLabel = (tab: DetailTab | 'stories') => t(`church.tabs.${tab}`);
 
   const handleChangeChurchImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -890,7 +889,12 @@ export default function ChurchDetailScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <ScreenHeader title={churchDetail.church.name} onBack={() => router.back()} />
+      <ScreenHeader
+        icon="people-outline"
+        tone="community"
+        title={churchDetail.church.name}
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         className="flex-1"
@@ -969,7 +973,7 @@ export default function ChurchDetailScreen() {
                 />
               ) : null}
               {canDeleteChurch ? (
-                <ActionTextButton
+                <DetailActionButton
                   onPress={() =>
                     confirmDestructive(t('church.deleteChurchConfirm'), async () => {
                       setProcessingKey('delete-church');
@@ -992,36 +996,45 @@ export default function ChurchDetailScreen() {
                   }
                   disabled={processingKey === 'delete-church'}
                   label={t('church.deleteChurch')}
-                  action="negative"
+                  action="delete"
                   variant="outline"
-                  className="rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
-                  textClassName="font-semibold text-red-500"
                 />
               ) : null}
             </View>
           </View>
         </View>
-        <ActionTextButton
-          onPress={() => router.push(`/churches/${churchDetail.church.id}/community` as never)}
-          label="공동체 이야기 · 글과 묵상 나누기"
-          className="mb-4 rounded-2xl bg-primary-600 px-5 py-4"
-          textClassName="font-semibold text-white"
-        />
         <View className="mb-4 flex-row rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
-          {(['members', 'plans', 'prayers', 'teams'] as const).map((tab) => {
+          {([
+            { key: 'members', icon: 'people-outline' },
+            { key: 'plans', icon: 'calendar-outline' },
+            { key: 'prayers', icon: 'heart-circle-outline' },
+            { key: 'teams', icon: 'grid-outline' },
+            { key: 'stories', icon: 'chatbubbles-outline' },
+          ] as const).map(({ key: tab, icon }) => {
             const active = activeTab === tab;
             return (
               <Button
                 key={tab}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => {
+                  if (tab === 'stories') {
+                    router.push(`/churches/${churchDetail.church.id}/community` as never);
+                  } else {
+                    setActiveTab(tab);
+                  }
+                }}
+                accessibilityLabel={tabLabel(tab)}
+                accessibilityHint={tab === 'stories' ? t('church.storiesHint') : undefined}
+                accessibilityState={tab === 'stories' ? undefined : { selected: active }}
+                aria-pressed={tab === 'stories' ? undefined : active}
                 action={active ? 'primary' : 'secondary'}
                 variant={active ? 'solid' : 'outline'}
-                className={`h-auto flex-1 rounded-2xl border-0 px-3 py-3 ${
+                className={`h-auto min-w-0 flex-1 flex-col justify-start gap-1.5 rounded-2xl border-0 px-0.5 py-3 ${
                   active ? 'bg-white dark:bg-gray-900' : 'bg-transparent'
                 }`}
               >
+                <AppIcon name={icon} tone={tab === 'plans' ? 'bible' : tab === 'prayers' ? 'prayer' : 'community'} size={20} />
                 <ButtonText
-                  className={`text-center text-sm font-semibold ${
+                  className={`text-center text-xs font-semibold ${
                     active ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
                   }`}
                 >
@@ -1088,7 +1101,7 @@ export default function ChurchDetailScreen() {
                         disabled={processingKey === `approve-${request.id}`}
                         label={t('church.approve')}
                         className="rounded-2xl bg-primary-500 px-4 py-3"
-                        textClassName="font-semibold text-white"
+                        textClassName="font-semibold text-white dark:text-gray-900"
                       />
                       <ActionTextButton
                         onPress={async () => {
@@ -1371,7 +1384,7 @@ export default function ChurchDetailScreen() {
                         ? 'bg-gray-300 dark:bg-gray-700'
                         : 'bg-primary-500'
                     }`}
-                    textClassName="font-semibold text-white"
+                    textClassName="font-semibold text-white dark:text-gray-900"
                   />
                 </View>
               </View>

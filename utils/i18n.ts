@@ -579,11 +579,13 @@ const messages = {
         "이 공통 읽기표의 진행도와 등수는 공동체 설정에 따라 비공개예요.",
       planProgressPrivateMessage: "현재 다른 회원의 진행도는 비공개예요.",
       me: "나",
+      storiesHint: "글과 묵상을 나누는 공동체 게시판을 열어요.",
       tabs: {
         members: "회원",
         plans: "성경읽기 계획",
         prayers: "기도",
         teams: "팀",
+        stories: "공동체 이야기",
       },
       role: {
         super_admin: "관리자",
@@ -771,6 +773,9 @@ const messages = {
       churchPlanProgressUpdated: "진행도를 저장했어요!",
     },
     bibleReader: {
+      previousChapter: "이전 장",
+      nextChapter: "다음 장",
+      readerSettings: "성경 읽기 설정",
       planCheckButton: "읽기표에 체크",
       planCheckTitle: "읽기표 바로 체크",
       planCheckDescription:
@@ -1443,11 +1448,13 @@ const messages = {
       planProgressPrivateMessage:
         "Other members' progress is currently private.",
       me: "Me",
+      storiesHint: "Open the community board to share stories and reflections.",
       tabs: {
         members: "Members",
         plans: "Reading Plans",
         prayers: "Prayers",
         teams: "Teams",
+        stories: "Stories",
       },
       role: {
         super_admin: "Admin",
@@ -1636,6 +1643,9 @@ const messages = {
       churchPlanProgressUpdated: "Progress saved!",
     },
     bibleReader: {
+      previousChapter: "Previous chapter",
+      nextChapter: "Next chapter",
+      readerSettings: "Bible reading settings",
       planCheckButton: "Check in plan",
       planCheckTitle: "Quick Plan Check",
       planCheckDescription:

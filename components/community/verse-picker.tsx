@@ -11,6 +11,7 @@ import { fetchCommunityVerses } from "@/lib/community-bible";
 import { getCommunityVerseIds } from "@/domain/community/bible-reference";
 import { communityKeys, useCommunitySession } from "@/hooks/use-community";
 import { Choice, CommunityButton } from "./ui";
+import { AppIcon } from "@/components/ui/feature";
 
 export function VersePicker({
   churchId,
@@ -175,14 +176,14 @@ export function VersePicker({
               accessibilityState={{ checked }}
               onPress={() => toggle(verse)}
               disabled={!checked && value.length >= 50}
-              className={`rounded-xl border p-3 ${
+              className={`flex-row items-start gap-3 rounded-2xl border p-4 ${
                 checked
                   ? "border-green-500 bg-green-50 dark:bg-green-950"
                   : "border-gray-200 dark:border-gray-700"
               }`}
             >
-              <Text className="text-base leading-7 text-gray-900 dark:text-white">
-                {checked ? "✓ " : ""}
+              <View className="pt-1"><AppIcon name={checked ? "checkmark-circle" : "ellipse-outline"} size={22} /></View>
+              <Text className="flex-1 text-base leading-7 text-gray-900 dark:text-white">
                 {verse} {rows.get(verse) ?? "절"}
               </Text>
             </Pressable>

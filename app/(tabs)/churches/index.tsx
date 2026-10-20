@@ -20,6 +20,7 @@ import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { AppIcon, EmptyState, FeatureIcon, type AppIconName } from '@/components/ui/feature';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useAuth } from '@/contexts/auth-context';
@@ -39,16 +40,18 @@ const churchExplainerBackground = require('../../../assets/images/church-explain
 type HeaderActionButtonProps = {
   label: string;
   onPress: () => void;
+  icon: AppIconName;
 };
 
-function HeaderActionButton({ label, onPress }: HeaderActionButtonProps) {
+function HeaderActionButton({ label, onPress, icon }: HeaderActionButtonProps) {
   return (
     <Button
       action="secondary"
       variant="outline"
       onPress={onPress}
-      className="h-auto rounded-full border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+      className="h-auto min-h-11 gap-2 rounded-2xl border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950"
     >
+      <AppIcon name={icon} tone="community" size={17} />
       <ButtonText className="text-sm font-semibold text-gray-900 dark:text-white">{label}</ButtonText>
     </Button>
   );
@@ -166,7 +169,7 @@ function SearchChurchDrawer({
                       onPress={() => onEnter(church.id)}
                       className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
                     >
-                      <ButtonText className="font-semibold text-white">{t('church.enter')}</ButtonText>
+                      <ButtonText className="font-semibold text-white dark:text-gray-900">{t('church.enter')}</ButtonText>
                     </Button>
                   ) : church.pendingRequestStatus === 'pending' ? (
                     <View className="rounded-2xl border border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -184,7 +187,7 @@ function SearchChurchDrawer({
                           : 'bg-primary-500'
                       }`}
                     >
-                      <ButtonText className="font-semibold text-white">{t('church.requestJoin')}</ButtonText>
+                      <ButtonText className="font-semibold text-white dark:text-gray-900">{t('church.requestJoin')}</ButtonText>
                     </Button>
                   )}
                 </View>
@@ -381,49 +384,60 @@ export default function ChurchesScreen() {
       edges={['top', 'bottom', 'left', 'right']}
     >
       <ScreenHeader
-        title={t('church.title')}
+        title={t("church.title")}
+        icon="people-outline"
+        tone="community"
+        stackActions
         titleAccessory={
           // 공동체 소개 버튼은 추후 다시 노출할 수 있도록 관련 모달 로직을 유지한다.
           undefined
         }
-        right={
-          canUseChurchFeature ? (
+        right={canUseChurchFeature
+          ? (
             <>
               <View className="flex-row items-center rounded-full border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
                 <Pressable
-                  onPress={() => changeChurchListView('grid')}
+                  onPress={() => changeChurchListView("grid")}
                   accessibilityRole="button"
-                  accessibilityLabel={t('church.gridView')}
+                  accessibilityLabel={t("church.gridView")}
                   className={`h-8 w-8 items-center justify-center rounded-full ${
-                    churchListView === 'grid' ? 'bg-primary-100 dark:bg-primary-950/50' : ''
+                    churchListView === "grid" ? "bg-primary-100 dark:bg-primary-950/50" : ""
                   }`}
                 >
                   <IconSymbol
                     name="rectangle.grid.2x2"
                     size={17}
-                    color={churchListView === 'grid' ? '#2563eb' : '#9ca3af'}
+                    color={churchListView === "grid" ? "#2563eb" : "#9ca3af"}
                   />
                 </Pressable>
                 <Pressable
-                  onPress={() => changeChurchListView('list')}
+                  onPress={() => changeChurchListView("list")}
                   accessibilityRole="button"
-                  accessibilityLabel={t('church.listView')}
+                  accessibilityLabel={t("church.listView")}
                   className={`h-8 w-8 items-center justify-center rounded-full ${
-                    churchListView === 'list' ? 'bg-primary-100 dark:bg-primary-950/50' : ''
+                    churchListView === "list" ? "bg-primary-100 dark:bg-primary-950/50" : ""
                   }`}
                 >
                   <IconSymbol
                     name="list.bullet"
                     size={18}
-                    color={churchListView === 'list' ? '#2563eb' : '#9ca3af'}
+                    color={churchListView === "list" ? "#2563eb" : "#9ca3af"}
                   />
                 </Pressable>
               </View>
-              <HeaderActionButton label={t('church.searchButton')} onPress={openSearchDrawer} />
-              <HeaderActionButton label={t('church.createButton')} onPress={openCreateDrawer} />
+              <HeaderActionButton
+                label={t("church.searchButton")}
+                icon="search-outline"
+                onPress={openSearchDrawer}
+              />
+              <HeaderActionButton
+                label={t("church.createButton")}
+                icon="add-circle-outline"
+                onPress={openCreateDrawer}
+              />
             </>
-          ) : null
-        }
+          )
+          : null}
       />
 
       <ScrollView
@@ -457,11 +471,7 @@ export default function ChurchesScreen() {
             </View>
 
             {myChurches.length === 0 ? (
-              <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
-                <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  {t('church.emptyMyChurches')}
-                </Text>
-              </View>
+              <EmptyState message={t('church.emptyMyChurches')} icon="people-outline" tone="community" />
             ) : (
               <View className={churchListView === 'grid' ? 'flex-row flex-wrap gap-3' : ''}>
                 {myChurches.map((church) => {
@@ -473,7 +483,7 @@ export default function ChurchesScreen() {
                       key={church.id}
                       onPress={() => router.push(`/churches/${church.id}` as never)}
                       style={isGridView ? { width: '48%' } : undefined}
-                      className={`flex flex-col rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${
+                      className={`flex flex-col rounded-3xl border border-blue-100 bg-white active:opacity-80 dark:border-blue-900 dark:bg-gray-900 ${
                         isGridView
                           ? hasImage
                             ? 'min-h-56 overflow-hidden'
@@ -491,6 +501,7 @@ export default function ChurchesScreen() {
                       ) : null}
 
                       <View className={`flex-1 ${isGridView && hasImage ? 'px-4 pb-4 pt-3' : ''}`}>
+                        {!hasImage ? <View className="mb-3"><FeatureIcon name="people-outline" tone="community" size={42} /></View> : null}
                         <View className="flex-row items-start justify-between gap-2">
                           <View className={`min-w-0 flex-1 ${isGridView ? '' : 'flex-row gap-3'}`}>
                             {!isGridView && church.imageUrl ? (

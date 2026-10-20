@@ -37,7 +37,12 @@ export default function EditChurchPlanScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <ScreenHeader title={t('church.editPlanTitle')} onBack={() => router.back()} />
+      <ScreenHeader
+        icon="calendar-outline"
+        tone="bible"
+        title={t("church.editPlanTitle")}
+        onBack={() => router.back()}
+      />
 
       <PlanForm
         initialValues={{

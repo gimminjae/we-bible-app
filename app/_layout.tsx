@@ -10,6 +10,7 @@ import 'react-native-url-polyfill/auto';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { ThemeVerseNotificationSync } from '@/components/theme-verse-notification-sync';
 import { AppSettingsProvider, useAppSettings } from '@/contexts/app-settings';
+import { appColors, featureColors } from '@/constants/app-design';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import '@/global.css';
@@ -23,6 +24,17 @@ export const unstable_settings = {
 
 function RootLayoutContent() {
   const { theme } = useAppSettings();
+  const navigationTheme = {
+    ...(theme === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(theme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      primary: featureColors.bible[theme].ink,
+      background: appColors[theme].background,
+      card: appColors[theme].surface,
+      text: appColors[theme].text,
+      border: appColors[theme].border,
+    },
+  };
 
   useEffect(() => {
     if (!canUseGoogleMobileAds()) return;
@@ -39,7 +51,7 @@ function RootLayoutContent() {
 
   return (
     <GluestackUIProvider mode={theme}>
-      <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={navigationTheme}>
         <ToastProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -48,7 +60,7 @@ function RootLayoutContent() {
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
         </ToastProvider>
-        <StatusBar style="auto" />
+        <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
     </GluestackUIProvider>
   );

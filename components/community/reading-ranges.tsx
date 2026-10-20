@@ -73,6 +73,7 @@ export function ReadingRanges(
                   <Text className="text-gray-600 dark:text-gray-300">장</Text>
                 </View>
                 <CommunityButton
+                  icon="trash-outline"
                   secondary
                   onPress={() => onChange(value.filter((_, i) => i !== index))}
                 >
@@ -85,6 +86,8 @@ export function ReadingRanges(
       {!locked
         ? (
           <CommunityButton
+            icon="add-circle-outline"
+            tone="bible"
             secondary
             disabled={value.length >= 20}
             onPress={() =>

@@ -212,7 +212,7 @@ export function ChurchPrayerSheet({
                 }`}
               >
                 {isSubmitting ? <ButtonSpinner color="#ffffff" /> : null}
-                <ButtonText className="font-semibold text-white">{t('prayerDrawer.save')}</ButtonText>
+                <ButtonText className="font-semibold text-white dark:text-gray-900">{t('prayerDrawer.save')}</ButtonText>
               </Button>
             </View>
           </ScrollView>

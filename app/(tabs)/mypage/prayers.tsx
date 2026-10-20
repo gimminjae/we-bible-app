@@ -1,5 +1,6 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { AppIcon, EmptyState } from "@/components/ui/feature";
 import { Button, ButtonText } from "@/components/ui/button"
-import { IconSymbol } from "@/components/ui/icon-symbol"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from "@/contexts/auth-context"
@@ -144,7 +145,7 @@ export default function PrayerListScreen() {
   function renderPrayerTable(sectionItems: PrayListItem[]) {
     return (
       <Table minWidth={tableMinWidth}>
-        <TableHeader>
+        <TableHeader className="bg-violet-50 dark:bg-violet-950">
           <TableHead
             className="items-center border-r border-gray-200 px-2 dark:border-gray-700"
             textClassName="text-center"
@@ -200,7 +201,7 @@ export default function PrayerListScreen() {
               >
                 <Text
                   numberOfLines={1}
-                  className="text-center font-medium text-primary-600 dark:text-primary-400"
+                  className="text-center font-medium text-violet-700 dark:text-violet-300"
                   style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
                 >
                   {getDisplayName(item.target)}
@@ -212,7 +213,7 @@ export default function PrayerListScreen() {
               >
                 <Text
                   numberOfLines={1}
-                  className="text-center font-medium text-primary-600 dark:text-primary-400"
+                  className="text-center font-medium text-violet-700 dark:text-violet-300"
                   style={{ fontSize: moderateScale(12), lineHeight: moderateScale(17) }}
                 >
                   {getDisplayName(item.relation)}
@@ -269,39 +270,21 @@ export default function PrayerListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View
-        className="flex-row items-center justify-between"
-        style={{
-          paddingHorizontal: scale(16),
-          paddingTop: scale(16),
-          paddingBottom: scale(12),
-        }}
-      >
-        <View className="flex-row items-center" style={{ gap: scale(12) }}>
-          <IconSymbol
-            name="chevron.right"
-            size={moderateScale(18)}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: "180deg" }] }}
-          />
-          <Text
-            onPress={() => router.back()}
-            className="text-gray-700 dark:text-gray-300"
-            style={{ fontSize: moderateScale(16) }}
+      <ScreenHeader
+        title={t("mypage.prayersTitle")}
+        onBack={() => router.back()}
+        icon="heart-circle-outline"
+        tone="prayer"
+        right={
+          <Button
+            onPress={handleAddPress}
+            className="h-auto min-h-11 gap-2 rounded-2xl bg-primary-500 px-3 py-3"
           >
-            {t("common.back")}
-          </Text>
-          <Text
-            className="font-bold text-gray-900 dark:text-white"
-            style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}
-          >
-            {t("mypage.prayersTitle")}
-          </Text>
-        </View>
-        <Button onPress={handleAddPress} action="primary" size="sm">
-          <ButtonText>{t("mypage.addPrayer")}</ButtonText>
-        </Button>
-      </View>
+            <AppIcon name="add" onPrimary size={18} />
+            <ButtonText className="text-white dark:text-gray-900">{t("mypage.addPrayer")}</ButtonText>
+          </Button>
+        }
+      />
 
       <ScrollView
         className="flex-1"
@@ -322,9 +305,7 @@ export default function PrayerListScreen() {
           />
 
           {items.length === 0 ? (
-            <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>
-              {t("mypage.emptyPrayers")}
-            </Text>
+            <EmptyState message={t("mypage.emptyPrayers")} icon="heart-circle-outline" tone="prayer" />
           ) : !hasVisibleItems ? (
             <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(8) }}>
               {t("mypage.emptyPrayerSearchResults")}

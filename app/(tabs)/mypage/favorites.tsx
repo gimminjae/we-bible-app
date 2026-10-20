@@ -1,3 +1,5 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { EmptyState, FeatureIcon } from "@/components/ui/feature";
 import type { FavoriteVerseRecord } from "@/components/bible/types"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { LoadingScreen } from "@/components/ui/loading-screen"
@@ -131,35 +133,12 @@ export default function FavoriteListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View
-        className="flex-row items-center"
-        style={{
-          paddingHorizontal: scale(16),
-          paddingTop: scale(16),
-          paddingBottom: scale(12),
-          gap: scale(12),
-        }}
-      >
-        <IconSymbol
-          name="chevron.right"
-          size={moderateScale(18)}
-          color="#9ca3af"
-          style={{ transform: [{ rotate: "180deg" }] }}
-        />
-        <Text
-          onPress={() => router.back()}
-          className="text-gray-700 dark:text-gray-300"
-          style={{ fontSize: moderateScale(16) }}
-        >
-          {t("common.back")}
-        </Text>
-        <Text
-          className="font-bold text-gray-900 dark:text-white"
-          style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}
-        >
-          {t("mypage.favoritesTitle")}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t("mypage.favoritesTitle")}
+        onBack={() => router.back()}
+        icon="heart-outline"
+        tone="favorite"
+      />
 
       <ScrollView
         className="flex-1"
@@ -170,19 +149,15 @@ export default function FavoriteListScreen() {
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <Text
-            className="text-gray-500 dark:text-gray-400"
-            style={{ marginTop: scale(24) }}
-          >
-            {t("mypage.emptyFavorites")}
-          </Text>
+          <EmptyState message={t("mypage.emptyFavorites")} icon="heart-outline" tone="favorite" />
         ) : (
           items.map((item, idx) => (
             <View
               key={`${item.bookCode}:${item.chapter}:${item.verse}:${idx}`}
-              className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex-row items-start"
+              className="rounded-3xl bg-white dark:bg-gray-900 border border-pink-200 dark:border-pink-900 flex-row items-start"
               style={{ marginBottom: scale(12) }}
             >
+              <View className="ml-4 mt-4"><FeatureIcon name="heart" tone="favorite" size={32} /></View>
               <Pressable
                 onPress={() => handleItemPress(item)}
                 className="flex-1 active:opacity-90"

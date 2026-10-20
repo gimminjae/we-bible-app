@@ -1,5 +1,6 @@
+import { useAppSettings } from "@/contexts/app-settings";
 import { useState } from "react";
-import { FlatList, Text, useColorScheme, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import type { Comment, Post } from "@/domain/community/types";
@@ -22,6 +23,7 @@ import {
 } from "@/components/community/ui";
 import { CommentForm } from "@/components/community/comment-form";
 import { MeditationContent } from "@/components/community/meditation-content";
+import { DetailActionButton } from "@/components/ui/detail-action-button";
 
 function PostContent(
   { churchId, post, run, busy }: {
@@ -32,7 +34,7 @@ function PostContent(
   },
 ) {
   const router = useRouter();
-  const dark = useColorScheme() === "dark";
+  const dark = useAppSettings().theme === "dark";
   const downloads = useCommunityAttachments(
     churchId,
     post.attachments.filter((item) => item.kind === "image").map((item) =>
@@ -101,10 +103,11 @@ function PostContent(
       {post.attachments.filter((file) => file.kind === "file").map((file) => (
         <CommunityButton
           key={file.id}
+          icon="download-outline"
           secondary
           onPress={() => void download(file.id)}
         >
-          ↓ {file.name} · {(file.size / 1024 / 1024).toFixed(1)}MB
+          {file.name} · {(file.size / 1024 / 1024).toFixed(1)}MB
         </CommunityButton>
       ))}
       <View className="flex-row flex-wrap gap-2">
@@ -127,29 +130,32 @@ function PostContent(
       <View className="flex-row flex-wrap gap-2">
         <CommunityButton
           secondary={!post.liked}
+          icon={post.liked ? "heart" : "heart-outline"}
+          tone="favorite"
           disabled={busy}
           onPress={() => void run("like_post", { liked: !post.liked })}
         >
-          {post.liked ? "♥" : "♡"} {post.like_count}
+          좋아요 {post.like_count}
         </CommunityButton>
         {post.can_edit
           ? (
-            <CommunityButton
-              secondary
+            <DetailActionButton
+              action="edit"
+              label="글 수정"
               disabled={busy}
               onPress={() =>
                 router.push(
                   `/churches/${churchId}/community/${post.id}/edit` as never,
                 )}
-            >
-              수정
-            </CommunityButton>
+            />
           )
           : null}
         {post.can_delete
           ? (
-            <CommunityButton
-              secondary
+            <DetailActionButton
+              action="delete"
+              label="글 삭제"
+              variant="outline"
               disabled={busy}
               onPress={() =>
                 void confirmCommunity("이 글과 댓글을 삭제할까요?").then(
@@ -161,9 +167,7 @@ function PostContent(
                     }
                   },
                 )}
-            >
-              삭제
-            </CommunityButton>
+            />
           )
           : null}
       </View>
@@ -248,6 +252,8 @@ export default function CommunityPostScreen() {
                 <View className="flex-row flex-wrap gap-2">
                   <CommunityButton
                     secondary={!item.liked}
+                    icon={item.liked ? "heart" : "heart-outline"}
+                    tone="favorite"
                     disabled={busy}
                     onPress={() =>
                       void run("like_comment", {
@@ -255,23 +261,24 @@ export default function CommunityPostScreen() {
                         liked: !item.liked,
                       })}
                   >
-                    {item.liked ? "♥" : "♡"} {item.like_count}
+                    좋아요 {item.like_count}
                   </CommunityButton>
                   {item.can_edit
                     ? (
-                      <CommunityButton
-                        secondary
+                      <DetailActionButton
+                        action="edit"
+                        label="댓글 수정"
                         disabled={busy}
                         onPress={() => setEditing(item)}
-                      >
-                        수정
-                      </CommunityButton>
+                      />
                     )
                     : null}
                   {item.can_delete
                     ? (
-                      <CommunityButton
-                        secondary
+                      <DetailActionButton
+                        action="delete"
+                        label="댓글 삭제"
+                        variant="outline"
                         disabled={busy}
                         onPress={() =>
                           void confirmCommunity("댓글을 삭제할까요?").then(
@@ -284,9 +291,7 @@ export default function CommunityPostScreen() {
                               }
                             },
                           )}
-                      >
-                        삭제
-                      </CommunityButton>
+                      />
                     )
                     : null}
                 </View>

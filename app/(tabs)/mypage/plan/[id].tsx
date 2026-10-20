@@ -1,6 +1,7 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { DetailActionButton } from "@/components/ui/detail-action-button";
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button"
-import { IconSymbol } from "@/components/ui/icon-symbol"
 import { EditableChapterReadCountGrid } from "@/components/plans/editable-chapter-read-count-grid"
 import { useAppSettings } from "@/contexts/app-settings"
 import { useAuth } from "@/contexts/auth-context"
@@ -95,7 +96,7 @@ function BookChapterSection({
               </Button>
               {chapterReadCount > 0 ? (
                 <View className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-primary-500 px-1 py-0.5 items-center">
-                  <Text className="text-[10px] font-bold text-white">
+                  <Text className="text-[10px] font-bold text-white dark:text-gray-900">
                     {formatReadCountBadge(chapterReadCount)}
                   </Text>
                 </View>
@@ -237,33 +238,18 @@ export default function PlanDetailScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <IconSymbol
-            name="chevron.right"
-            size={18}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: "180deg" }] }}
-          />
-          <Text
-            onPress={() => router.back()}
-            className="text-base text-gray-700 dark:text-gray-300"
-          >
-            {t("common.back")}
-          </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-            {plan.planName}
-          </Text>
-        </View>
-        <View className="flex-row gap-2">
-          <Button onPress={handleEditPress} action="primary" size="sm">
-            <ButtonText>{t("mypage.editPlan")}</ButtonText>
-          </Button>
-          <Button onPress={handleDelete} action="negative" size="sm">
-            <ButtonText>{t("mypage.deletePlan")}</ButtonText>
-          </Button>
-        </View>
-      </View>
+      <ScreenHeader
+        title={plan.planName}
+        onBack={() => router.back()}
+        icon="calendar-outline"
+        tone="bible"
+        right={
+          <View className="shrink-0 flex-row items-center gap-2">
+            <DetailActionButton action="edit" label={t("mypage.editPlan")} onPress={handleEditPress} />
+            <DetailActionButton action="delete" label={t("mypage.deletePlan")} onPress={handleDelete} />
+          </View>
+        }
+      />
 
       <ScrollView
         className="flex-1"
@@ -271,7 +257,7 @@ export default function PlanDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* 기간 */}
-        <View className="mt-4 mb-4 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+        <View className="mt-4 mb-4 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             {t("mypage.planPeriod")}
           </Text>
@@ -295,7 +281,7 @@ export default function PlanDetailScreen() {
         ) : null}
 
         {/* 목표 */}
-        <View className="mb-4 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+        <View className="mb-4 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             {t("mypage.planGoal")}
           </Text>
@@ -305,7 +291,7 @@ export default function PlanDetailScreen() {
         </View>
 
         {/* 진행도 */}
-        <View className="mb-4 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+        <View className="mb-4 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900">
           <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             {t("mypage.planProgress")}
           </Text>

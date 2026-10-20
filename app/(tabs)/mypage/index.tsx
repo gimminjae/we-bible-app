@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -9,7 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdBanner } from '@/components/ads/ad-banner';
 import { BibleGrass } from '@/components/bible-grass';
 import { ThemeVerseSummaryCard } from '@/components/mypage/theme-verse-summary-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { AppIcon, FeatureHeading, FeatureIcon, type AppIconName } from '@/components/ui/feature';
+import { featureColors, type FeatureTone } from '@/constants/app-design';
+import { useAppSettings } from '@/contexts/app-settings';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
@@ -23,6 +24,7 @@ export default function MyPageScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { t } = useI18n();
+  const { theme } = useAppSettings();
   const { scale, moderateScale, pageMaxWidth } = useResponsive();
   const { currentUser, dataUserId, isConfigured, isLoadingSession, isSyncingData } = useAuth();
   const currentYear = getCurrentThemeVerseYear();
@@ -76,28 +78,31 @@ export default function MyPageScreen() {
   const renderMenuCard = (
     key: string,
     label: string,
-    icon: React.ReactNode,
+    icon: AppIconName,
+    tone: FeatureTone,
     onPress: () => void,
   ) => (
     <Pressable
       key={key}
       onPress={onPress}
-      className="mb-4 flex-row items-center justify-between rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      accessibilityRole="button"
+      className="mb-3 flex-row items-center justify-between rounded-3xl border bg-white active:opacity-75 dark:bg-gray-900"
       style={{
         paddingHorizontal: scale(16),
-        paddingVertical: scale(32),
+        paddingVertical: scale(18),
+        borderColor: featureColors[tone][theme].border,
       }}
     >
-      <View className="flex-row items-center" style={{ gap: scale(12) }}>
-        {icon}
+      <View className="min-w-0 flex-1 flex-row items-center" style={{ gap: scale(14) }}>
+        <FeatureIcon name={icon} tone={tone} size={48} />
         <Text
           style={{ fontSize: moderateScale(16) }}
-          className="font-semibold text-gray-900 dark:text-white"
+          className="flex-1 font-semibold text-gray-900 dark:text-white"
         >
           {label}
         </Text>
       </View>
-      <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" />
+      <AppIcon name="arrow-forward" tone={tone} size={18} />
     </Pressable>
   );
 
@@ -116,14 +121,7 @@ export default function MyPageScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ width: '100%', maxWidth: pageMaxWidth, alignSelf: 'center' }}>
-          <View className="flex-row items-center justify-between" style={{ marginBottom: scale(16) }}>
-            <Text
-              className="font-bold text-gray-900 dark:text-white"
-              style={{ fontSize: moderateScale(24) }}
-            >
-              {t('mypage.title')}
-            </Text>
-          </View>
+          <FeatureHeading title={t('mypage.title')} icon="sparkles-outline" tone="prayer" />
 
           <ThemeVerseSummaryCard
             year={currentYear}
@@ -141,35 +139,40 @@ export default function MyPageScreen() {
           {renderMenuCard(
             'favorites',
             t('mypage.favoritesMenu'),
-            <IconSymbol name="heart.fill" size={moderateScale(20)} color="#ec4899" />,
+            'heart-outline',
+            'favorite',
             () => router.push('/(tabs)/mypage/favorites'),
           )}
 
           {renderMenuCard(
             'memos',
             t('mypage.memosMenu'),
-            <IconSymbol name="note.text" size={moderateScale(20)} color="#b45309" />,
+            'create-outline',
+            'memo',
             () => router.push('/(tabs)/mypage/memos'),
           )}
 
           {renderMenuCard(
             'prayers',
             t('mypage.prayersMenu'),
-            <IconSymbol name="hands.sparkles" size={moderateScale(20)} color="#6366f1" />,
+            'heart-circle-outline',
+            'prayer',
             () => router.push('/(tabs)/mypage/prayers'),
           )}
 
           {renderMenuCard(
             'plans',
             t('mypage.plansMenu'),
-            <IconSymbol name="book.fill" size={moderateScale(20)} color="#059669" />,
+            'calendar-outline',
+            'bible',
             () => router.push('/(tabs)/mypage/plans'),
           )}
 
           {renderMenuCard(
             'churches',
             t('church.title'),
-            <MaterialIcons name="groups" size={moderateScale(20)} color="#2563eb" />,
+            'people-outline',
+            'community',
             () => router.push('/churches' as never),
           )}
         </View>

@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { AppIcon, FeatureIcon, type AppIconName } from '@/components/ui/feature';
+import { featureColors, type FeatureTone } from '@/constants/app-design';
+import { useAppSettings } from '@/contexts/app-settings';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -31,22 +34,32 @@ export function MetadataButton({
   onPress,
   disabled = false,
   secondary = false,
+  icon,
+  tone = 'community',
 }: {
   children: ReactNode;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  icon?: AppIconName;
+  tone?: FeatureTone;
 }) {
+  const { theme } = useAppSettings();
+  const colors = featureColors[tone][theme];
+  const textColor = secondary ? colors.ink : theme === 'dark' ? '#101917' : '#FFFFFF';
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={`min-h-11 items-center justify-center rounded-xl px-4 py-3 ${secondary ? 'bg-gray-200 dark:bg-gray-800' : 'bg-primary-600'} ${disabled ? 'opacity-40' : ''}`}
+      className={`min-h-11 flex-row items-center justify-center gap-2 rounded-2xl border px-4 py-3 ${disabled ? 'opacity-40' : 'active:opacity-75'}`}
+      style={{ backgroundColor: secondary ? colors.soft : colors.ink, borderColor: secondary ? colors.border : colors.ink }}
     >
+      {icon ? <AppIcon name={icon} color={textColor} size={18} /> : null}
       <Text
-        className={`font-semibold ${secondary ? 'text-gray-900 dark:text-white' : 'text-white'}`}
+        className="shrink text-center font-semibold"
+        style={{ color: textColor }}
       >
         {children}
       </Text>
@@ -70,7 +83,7 @@ export function MetadataPage({
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <ScreenHeader title={title} onBack={onBack} right={right} />
+      <ScreenHeader title={title} onBack={onBack} right={right} icon="id-card-outline" tone="community" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
@@ -98,13 +111,13 @@ export function MetadataNotice({
   const { t } = useI18n();
   return (
     <View
-      className="my-3 gap-3 rounded-xl bg-gray-100 p-4 dark:bg-gray-900"
+      className="my-3 items-center gap-3 rounded-3xl border border-blue-100 bg-white p-6 dark:border-blue-900 dark:bg-gray-900"
       accessibilityLiveRegion="polite"
     >
-      {loading ? <ActivityIndicator /> : null}
-      <Text className="text-gray-700 dark:text-gray-300">{message}</Text>
+      {loading ? <ActivityIndicator color="#315BB5" /> : <FeatureIcon name={onRetry ? 'alert-circle-outline' : 'chatbubbles-outline'} tone="community" />}
+      <Text className="text-center leading-6 text-gray-700 dark:text-gray-300">{message}</Text>
       {onRetry ? (
-        <MetadataButton secondary onPress={onRetry}>
+        <MetadataButton secondary icon="refresh-outline" onPress={onRetry}>
           {t('metadata.retry')}
         </MetadataButton>
       ) : null}

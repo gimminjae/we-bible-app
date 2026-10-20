@@ -58,7 +58,7 @@ export function EditableChapterReadCountGrid({
               </Button>
               {readCount > 0 ? (
                 <View className="absolute -right-1 -top-1 min-w-[20px] rounded-full bg-primary-500 px-1 py-0.5 items-center">
-                  <Text className="text-[10px] font-bold text-white">
+                  <Text className="text-[10px] font-bold text-white dark:text-gray-900">
                     {formatReadCountBadge(readCount)}
                   </Text>
                 </View>

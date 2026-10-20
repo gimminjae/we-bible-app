@@ -465,7 +465,7 @@ export function ThemeVerseSheet({
                 disabled={isSubmitting}
                 className="h-auto flex-1 rounded-2xl bg-primary-500 px-4 py-4"
               >
-                <ButtonText className="font-semibold text-white">
+                <ButtonText className="font-semibold text-white dark:text-gray-900">
                   {t('themeVerse.save')}
                 </ButtonText>
               </Button>

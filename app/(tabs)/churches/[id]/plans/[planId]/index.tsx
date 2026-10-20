@@ -7,7 +7,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { ChurchProgressBar } from '@/components/churches/church-progress-bar';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { SharedPlanProgressSheet } from '@/components/churches/shared-plan-progress-sheet';
-import { Button, ButtonText } from '@/components/ui/button';
+import { DetailActionButton } from '@/components/ui/detail-action-button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { useToast } from '@/contexts/toast-context';
@@ -114,30 +114,27 @@ export default function ChurchPlanDetailScreen() {
       edges={['top', 'bottom', 'left', 'right']}
     >
       <ScreenHeader
-        title={sharedPlanDetail.summary.planName || t('church.planDetailTitle')}
+        icon="calendar-outline"
+        tone="bible"
+        title={sharedPlanDetail.summary.planName || t("church.planDetailTitle")}
         onBack={() => router.back()}
-        right={
-          sharedPlanDetail.canEditPlan ? (
+        right={sharedPlanDetail.canEditPlan
+          ? (
             <>
-              <Button
-                onPress={() =>
-                  router.push(`/churches/${churchId}/plans/${planId}/edit` as never)
-                }
-                className="h-auto rounded-2xl bg-primary-500 px-4 py-3"
-              >
-                <ButtonText className="font-semibold text-white">{t('mypage.editPlan')}</ButtonText>
-              </Button>
-              <Button
+              <DetailActionButton
+                action="edit"
+                label={t("mypage.editPlan")}
+                onPress={() => router.push(`/churches/${churchId}/plans/${planId}/edit` as never)}
+              />
+              <DetailActionButton
+                action="delete"
+                label={t("mypage.deletePlan")}
                 onPress={handleDeletePlan}
-                action="negative"
                 variant="outline"
-                className="h-auto rounded-2xl border-red-200 px-4 py-3 dark:border-red-900"
-              >
-                <ButtonText className="font-semibold text-red-500">{t('mypage.deletePlan')}</ButtonText>
-              </Button>
+              />
             </>
-          ) : null
-        }
+          )
+          : null}
       />
 
       <ScrollView

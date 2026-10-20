@@ -339,7 +339,7 @@ export function SharedPlanProgressSheet({
                                   </Text>
                                   {chapterReadCount > 0 ? (
                                     <View className="absolute -right-1 -top-1 min-w-[18px] items-center rounded-full bg-primary-500 px-1 py-0.5">
-                                      <Text className="text-[10px] font-bold text-white">
+                                      <Text className="text-[10px] font-bold text-white dark:text-gray-900">
                                         {formatReadCountBadge(chapterReadCount)}
                                       </Text>
                                     </View>
@@ -372,7 +372,7 @@ export function SharedPlanProgressSheet({
                 }`}
               >
                 {isLoading ? <ButtonSpinner color="#ffffff" /> : null}
-                <ButtonText className="font-semibold text-white">{t('mypage.savePlan')}</ButtonText>
+                <ButtonText className="font-semibold text-white dark:text-gray-900">{t('mypage.savePlan')}</ButtonText>
               </Button>
             </View>
           ) : null}

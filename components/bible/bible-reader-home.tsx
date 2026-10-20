@@ -13,6 +13,7 @@ import { useLoading } from '@/hooks/use-loading';
 import type { BibleLang } from '@/components/bible/types';
 import { useBibleReader } from '@/components/bible/use-bible-reader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { AppIcon, FeatureIcon } from '@/components/ui/feature';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import {
@@ -247,6 +248,7 @@ export function BibleReaderHome() {
             contentBottomInset={isTablet ? scale(128) : scale(140)}
             footer={
               <View className="rounded-3xl border border-primary-100 bg-white p-5 dark:border-primary-900/50 dark:bg-gray-900">
+                <View className="mb-3"><FeatureIcon name="checkmark-done-outline" /></View>
                 <Text className="text-sm leading-6 text-gray-500 dark:text-gray-400">
                   {t('bibleReader.planCheckDescription').replace(
                     '{chapter}',
@@ -259,6 +261,7 @@ export function BibleReaderHome() {
                   onPress={handleOpenPlanCheckSheet}
                   className="mt-4 h-auto rounded-2xl bg-primary-500 px-4 py-4"
                 >
+                  <AppIcon name="checkmark-circle-outline" onPrimary size={20} />
                   <ButtonText
                     style={{ fontSize: moderateScale(15) }}
                     className="font-semibold text-white dark:text-gray-900"
@@ -336,6 +339,7 @@ export function BibleReaderHome() {
                 paddingVertical: isTablet ? scale(10) : scale(12),
               }}
             >
+              <AppIcon name="copy-outline" onPrimary size={18} />
               <ButtonText
                 style={{ fontSize: moderateScale(16) }}
                 className="text-white font-semibold dark:text-gray-900"

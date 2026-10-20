@@ -1,5 +1,6 @@
 "use client"
 
+import { FeatureIcon } from "@/components/ui/feature";
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -514,7 +515,8 @@ export function BibleGrass() {
       ) : (
         <>
       <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-1 flex-row items-center pr-2">
+        <View className="flex-1 flex-row items-center gap-3 pr-2">
+          <FeatureIcon name="leaf-outline" size={38} />
           <Text className="text-base text-gray-600 dark:text-gray-400 flex-1">
             {includesYesterday
               ? streak <= 6
@@ -912,7 +914,7 @@ export function BibleGrass() {
               className="mt-4 rounded-xl bg-primary-500 active:opacity-90"
               style={{ height: scale(44) }}
             >
-              <ButtonText className="font-semibold text-white" style={{ fontSize: moderateScale(15) }}>
+              <ButtonText className="font-semibold text-white dark:text-gray-900" style={{ fontSize: moderateScale(15) }}>
                 {t("grass.guide.close")}
               </ButtonText>
             </Button>

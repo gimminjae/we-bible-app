@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ui/screen-header";
+import { AppIcon } from "@/components/ui/feature";
 export {
   MetadataButton as CommunityButton,
   metadataInputClass as inputClass,
@@ -30,7 +31,7 @@ export function CommunityShell(
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <ScreenHeader title={title} onBack={onBack} right={right} />
+      <ScreenHeader title={title} onBack={onBack} right={right} icon="chatbubbles-outline" tone="community" />
       <View className="w-full max-w-3xl flex-1 self-center">{children}</View>
     </SafeAreaView>
   );
@@ -60,13 +61,14 @@ export function Choice(
         accessibilityLabel={label}
         disabled={disabled}
         onPress={() => setVisible(true)}
-        className={`rounded-xl border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900 ${
+        className={`flex-row items-center gap-3 rounded-2xl border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900 ${
           disabled ? "opacity-50" : ""
         }`}
       >
-        <Text className="text-base text-gray-900 dark:text-white">
-          {options.find((option) => option.value === value)?.label ?? label} ▾
+        <Text className="flex-1 text-base text-gray-900 dark:text-white">
+          {options.find((option) => option.value === value)?.label ?? label}
         </Text>
+        <AppIcon name="chevron-down" tone="community" size={18} />
       </Pressable>
       <Modal
         visible={visible}
@@ -102,12 +104,12 @@ export function Choice(
                   setVisible(false);
                   setSearch("");
                 }}
-                className="border-b border-gray-200 px-5 py-4 dark:border-gray-800"
+                className={`mx-3 mb-2 flex-row items-center gap-3 rounded-2xl px-5 py-4 ${item.value === value ? 'bg-blue-50 dark:bg-blue-950' : ''}`}
               >
-                <Text className="text-base text-gray-900 dark:text-white">
-                  {item.value === value ? "✓ " : ""}
+                <Text className="flex-1 text-base text-gray-900 dark:text-white">
                   {item.label}
                 </Text>
+                {item.value === value ? <AppIcon name="checkmark-circle" tone="community" /> : null}
               </Pressable>
             )}
           />

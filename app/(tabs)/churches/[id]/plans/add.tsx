@@ -53,11 +53,11 @@ export default function AddChurchPlanScreen() {
       edges={['top', 'bottom', 'left', 'right']}
     >
       <ScreenHeader
-        title={
-          team
-            ? t('church.addTeamPlanTitle').replace('{team}', team.name)
-            : t('church.addChurchPlanTitle')
-        }
+        icon="calendar-outline"
+        tone="bible"
+        title={team
+          ? t("church.addTeamPlanTitle").replace("{team}", team.name)
+          : t("church.addChurchPlanTitle")}
         onBack={() => router.back()}
       />
 

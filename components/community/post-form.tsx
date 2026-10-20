@@ -1,10 +1,10 @@
+import { useAppSettings } from "@/contexts/app-settings";
 import { useEffect, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
 import { useNavigation } from "expo-router";
@@ -75,7 +75,7 @@ export function PostForm(
   const refresh = useRefreshCommunity(churchId);
   const session = useCommunitySession();
   const { showToast } = useToast();
-  const dark = useColorScheme() === "dark";
+  const dark = useAppSettings().theme === "dark";
   const ids = [
     ...new Set([
       ...(post?.attachments.map((item) => item.id) ?? []),
@@ -198,6 +198,7 @@ export function PostForm(
       onBack={onBack}
       right={
         <CommunityButton
+          icon="checkmark-outline"
           disabled={busy || !session.enabled || !editorReady}
           onPress={requestSave}
         >
@@ -305,6 +306,7 @@ export function PostForm(
         <View className="gap-3">
           <Label>첨부 파일</Label>
           <CommunityButton
+            icon="attach-outline"
             secondary
             disabled={busy}
             onPress={() => {
@@ -434,6 +436,7 @@ export function PostForm(
           )
           : null}
         <CommunityButton
+          icon="checkmark-circle-outline"
           disabled={busy || !session.enabled || !editorReady}
           onPress={requestSave}
         >

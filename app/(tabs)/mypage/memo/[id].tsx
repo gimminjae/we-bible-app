@@ -1,6 +1,7 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { AppIcon } from "@/components/ui/feature";
 import { MemoDrawer } from '@/components/bible/memo-drawer';
-import { Button, ButtonText } from '@/components/ui/button';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { DetailActionButton } from '@/components/ui/detail-action-button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
@@ -136,35 +137,36 @@ export default function MemoDetailScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <IconSymbol name="chevron.right" size={18} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
-          <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
-            {t('common.back')}
-          </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">{t('mypage.memoDetailTitle')}</Text>
-        </View>
-        {memo ? (
-          <View className="flex-row items-center gap-2">
-            <Pressable onPress={handleCopyPress} hitSlop={8} className="p-2 active:opacity-70">
-              <IconSymbol name="doc.on.doc" size={20} color="#6b7280" />
-            </Pressable>
-            <Button
-              onPress={() => setShowEditDrawer(true)}
-              className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
-            >
-              <ButtonText className="text-sm font-semibold text-white">{t('mypage.editMemo')}</ButtonText>
-            </Button>
-            <Button
-              onPress={handleDeletePress}
-              action="negative"
-              className="h-auto rounded-lg px-3 py-2 active:opacity-90"
-            >
-              <ButtonText className="text-sm font-semibold text-white">{t('mypage.deleteMemo')}</ButtonText>
-            </Button>
-          </View>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={t("mypage.memoDetailTitle")}
+        onBack={() => router.back()}
+        icon="document-text-outline"
+        tone="memo"
+        right={memo
+          ? (
+            <View className="shrink-0 flex-row items-center gap-2">
+              <Pressable
+                onPress={handleCopyPress}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.copy")}
+                className="h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950"
+              >
+                <AppIcon name="copy-outline" tone="memo" />
+              </Pressable>
+              <DetailActionButton
+                action="edit"
+                label={t("mypage.editMemo")}
+                onPress={() => setShowEditDrawer(true)}
+              />
+              <DetailActionButton
+                action="delete"
+                label={t("mypage.deleteMemo")}
+                onPress={handleDeletePress}
+              />
+            </View>
+          )
+          : null}
+      />
 
       <ScrollView
         className="flex-1"
@@ -175,7 +177,7 @@ export default function MemoDetailScreen() {
           <Text className="text-gray-500 dark:text-gray-400 mt-6">{t('mypage.memoNotFound')}</Text>
         ) : (
           <>
-            <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+            <View className="mb-3 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900">
               <Text className="text-base font-semibold text-gray-900 dark:text-white">
                 {memo.title?.trim() ? memo.title : t('mypage.untitled')}
               </Text>
@@ -185,13 +187,13 @@ export default function MemoDetailScreen() {
             </View>
 
             {memo.verseText?.trim() ? (
-              <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+              <View className="mb-3 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900">
                 <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('mypage.verseText')}</Text>
                 <Text className="text-base leading-6 text-gray-900 dark:text-white">{memo.verseText}</Text>
               </View>
             ) : null}
 
-            <View className="px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+            <View className="px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900">
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('mypage.content')}</Text>
               <Text className="text-base leading-6 text-gray-900 dark:text-white">
                 {memo.content || t('mypage.noContent')}

@@ -260,7 +260,7 @@ export function PlanForm({
             !canSubmit || isSubmitting ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
           }`}
         >
-          <ButtonText className="font-semibold text-white">{submitLabel}</ButtonText>
+          <ButtonText className="font-semibold text-white dark:text-gray-900">{submitLabel}</ButtonText>
         </Button>
       </ScrollView>
 

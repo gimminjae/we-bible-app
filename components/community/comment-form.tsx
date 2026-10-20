@@ -87,6 +87,7 @@ export function CommentForm(
         ? (
           <View className="flex-row gap-2">
             <CommunityButton
+              icon="chatbubble-outline"
               secondary={kind !== "text"}
               disabled={busy}
               onPress={() => setKind("text")}
@@ -94,6 +95,8 @@ export function CommentForm(
               일반 댓글
             </CommunityButton>
             <CommunityButton
+              icon="book-outline"
+              tone="bible"
               secondary={kind !== "meditation"}
               disabled={busy}
               onPress={() => setKind("meditation")}
@@ -156,7 +159,7 @@ export function CommentForm(
         )
         : null}
       <View className="flex-row gap-2">
-        <CommunityButton disabled={busy} onPress={() => void submit()}>
+        <CommunityButton icon="send-outline" disabled={busy} onPress={() => void submit()}>
           {busy ? "저장 중…" : comment ? "수정 완료" : "댓글 등록"}
         </CommunityButton>
         {onCancel

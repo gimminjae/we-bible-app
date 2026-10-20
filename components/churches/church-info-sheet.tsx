@@ -205,7 +205,7 @@ export function ChurchInfoSheet({
                 submitDisabled ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
               }`}
             >
-              <ButtonText className="font-semibold text-white">{getSubmitLabel(mode, t)}</ButtonText>
+              <ButtonText className="font-semibold text-white dark:text-gray-900">{getSubmitLabel(mode, t)}</ButtonText>
             </Button>
           </View>
         </View>

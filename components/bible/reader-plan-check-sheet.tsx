@@ -133,7 +133,7 @@ export function ReaderPlanCheckSheet({
                         <Text
                           className={`text-xs font-bold ${
                             selected
-                              ? 'text-white'
+                              ? 'text-white dark:text-gray-900'
                               : 'text-gray-500 dark:text-gray-300'
                           }`}
                         >
@@ -176,7 +176,7 @@ export function ReaderPlanCheckSheet({
               className="h-auto flex-1 rounded-2xl bg-primary-500 px-4 py-4"
             >
               {isSaving ? <ButtonSpinner color="#ffffff" /> : null}
-              <ButtonText className="font-semibold text-white">
+              <ButtonText className="font-semibold text-white dark:text-gray-900">
                 {t('common.confirm')}
               </ButtonText>
             </Button>

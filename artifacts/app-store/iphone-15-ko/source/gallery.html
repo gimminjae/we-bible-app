@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>We Bible · App Store Screenshots</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:1179px;height:2556px;overflow:hidden;background:#0c1423;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;-webkit-font-smoothing:antialiased}
+body{position:fixed;left:0;top:0;overflow:clip}
+.artboard{width:1179px;height:2556px;position:relative;overflow:clip;background:radial-gradient(ellipse 860px 1400px at 70% 66%,color-mix(in srgb,var(--accent) 16%,#0c1423),transparent),#0c1423;color:#fff}
+.orb{position:absolute;left:500px;top:570px;width:1080px;height:1080px;border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);border-radius:50%}
+.orb.two{left:-550px;top:1650px;width:1050px;height:1050px;border-color:#ffffff0d}
+.brand{position:absolute;top:84px;left:87px;right:87px;display:flex;align-items:center;gap:22px}
+.brand img{width:70px;height:70px;border-radius:19px;object-fit:cover;border:1px solid #ffffff19}
+.brand .name{font-size:40px;letter-spacing:-1px;font-weight:700}.brand .category{margin-left:auto;font-size:28px;color:var(--accent);font-weight:600;letter-spacing:-.6px}
+.copy{position:absolute;left:87px;right:71px;top:217px}
+h1{margin:0;font-size:95px;line-height:1.19;font-weight:800;letter-spacing:-5px;word-break:keep-all}
+h1 span{color:var(--accent)}p{font-size:34px;line-height:1.55;letter-spacing:-.8px;color:#b9c5d5;margin:35px 0 0;font-weight:400}
+.device{position:absolute;left:137.5px;top:675px;width:904px;height:1913.0992px;border-radius:120px;background:linear-gradient(120deg,#728091,#1c2430 22%,#080b10 70%,#5d6773);padding:12px;box-shadow:0 55px 100px #0009,0 0 0 1px #ffffff30}
+.bezel{height:100%;width:100%;background:#080a0e;border-radius:109px;padding:8px;position:relative;overflow:hidden}
+.glass{width:864px;height:1873.0992px;background:white;border-radius:101px;overflow:hidden;position:relative}
+iframe{display:block;width:393px;height:852px;border:0;transform:scale(2.1984732824);transform-origin:0 0;background:white}
+.dynamic-island{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:277px;height:81px;background:#080a0e;border-radius:44px;z-index:2}
+.dynamic-island:after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#142033;right:26px;top:30px;box-shadow:inset 0 0 0 5px #0d141e}
+.side{position:absolute;width:5px;background:#7b8795;left:-5px;top:250px;height:98px;border-radius:5px 0 0 5px}.side.b{top:390px;height:165px}.side.c{left:auto;right:-5px;top:382px;height:190px;border-radius:0 5px 5px 0}
+.raw{background:white}.raw .artboard{display:none}.raw>iframe{transform:scale(3);}
+</style>
+<body><main class="artboard"><div class="orb"></div><div class="orb two"></div><div class="brand"><img src="icon.png" alt=""><span class="name">We Bible</span><span class="category"></span></div><div class="copy"><h1></h1><p></p></div><div class="device"><i class="side"></i><i class="side b"></i><i class="side c"></i><div class="bezel"><div class="glass"><div class="dynamic-island"></div><iframe title="We Bible 앱 화면"></iframe></div></div></div></main>
+<script>
+const params=new URLSearchParams(location.search),feature=params.get('feature')||'bible';
+fetch('features.json').then(r=>r.json()).then(features=>{
+ const f=features.find(f=>f[0]===feature)||features[0];
+ document.title=`We Bible · ${f[1]}`;
+ if(params.has('raw')){document.body.className='raw';document.body.replaceChildren(Object.assign(document.createElement('iframe'),{src:`http://127.0.0.1:8088/?feature=${feature}`,title:'We Bible 앱 화면'}));return;}
+ document.documentElement.style.setProperty('--accent',f[6]);document.querySelector('.category').textContent=f[1];
+ const heading=document.querySelector('h1');heading.append(document.createTextNode(f[2]),document.createElement('br'));const accent=document.createElement('span');accent.textContent=f[3];heading.append(accent);
+ const description=document.querySelector('p');description.append(document.createTextNode(f[4]),document.createElement('br'),document.createTextNode(f[5]));
+ document.querySelector('iframe').src=`http://127.0.0.1:8088/?feature=${feature}`;
+});
+</script></body></html>

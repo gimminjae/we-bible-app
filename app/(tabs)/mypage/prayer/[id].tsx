@@ -1,4 +1,5 @@
-import { Button, ButtonText } from '@/components/ui/button';
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { DetailActionButton } from '@/components/ui/detail-action-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useAuth } from '@/contexts/auth-context';
@@ -139,34 +140,28 @@ export default function PrayerDetailScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <IconSymbol name="chevron.right" size={18} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
-          <Text onPress={() => router.back()} className="text-base text-gray-700 dark:text-gray-300">
-            {t('common.back')}
-          </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-            {t('mypage.prayerDetailTitle')}
-          </Text>
-        </View>
-        {prayer ? (
-          <View className="flex-row gap-2">
-            <Button
-              onPress={handleEditPress}
-              className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
-            >
-              <ButtonText className="text-sm font-semibold text-white">{t('mypage.editPrayer')}</ButtonText>
-            </Button>
-            <Button
-              onPress={handleDeletePrayer}
-              action="negative"
-              className="h-auto rounded-lg px-3 py-2 active:opacity-90"
-            >
-              <ButtonText className="text-sm font-semibold text-white">{t('mypage.deletePrayer')}</ButtonText>
-            </Button>
-          </View>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={t("mypage.prayerDetailTitle")}
+        onBack={() => router.back()}
+        icon="heart-circle-outline"
+        tone="prayer"
+        right={prayer
+          ? (
+            <View className="shrink-0 flex-row items-center gap-2">
+              <DetailActionButton
+                action="edit"
+                label={t("mypage.editPrayer")}
+                onPress={handleEditPress}
+              />
+              <DetailActionButton
+                action="delete"
+                label={t("mypage.deletePrayer")}
+                onPress={handleDeletePrayer}
+              />
+            </View>
+          )
+          : null}
+      />
 
       <ScrollView
         className="flex-1"
@@ -177,7 +172,7 @@ export default function PrayerDetailScreen() {
           <Text className="text-gray-500 dark:text-gray-400 mt-6">{t('mypage.prayerNotFound')}</Text>
         ) : (
           <>
-            <View className="mb-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+            <View className="mb-3 px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-violet-200 dark:border-violet-900">
               {prayer.isMyPrayer ? (
                 <View className="mb-3 self-start rounded-full bg-primary-50 px-3 py-1 dark:bg-primary-900/30">
                   <Text className="text-xs font-semibold text-primary-600 dark:text-primary-300">
@@ -205,7 +200,7 @@ export default function PrayerDetailScreen() {
               </Text>
             </View>
 
-            <View className="px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+            <View className="px-4 py-3 rounded-3xl bg-white dark:bg-gray-900 border border-violet-200 dark:border-violet-900">
               <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                 {t('mypage.prayerContent')}
               </Text>

@@ -70,7 +70,12 @@ export default function AddPlanScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <ScreenHeader title={t('planDrawer.addTitle')} onBack={() => router.back()} />
+      <ScreenHeader
+        icon="calendar-outline"
+        tone="bible"
+        title={t("planDrawer.addTitle")}
+        onBack={() => router.back()}
+      />
 
       <PlanForm
         initialValues={

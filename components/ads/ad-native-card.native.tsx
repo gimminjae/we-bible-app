@@ -162,7 +162,7 @@ export function AdNativeCard({ className }: AdNativeCardProps) {
 
       {nativeAd.callToAction ? (
         <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
-          <Text className="rounded-lg bg-primary-500 px-3 py-2 text-center font-semibold text-white">
+          <Text className="rounded-lg bg-primary-500 px-3 py-2 text-center font-semibold text-white dark:text-gray-900">
             {nativeAd.callToAction}
           </Text>
         </NativeAsset>

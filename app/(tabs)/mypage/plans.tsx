@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { Button, ButtonText } from "@/components/ui/button"
+import { AppIcon, EmptyState, FeatureIcon } from "@/components/ui/feature"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { ScreenHeader } from "@/components/ui/screen-header"
 import { useAuth } from "@/contexts/auth-context"
@@ -79,12 +80,15 @@ export default function PlanListScreen() {
     >
       <ScreenHeader
         title={t("mypage.plansTitle")}
+        icon="calendar-outline"
+        tone="bible"
         onBack={() => router.back()}
         right={
           <Button
             onPress={() => router.push("/(tabs)/mypage/plan/templates")}
             className="h-auto rounded-xl bg-primary-500 px-4 py-3"
           >
+            <AppIcon name="add" onPrimary size={18} />
             <ButtonText className="font-semibold text-white dark:text-gray-900">
               {t("mypage.addPlan")}
             </ButtonText>
@@ -108,11 +112,7 @@ export default function PlanListScreen() {
           </View>
 
           {items.length === 0 ? (
-            <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
-              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t("mypage.emptyPlans")}
-              </Text>
-            </View>
+            <EmptyState message={t("mypage.emptyPlans")} icon="calendar-outline" />
           ) : (
             items.map((item) => {
               const summary = getPlanGoalSummary(item.selectedBookCodes)
@@ -125,9 +125,10 @@ export default function PlanListScreen() {
                       params: { id: String(item.id) },
                     })
                   }
-                  className="mb-3 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                  className="mb-3 rounded-3xl border border-emerald-200 bg-white p-5 dark:border-emerald-900 dark:bg-gray-900"
                 >
                   <View className="flex-row items-start justify-between gap-4">
+                    <FeatureIcon name="calendar-outline" size={38} />
                     <View className="flex-1">
                       <Text className="text-lg font-semibold text-gray-900 dark:text-white">
                         {item.planName || t("mypage.planDetailTitle")}
@@ -184,11 +185,7 @@ export default function PlanListScreen() {
           </View>
 
           {sharedPlans.length === 0 ? (
-            <View className="rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 dark:border-gray-800 dark:bg-gray-900">
-              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t("mypage.emptySharedPlans")}
-              </Text>
-            </View>
+            <EmptyState message={t("mypage.emptySharedPlans")} icon="people-outline" tone="community" />
           ) : (
             sharedPlans.map((plan) => (
               <Pressable

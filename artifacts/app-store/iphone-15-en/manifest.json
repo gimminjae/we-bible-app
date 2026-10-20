@@ -1,0 +1,105 @@
+{
+  "screen_class": "iPhone 15 (6.1 inch)",
+  "language": "en",
+  "generated_at": "2026-10-21",
+  "design_revision": "2026-10-21 detail actions aligned at the top right on the same row as Back",
+  "device_specification": "https://support.apple.com/en-ie/111831",
+  "app_viewport": {
+    "width": 393,
+    "height": 852
+  },
+  "source": "Current UI components rendered on web with fictional sample data; native iPhone capture not used",
+  "renderer": "Playwright with local headless Chrome, DPR 1, sRGB",
+  "files": [
+    {
+      "file": "screenshots/01-bible-reading.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 378565,
+      "sha256": "aee0c87de50281fb06a5ed6e7a2688165acff31f11d8df99614f140fe2cd96ae"
+    },
+    {
+      "file": "screenshots/02-prayer.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 333435,
+      "sha256": "35391c75f32d197782cc4c21bcc5ebb4869c7b90790f72c377224e71ac6e348d"
+    },
+    {
+      "file": "screenshots/03-memo.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 341037,
+      "sha256": "d59dcc8cb8b08aa724ac1cc812fb56d17145667cf6a1dc38d47e30316d73d2f9"
+    },
+    {
+      "file": "screenshots/04-bible-grass.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 363850,
+      "sha256": "f89814b26fdb6586c72d8c2e68acdc7cf96f37c045e0cd0a7464ca77818d0b16"
+    },
+    {
+      "file": "screenshots/05-reading-plan.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 385629,
+      "sha256": "88243e1525389a9860e2cf4e2da3264a9377c491cda50cb46def169007500b9f"
+    },
+    {
+      "file": "screenshots/06-community.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 308643,
+      "sha256": "d7d52313395426946767e27094a823424449da1756d82f37ed0f4789475d284d"
+    },
+    {
+      "file": "screenshots/07-member-info.jpg",
+      "pixelWidth": "1179",
+      "pixelHeight": "2556",
+      "format": "jpeg",
+      "space": "RGB",
+      "hasAlpha": "no",
+      "profile": "sRGB",
+      "bytes": 299615,
+      "sha256": "f1b202930f4541366886cf0b4558a432f7558d21f535f0c0ee05bf9847c7f6a3"
+    }
+  ],
+  "header_alignment_checked": {
+    "features": [
+      "memo",
+      "prayer",
+      "plan"
+    ],
+    "viewport_widths": [
+      393,
+      320
+    ],
+    "same_row_as_back": true,
+    "right_inset": 16
+  }
+}

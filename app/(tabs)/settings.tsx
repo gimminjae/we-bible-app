@@ -1,3 +1,4 @@
+import { AppIcon, FeatureLabel } from "@/components/ui/feature";
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -624,7 +625,7 @@ export default function SettingsScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <ScreenHeader title={t('settings.title')} />
+      <ScreenHeader title={t('settings.title')} icon="settings-outline" tone="settings" />
 
       <ScrollView
         className="flex-1"
@@ -637,9 +638,7 @@ export default function SettingsScreen() {
         <View style={{ width: '100%', maxWidth: narrowPageMaxWidth, alignSelf: 'center' }}>
         <View className="mb-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <View className="mb-4 flex-row items-center" style={{ gap: scale(6) }}>
-            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {t('settings.account')}
-            </Text>
+            <FeatureLabel label={t('settings.account')} icon="person-circle-outline" tone="community" />
           </View>
 
           {!isConfigured ? (
@@ -760,7 +759,7 @@ export default function SettingsScreen() {
                   isSubmitting ? 'bg-gray-300 dark:bg-gray-700' : 'bg-primary-500'
                 }`}
               >
-                <ButtonText className="font-semibold text-white">
+                <ButtonText className="font-semibold text-white dark:text-gray-900">
                   {isSignUpMode ? t('settings.signUp') : t('settings.signIn')}
                 </ButtonText>
               </Button>
@@ -831,14 +830,12 @@ export default function SettingsScreen() {
         <AdBanner />
 
         <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {t('settings.systemLanguage')}
-          </Text>
+          <FeatureLabel label={t('settings.systemLanguage')} icon="language-outline" tone="community" />
           <Pressable
             onPress={() => setLanguageSheetVisible(true)}
             className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
           >
-            <Text className="text-base text-gray-900 dark:text-white">{currentLanguageLabel}</Text>
+            <View className="flex-1 flex-row items-center gap-3"><AppIcon name="globe-outline" tone="community" /><Text className="shrink text-base text-gray-900 dark:text-white">{currentLanguageLabel}</Text></View>
             <IconSymbol
               name="chevron.down"
               size={moderateScale(18)}
@@ -846,9 +843,7 @@ export default function SettingsScreen() {
             />
           </Pressable>
 
-          <Text className="mt-5 text-sm font-medium text-gray-500 dark:text-gray-400">
-            {t('settings.theme')}
-          </Text>
+          <View className="mt-5"><FeatureLabel label={t('settings.theme')} icon="color-palette-outline" tone="prayer" /></View>
           <Pressable
             onPress={handleToggleTheme}
             className="mt-2 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-950"
@@ -868,9 +863,7 @@ export default function SettingsScreen() {
 
         {Platform.OS !== 'web' ? (
           <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {t('settings.themeVerseNotificationTitle')}
-            </Text>
+            <FeatureLabel label={t('settings.themeVerseNotificationTitle')} icon="notifications-outline" tone="memo" />
             <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
               {t('settings.themeVerseNotificationDescription')}
             </Text>
@@ -956,9 +949,7 @@ export default function SettingsScreen() {
 
         {Platform.OS !== 'web' ? (
           <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {t('settings.bibleMeditationNotificationTitle')}
-            </Text>
+            <FeatureLabel label={t('settings.bibleMeditationNotificationTitle')} icon="book-outline" tone="bible" />
             <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
               {t('settings.bibleMeditationNotificationDescription')}
             </Text>
@@ -1009,9 +1000,7 @@ export default function SettingsScreen() {
         <AdNativeCard className="mt-6" />
 
         <View className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {t('settings.developerInquiry')}
-          </Text>
+          <FeatureLabel label={t('settings.developerInquiry')} icon="chatbox-ellipses-outline" tone="community" />
           <Text className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
             {isConfigured
               ? t('settings.developerInquiryDescription')

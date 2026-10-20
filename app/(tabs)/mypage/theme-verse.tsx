@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { ThemeVerseSheet } from "@/components/mypage/theme-verse-sheet"
 import { Button, ButtonText } from "@/components/ui/button"
+import { DetailActionButton } from "@/components/ui/detail-action-button"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { ScreenHeader } from "@/components/ui/screen-header"
 import { useAppSettings } from "@/contexts/app-settings"
@@ -174,23 +175,31 @@ export default function ThemeVerseDetailScreen() {
       edges={["top", "bottom", "left", "right"]}
     >
       <ScreenHeader
+        icon="sparkles-outline"
+        tone="bible"
         title={t("themeVerse.title")}
         onBack={() => router.back()}
-        right={
-          isCurrentYear ? (
-            <Button
-              onPress={() => setIsSheetOpen(true)}
-              size="md"
-              className="rounded-2xl bg-primary-500"
-            >
-              <ButtonText className="font-semibold text-white dark:text-gray-900">
-                {selectedItem
-                  ? t("themeVerse.editCurrentYear")
-                  : t("themeVerse.setCurrentYear")}
-              </ButtonText>
-            </Button>
-          ) : null
-        }
+        right={isCurrentYear
+          ? (
+            selectedItem ? (
+              <DetailActionButton
+                action="edit"
+                label={t("themeVerse.editCurrentYear")}
+                onPress={() => setIsSheetOpen(true)}
+              />
+            ) : (
+              <Button
+                onPress={() => setIsSheetOpen(true)}
+                size="md"
+                className="rounded-2xl bg-primary-500"
+              >
+                <ButtonText className="font-semibold text-white dark:text-gray-900">
+                  {t("themeVerse.setCurrentYear")}
+                </ButtonText>
+              </Button>
+            )
+          )
+          : null}
       />
 
       <ScrollView
@@ -271,7 +280,7 @@ export default function ThemeVerseDetailScreen() {
                   onPress={() => setIsSheetOpen(true)}
                   className="mt-5 self-start rounded-2xl bg-primary-500"
                 >
-                  <ButtonText className="font-semibold text-white">
+                  <ButtonText className="font-semibold text-white dark:text-gray-900">
                     {t("themeVerse.setCurrentYear")}
                   </ButtonText>
                 </Button>
@@ -343,16 +352,13 @@ export default function ThemeVerseDetailScreen() {
             {t("themeVerse.pastYearLocked")}
           </Text>
         ) : selectedItem ? (
-          <Button
+          <DetailActionButton
+            action="delete"
+            label={t("themeVerse.deleteCurrentYear")}
             onPress={handleDelete}
-            action="negative"
             variant="outline"
-            className="mt-5 rounded-2xl border-red-300 bg-transparent dark:border-red-800"
-          >
-            <ButtonText className="font-semibold text-red-500 dark:text-red-400">
-              {t("themeVerse.deleteCurrentYear")}
-            </ButtonText>
-          </Button>
+            className="mt-5"
+          />
         ) : null}
       </ScrollView>
 

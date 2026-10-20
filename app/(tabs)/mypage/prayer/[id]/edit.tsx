@@ -1,3 +1,5 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { AppIcon } from "@/components/ui/feature";
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button"
 import { IconSymbol } from "@/components/ui/icon-symbol"
 import { LoadingScreen } from "@/components/ui/loading-screen"
@@ -179,35 +181,25 @@ export default function EditPrayerScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={["top", "bottom", "left", "right"]}
     >
-      <View className="px-4 pt-4 pb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <IconSymbol
-            name="chevron.right"
-            size={18}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: "180deg" }] }}
-          />
-          <Text
-            onPress={() => router.back()}
-            className="text-base text-gray-700 dark:text-gray-300"
+      <ScreenHeader
+        title={t("prayerDrawer.editTitle")}
+        onBack={() => router.back()}
+        icon="create-outline"
+        tone="prayer"
+        stackActions
+        right={
+          <Button
+            onPress={handleSave}
+            disabled={isLoading}
+            className="h-auto min-h-11 rounded-2xl bg-primary-500 px-3 py-3"
           >
-            {t("common.back")}
-          </Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-            {t("prayerDrawer.editTitle")}
-          </Text>
-        </View>
-        <Button
-          onPress={handleSave}
-          disabled={isLoading}
-          className="h-auto rounded-lg bg-primary-500 px-3 py-2 active:opacity-90"
-        >
-          {isLoading ? <ButtonSpinner color="#ffffff" /> : null}
-          <ButtonText className="text-sm font-semibold text-white">
-            {t("prayerDrawer.save")}
-          </ButtonText>
-        </Button>
-      </View>
+            {isLoading
+              ? <ButtonSpinner color="#FFFFFF" />
+              : <AppIcon name="checkmark-outline" onPrimary size={18} />}
+            <ButtonText className="text-white dark:text-gray-900">{t("prayerDrawer.save")}</ButtonText>
+          </Button>
+        }
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -292,7 +284,7 @@ export default function EditPrayerScreen() {
               size="sm"
               className="h-auto rounded-lg bg-primary-500 px-3 py-1.5 active:opacity-90"
             >
-              <ButtonText className="text-sm font-semibold text-white">
+              <ButtonText className="text-sm font-semibold text-white dark:text-gray-900">
                 {t("prayerDrawer.addContent")}
               </ButtonText>
             </Button>

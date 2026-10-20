@@ -25,6 +25,19 @@ module.exports = {
     },
     extend: {
       colors: {
+        gray: {
+          50: '#F7F9F6',
+          100: '#EEF3EF',
+          200: '#E0E8E2',
+          300: '#C5D2C9',
+          400: '#91A398',
+          500: '#66756F',
+          600: '#506258',
+          700: '#3B4D44',
+          800: '#283930',
+          900: '#192622',
+          950: '#101917',
+        },
         primary: {
           0: 'rgb(var(--color-primary-0)/<alpha-value>)',
           50: 'rgb(var(--color-primary-50)/<alpha-value>)',

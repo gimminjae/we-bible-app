@@ -6,6 +6,7 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import { MemberMetadataTable } from '@/components/churches/member-metadata-table';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { DetailActionButton } from '@/components/ui/detail-action-button';
 import {
   MetadataButton,
   MetadataInput,
@@ -280,7 +281,9 @@ export default function MemberMetadataScreen() {
               </MetadataButton>
             </View>
           ) : active.some((field) => field.canEdit) ? (
-            <MetadataButton
+            <DetailActionButton
+              action="edit"
+              label={t('metadata.edit')}
               onPress={() => {
                 setConflict(false);
                 setError(null);
@@ -295,9 +298,7 @@ export default function MemberMetadataScreen() {
                   ),
                 });
               }}
-            >
-              {t('metadata.edit')}
-            </MetadataButton>
+            />
           ) : null}
           {archived.length ? (
             <View className="gap-3">

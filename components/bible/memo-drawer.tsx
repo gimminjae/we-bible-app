@@ -185,7 +185,7 @@ export function MemoDrawer({
             style={{ height: scale(48) }}
           >
             <ButtonText
-              className="font-semibold text-white"
+              className="font-semibold text-white dark:text-gray-900"
               style={{ fontSize: moderateScale(16) }}
             >
               {t('memoDrawer.save')}

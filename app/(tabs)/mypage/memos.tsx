@@ -1,3 +1,5 @@
+import { ScreenHeader } from "@/components/ui/screen-header";
+import { AppIcon, EmptyState, FeatureIcon } from "@/components/ui/feature";
 import { MemoDrawer } from '@/components/bible/memo-drawer';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -120,26 +122,21 @@ export default function MemoListScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       edges={['top', 'bottom', 'left', 'right']}
     >
-      <View
-        className="flex-row items-center"
-        style={{
-          paddingHorizontal: scale(16),
-          paddingTop: scale(16),
-          paddingBottom: scale(12),
-          gap: scale(12),
-        }}
-      >
-        <IconSymbol name="chevron.right" size={moderateScale(18)} color="#9ca3af" style={{ transform: [{ rotate: '180deg' }] }} />
-        <Text onPress={() => router.back()} className="text-gray-700 dark:text-gray-300" style={{ fontSize: moderateScale(16) }}>
-          {t('common.back')}
-        </Text>
-        <Text className="font-bold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(18), marginLeft: scale(8) }}>{t('mypage.memosTitle')}</Text>
-        <View className="flex-1 items-end">
-          <Button onPress={handleOpenCreateDrawer} action="primary" size="sm">
-            <ButtonText>{t('mypage.writeMemo')}</ButtonText>
+      <ScreenHeader
+        title={t("mypage.memosTitle")}
+        onBack={() => router.back()}
+        icon="create-outline"
+        tone="memo"
+        right={
+          <Button
+            onPress={handleOpenCreateDrawer}
+            className="h-auto min-h-11 gap-2 rounded-2xl bg-primary-500 px-3 py-3"
+          >
+            <AppIcon name="add" onPrimary size={18} />
+            <ButtonText className="text-white dark:text-gray-900">{t("mypage.writeMemo")}</ButtonText>
           </Button>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         className="flex-1"
@@ -147,7 +144,7 @@ export default function MemoListScreen() {
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 ? (
-          <Text className="text-gray-500 dark:text-gray-400" style={{ marginTop: scale(24) }}>{t('mypage.emptyMemos')}</Text>
+          <EmptyState message={t("mypage.emptyMemos")} icon="create-outline" tone="memo" />
         ) : (
           items.map((item) => {
             const titleText = item.title?.trim() ? item.title : item.verseText;
@@ -160,10 +157,11 @@ export default function MemoListScreen() {
                     params: { id: String(item.id) },
                   })
                 }
-                className="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+                className="rounded-3xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900"
                 style={{ marginBottom: scale(12), paddingHorizontal: scale(16), paddingVertical: scale(12) }}
               >
-                <Text numberOfLines={2} className="text-gray-900 dark:text-white" style={{ fontSize: moderateScale(16), lineHeight: moderateScale(24) }}>
+                <View className="mb-3"><FeatureIcon name="document-text-outline" tone="memo" size={36} /></View>
+                <Text numberOfLines={2} className="font-semibold text-gray-900 dark:text-white" style={{ fontSize: moderateScale(16), lineHeight: moderateScale(24) }}>
                   {titleText || t('mypage.untitled')}
                 </Text>
                 <View className="flex-row items-center justify-between" style={{ marginTop: scale(8) }}>
