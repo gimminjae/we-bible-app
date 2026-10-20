@@ -142,6 +142,7 @@ export function CommentForm(
         accessibilityLabel={kind === "meditation" ? "묵상 내용" : "댓글 내용"}
         editable={!busy}
         multiline
+        scrollEnabled
         value={content}
         onChangeText={setContent}
         maxLength={kind === "meditation" ? 5000 : 2000}
@@ -150,6 +151,7 @@ export function CommentForm(
           ? "선택한 말씀을 묵상하며 느낀 내용을 나눠 주세요."
           : "댓글을 입력해 주세요."}
         className={`${inputClass} min-h-28`}
+        style={{ maxHeight: 160 }}
       />
       {error
         ? (

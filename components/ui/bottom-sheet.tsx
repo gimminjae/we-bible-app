@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '@/hooks/use-responsive';
+import { keyboardOverlap } from '@/utils/keyboard-layout';
+import { KeyboardAvoidanceContext } from './keyboard-layout';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -67,8 +69,7 @@ export function BottomSheet({
 
     const resolveKeyboardHeight = (event: KeyboardEvent) => {
       const keyboardScreenY = event.endCoordinates?.screenY ?? windowHeight;
-      const overlapHeight = Math.max(0, windowHeight - keyboardScreenY);
-      return Math.max(overlapHeight, event.endCoordinates?.height ?? 0);
+      return keyboardOverlap(windowHeight, keyboardScreenY);
     };
 
     const animateKeyboardInset = (nextKeyboardHeight: number, duration?: number) => {
@@ -85,6 +86,10 @@ export function BottomSheet({
     const handleKeyboardHide = (event?: KeyboardEvent) => {
       animateKeyboardInset(0, event?.duration);
     };
+
+    // The sheet can open while another input has already opened the keyboard.
+    const metrics = Platform.OS === 'web' ? undefined : Keyboard.metrics();
+    animateKeyboardInset(metrics ? keyboardOverlap(windowHeight, metrics.screenY) : 0, 0);
 
     const showEventName = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEventName = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -195,10 +200,12 @@ export function BottomSheet({
                 borderTopLeftRadius: scale(16),
                 borderTopRightRadius: scale(16),
                 overflow: 'hidden',
-                paddingBottom: Math.max(scale(34), insets.bottom),
+                paddingBottom: keyboardHeight > 0 ? scale(8) : Math.max(scale(34), insets.bottom),
               }}
             >
-              {children}
+              <KeyboardAvoidanceContext.Provider value>
+                {children}
+              </KeyboardAvoidanceContext.Provider>
             </View>
           </Animated.View>
         </Animated.View>

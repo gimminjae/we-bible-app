@@ -1,9 +1,10 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useI18n } from '@/utils/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 
 type MemoDrawerProps = {
   isOpen: boolean;
@@ -76,15 +77,15 @@ export function MemoDrawer({
           {isEditMode ? t('memoDrawer.editTitle') : t('memoDrawer.title')}
         </Text>
       </View>
-      <View style={{ flex: 1, minHeight: 280 }}>
-        <ScrollView
+      <View style={{ flex: 1, minHeight: 0 }}>
+        <KeyboardScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             paddingHorizontal: scale(16),
             paddingVertical: scale(12),
             paddingBottom: scale(16),
           }}
-          automaticallyAdjustKeyboardInsets
+
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
@@ -150,13 +151,13 @@ export function MemoDrawer({
             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg"
             style={{
               textAlignVertical: 'top',
-              minHeight: scale(200),
+              height: scale(144),
               paddingHorizontal: scale(12),
               paddingVertical: scale(10),
               fontSize: moderateScale(16),
             }}
           />
-        </ScrollView>
+        </KeyboardScrollView>
         <View
           className="border-t border-gray-100 dark:border-gray-800 flex-row"
           style={{

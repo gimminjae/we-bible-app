@@ -1,5 +1,6 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useState, type ReactNode } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { ChurchRoleBadge } from '@/components/churches/role-badge';
@@ -227,7 +228,7 @@ export function MemberMetadataSearch({
             value={filter}
             onChangeText={setFilter}
           />
-          <ScrollView
+          <KeyboardScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ gap: 8 }}
           >
@@ -252,7 +253,7 @@ export function MemberMetadataSearch({
                   {f.label}
                 </MetadataButton>
               ))}
-          </ScrollView>
+          </KeyboardScrollView>
         </View>
       </BottomSheet>
     </>

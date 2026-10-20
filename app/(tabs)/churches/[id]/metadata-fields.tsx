@@ -1,7 +1,7 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useEffect, useRef, useState } from 'react';
 import {
   Platform,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -117,7 +117,7 @@ function FieldEditor({
   };
   return (
     <BottomSheet visible onClose={() => void close()} heightFraction={0.9}>
-      <ScrollView
+      <KeyboardScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, gap: 16 }}
       >
@@ -260,7 +260,7 @@ function FieldEditor({
         <MetadataButton secondary disabled={busy} onPress={() => void close()}>
           {t('metadata.cancel')}
         </MetadataButton>
-      </ScrollView>
+      </KeyboardScrollView>
     </BottomSheet>
   );
 }

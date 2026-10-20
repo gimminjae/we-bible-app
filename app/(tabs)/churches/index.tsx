@@ -1,9 +1,9 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useState } from 'react';
 import {
   ImageBackground,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -108,10 +108,10 @@ function SearchChurchDrawer({
     <BottomSheet visible={visible} onClose={onClose} heightFraction={0.82}>
       <DrawerHeader title={t('church.searchTitle')} onClose={onClose} />
       <View style={{ flex: 1 }}>
-        <ScrollView
+        <KeyboardScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 24 }}
-          automaticallyAdjustKeyboardInsets
+
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -194,7 +194,7 @@ function SearchChurchDrawer({
               </View>
             ))
           )}
-        </ScrollView>
+        </KeyboardScrollView>
       </View>
     </BottomSheet>
   );
@@ -440,7 +440,7 @@ export default function ChurchesScreen() {
           : null}
       />
 
-      <ScrollView
+      <KeyboardScrollView
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
@@ -566,7 +566,7 @@ export default function ChurchesScreen() {
             <AdBanner />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <ChurchInfoSheet
         visible={isCreateDrawerOpen}

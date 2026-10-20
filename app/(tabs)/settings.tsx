@@ -1,10 +1,10 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { AppIcon, FeatureLabel } from "@/components/ui/feature";
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
   Pressable,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -627,7 +627,7 @@ export default function SettingsScreen() {
     >
       <ScreenHeader title={t('settings.title')} icon="settings-outline" tone="settings" />
 
-      <ScrollView
+      <KeyboardScrollView
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: scale(20),
@@ -1042,7 +1042,7 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <SelectionSheet
         visible={languageSheetVisible}
@@ -1067,7 +1067,7 @@ export default function SettingsScreen() {
               {t('settings.displayNameTitle')}
             </Text>
           </View>
-          <View className="px-6 py-6">
+          <KeyboardScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 24 }}>
             <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
               {t('settings.displayNameLabel')}
             </Text>
@@ -1091,7 +1091,7 @@ export default function SettingsScreen() {
             >
               <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.displayNameSave')}</ButtonText>
             </Button>
-          </View>
+          </KeyboardScrollView>
         </View>
       </BottomSheet>
 
@@ -1106,7 +1106,7 @@ export default function SettingsScreen() {
               {notificationTimeSheetTitle}
             </Text>
           </View>
-          <View className="px-6 py-6">
+          <KeyboardScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 24 }}>
             <Text className="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">
               {t('settings.themeVerseNotificationTimeHourLabel')}
             </Text>
@@ -1148,7 +1148,7 @@ export default function SettingsScreen() {
                 {t('settings.themeVerseNotificationTimeSave')}
               </ButtonText>
             </Button>
-          </View>
+          </KeyboardScrollView>
         </View>
       </BottomSheet>
 
@@ -1166,10 +1166,10 @@ export default function SettingsScreen() {
               {t('settings.developerInquiryModalTitle')}
             </Text>
           </View>
-          <ScrollView
+          <KeyboardScrollView
             className="flex-1"
             contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 24, paddingBottom: 32 }}
-            automaticallyAdjustKeyboardInsets
+
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -1213,7 +1213,7 @@ export default function SettingsScreen() {
               multiline
               maxLength={4000}
               className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white"
-              style={{ minHeight: 160, textAlignVertical: 'top' }}
+              style={{ height: 160, textAlignVertical: 'top' }}
             />
 
             <Button
@@ -1225,7 +1225,7 @@ export default function SettingsScreen() {
             >
               <ButtonText className="font-semibold text-white dark:text-gray-900">{t('settings.developerInquirySubmit')}</ButtonText>
             </Button>
-          </ScrollView>
+          </KeyboardScrollView>
         </View>
       </BottomSheet>
     </SafeAreaView>

@@ -1,5 +1,6 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 
 import { Button, ButtonText } from '@/components/ui/button';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
@@ -108,7 +109,7 @@ export function PlanForm({
 
   return (
     <View className="flex-1">
-      <ScrollView
+      <KeyboardScrollView
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -133,6 +134,7 @@ export function PlanForm({
           placeholder={t('planDrawer.planDescriptionPlaceholder')}
           placeholderTextColor="#9ca3af"
           multiline
+          style={{ maxHeight: 160 }}
           textAlignVertical="top"
           className="mb-4 min-h-[112px] rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
         />
@@ -262,7 +264,7 @@ export function PlanForm({
         >
           <ButtonText className="font-semibold text-white dark:text-gray-900">{submitLabel}</ButtonText>
         </Button>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <DatePickerModal
         visible={calendarOpen}

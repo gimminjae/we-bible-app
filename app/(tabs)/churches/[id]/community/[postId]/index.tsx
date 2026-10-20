@@ -24,6 +24,7 @@ import {
 import { CommentForm } from "@/components/community/comment-form";
 import { MeditationContent } from "@/components/community/meditation-content";
 import { DetailActionButton } from "@/components/ui/detail-action-button";
+import { KeyboardScrollView } from "@/components/ui/keyboard-scroll-view";
 
 function PostContent(
   { churchId, post, run, busy }: {
@@ -219,6 +220,8 @@ export default function CommunityPostScreen() {
         )
         : (
           <FlatList
+            renderScrollComponent={(props) => <KeyboardScrollView {...props} />}
+            removeClippedSubviews={false}
             data={comments.data?.pages.flatMap((page) => page.items) ?? []}
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"

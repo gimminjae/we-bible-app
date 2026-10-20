@@ -1,3 +1,4 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { ScreenHeader } from "@/components/ui/screen-header";
 import { AppIcon, EmptyState } from "@/components/ui/feature";
 import { Button, ButtonText } from "@/components/ui/button"
@@ -12,7 +13,7 @@ import { useFocusEffect } from 'expo-router';
 import { useRouter } from "expo-router"
 import { useSQLiteContext } from "expo-sqlite"
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, Text, TextInput, View } from "react-native"
+import { Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 type PrayerGroup = {
@@ -286,7 +287,7 @@ export default function PrayerListScreen() {
         }
       />
 
-      <ScrollView
+      <KeyboardScrollView
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: scale(16),
@@ -338,7 +339,7 @@ export default function PrayerListScreen() {
             </>
           )}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   )
 }

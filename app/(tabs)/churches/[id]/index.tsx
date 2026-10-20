@@ -1,3 +1,4 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { AppIcon, type AppIconName } from "@/components/ui/feature";
 import { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
@@ -5,7 +6,6 @@ import { Image as ExpoImage } from 'expo-image';
 import {
   Alert,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -896,7 +896,7 @@ export default function ChurchDetailScreen() {
         onBack={() => router.back()}
       />
 
-      <ScrollView
+      <KeyboardScrollView
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
@@ -1536,7 +1536,7 @@ export default function ChurchDetailScreen() {
           </>
         ) : null}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
 
       <SelectionSheet
         visible={Boolean(pickerState)}

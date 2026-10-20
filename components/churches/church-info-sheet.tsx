@@ -1,5 +1,6 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Switch, Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -89,10 +90,10 @@ export function ChurchInfoSheet({
         </View>
 
         <View style={{ flex: 1 }}>
-          <ScrollView
+          <KeyboardScrollView
             className="flex-1"
             contentContainerStyle={{ padding: 24, paddingBottom: 28 }}
-            automaticallyAdjustKeyboardInsets
+
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -124,6 +125,7 @@ export function ChurchInfoSheet({
                 placeholder={t('church.descriptionPlaceholder')}
                 placeholderTextColor="#9ca3af"
                 multiline
+                style={{ maxHeight: 160 }}
                 textAlignVertical="top"
                 className="min-h-32 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
               />
@@ -179,7 +181,7 @@ export function ChurchInfoSheet({
                 </View>
               </View>
             ) : null}
-          </ScrollView>
+          </KeyboardScrollView>
 
           <View className="flex-row gap-3 border-t border-gray-200 px-6 pb-5 pt-3 dark:border-gray-800">
             <Button

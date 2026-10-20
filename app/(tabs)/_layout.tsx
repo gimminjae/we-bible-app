@@ -44,6 +44,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: featureColors.bible[theme].ink,
         tabBarInactiveTintColor: appColors[theme].muted,
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
           fontSize: isTablet ? 12 : 11,

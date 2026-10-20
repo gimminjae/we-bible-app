@@ -1,10 +1,10 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useState, type ReactNode } from 'react';
 import {
   Alert,
   Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -84,7 +84,7 @@ export function MetadataPage({
       edges={['top', 'bottom', 'left', 'right']}
     >
       <ScreenHeader title={title} onBack={onBack} right={right} icon="id-card-outline" tone="community" />
-      <ScrollView
+      <KeyboardScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           padding: 16,
@@ -95,7 +95,7 @@ export function MetadataPage({
         }}
       >
         {children}
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }
@@ -255,6 +255,7 @@ export function MetadataInput({
                   : 'default'
           }
           multiline={!search && field.dataType === 'text'}
+          style={{ maxHeight: 160 }}
           textAlignVertical="top"
         />
       )}

@@ -1,3 +1,4 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,7 +17,7 @@ import {
   type ThemeVerseRecord,
 } from '@/utils/theme-verse-db';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 type ThemeVerseSheetProps = {
   visible: boolean;
@@ -318,14 +319,14 @@ export function ThemeVerseSheet({
 
         {pickerStep === 'form' ? (
           <View style={{ flex: 1 }}>
-            <ScrollView
+            <KeyboardScrollView
               className="flex-1"
               contentContainerStyle={{
                 paddingHorizontal: scale(20),
                 paddingTop: scale(18),
                 paddingBottom: scale(24),
               }}
-              automaticallyAdjustKeyboardInsets
+
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -431,6 +432,7 @@ export function ThemeVerseSheet({
                   placeholder={t('themeVerse.descriptionPlaceholder')}
                   placeholderTextColor="#9ca3af"
                   multiline
+                  style={{ maxHeight: 160 }}
                   textAlignVertical="top"
                   className="min-h-32 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
                 />
@@ -444,7 +446,7 @@ export function ThemeVerseSheet({
                   {errorMessage}
                 </Text>
               ) : null}
-            </ScrollView>
+            </KeyboardScrollView>
 
             <View
               className="flex-row gap-3 border-t border-gray-200 px-6 pb-5 pt-3 dark:border-gray-800"
@@ -503,7 +505,7 @@ export function ThemeVerseSheet({
               })}
             </View>
 
-            <ScrollView
+            <KeyboardScrollView
               contentContainerStyle={{
                 paddingHorizontal: scale(20),
                 paddingVertical: scale(16),
@@ -524,10 +526,10 @@ export function ThemeVerseSheet({
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </KeyboardScrollView>
           </View>
         ) : (
-          <ScrollView
+          <KeyboardScrollView
             contentContainerStyle={{
               paddingHorizontal: scale(20),
               paddingTop: scale(16),
@@ -563,7 +565,7 @@ export function ThemeVerseSheet({
                 ),
               )}
             </View>
-          </ScrollView>
+          </KeyboardScrollView>
         )}
       </View>
     </BottomSheet>

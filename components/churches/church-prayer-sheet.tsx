@@ -1,5 +1,6 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
@@ -85,10 +86,10 @@ export function ChurchPrayerSheet({
             </Text>
           </View>
 
-          <ScrollView
+          <KeyboardScrollView
             className="flex-1"
             contentContainerStyle={{ padding: 24 }}
-            automaticallyAdjustKeyboardInsets
+
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
@@ -173,6 +174,7 @@ export function ChurchPrayerSheet({
                 value={content}
                 onChangeText={setContent}
                 multiline
+                style={{ maxHeight: 160 }}
                 textAlignVertical="top"
                 placeholder={
                   mode === 'edit'
@@ -215,7 +217,7 @@ export function ChurchPrayerSheet({
                 <ButtonText className="font-semibold text-white dark:text-gray-900">{t('prayerDrawer.save')}</ButtonText>
               </Button>
             </View>
-          </ScrollView>
+          </KeyboardScrollView>
         </View>
       </BottomSheet>
 

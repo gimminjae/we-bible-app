@@ -1,5 +1,6 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { useAppSettings } from "@/contexts/app-settings";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -69,6 +70,24 @@ export function PostForm(
   const [editorReady, setEditorReady] = useState(false);
   const [error, setError] = useState("");
   const editor = useRef<CommunityEditorHandle>(null);
+  const formScroll = useRef<ScrollView>(null);
+  const editorSectionY = useRef(0);
+  const editorFrameY = useRef(0);
+  const [formHeight, setFormHeight] = useState(480);
+  const [editorFocused, setEditorFocused] = useState(false);
+  const editorHeight = Math.max(160, Math.min(420, formHeight - 16));
+  const revealEditor = useCallback(() => {
+    formScroll.current?.scrollTo({
+      y: Math.max(0, editorSectionY.current + editorFrameY.current - 8),
+      animated: false,
+    });
+  }, []);
+  useEffect(() => {
+    if (!editorFocused) return;
+    // Re-align after the keyboard changes the ScrollView's available height.
+    const frame = requestAnimationFrame(revealEditor);
+    return () => cancelAnimationFrame(frame);
+  }, [editorFocused, editorHeight, revealEditor]);
   const saving = useRef(false);
   const lastRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const uploads = useCommunityUploads(churchId);
@@ -206,7 +225,11 @@ export function PostForm(
         </CommunityButton>
       }
     >
-      <ScrollView
+      <KeyboardScrollView
+        ref={formScroll}
+        style={{ flex: 1 }}
+        onLayout={(event) => setFormHeight(event.nativeEvent.layout.height)}
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 20 }}
       >
@@ -266,39 +289,52 @@ export function PostForm(
             className={inputClass}
           />
         </View>
-        <View>
+        <View onLayout={(event) => {
+          editorSectionY.current = event.nativeEvent.layout.y;
+        }}>
           <Label>본문</Label>
           <Text className="mb-2 text-sm text-gray-500">
-            글을 쓰다가 이미지 삽입을 누르면 현재 위치에 추가됩니다.
+            도구 모음을 좌우로 밀어 서식과 사진을 추가하세요.
           </Text>
-          <RichEditor
-            ref={editor}
-            onReady={async () => {
-              setEditorReady(true);
-            }}
-            initialContent={post?.body ?? EMPTY_BODY}
-            readOnly={busy}
-            images={images}
-            dark={dark}
-            dom={{ matchContents: true, scrollEnabled: false }}
-            onChange={async (value) => {
-              changed();
-              setBody(value);
-            }}
-            onSnapshot={commit}
-            onLink={async (url) => {
-              await Linking.openURL(url);
-            }}
-            onPickImage={async (id) => {
-              try {
+          <View onLayout={(event) => {
+            editorFrameY.current = event.nativeEvent.layout.y;
+          }}>
+            <RichEditor
+              ref={editor}
+              onReady={async () => {
+                setEditorReady(true);
+              }}
+              initialContent={post?.body ?? EMPTY_BODY}
+              readOnly={busy}
+              images={images}
+              dark={dark}
+              viewportHeight={editorHeight}
+              onEditingFocusChange={async (focused) => setEditorFocused(focused)}
+              dom={{
+                matchContents: true,
+                scrollEnabled: false,
+                automaticallyAdjustContentInsets: false,
+                contentInsetAdjustmentBehavior: "never",
+              }}
+              onChange={async (value) => {
                 changed();
-                return await uploads.pick("image", id);
-              } catch (error) {
-                setError(communityError(error));
-                return false;
-              }
-            }}
-          />
+                setBody(value);
+              }}
+              onSnapshot={commit}
+              onLink={async (url) => {
+                await Linking.openURL(url);
+              }}
+              onPickImage={async (id) => {
+                try {
+                  changed();
+                  return await uploads.pick("image", id);
+                } catch (error) {
+                  setError(communityError(error));
+                  return false;
+                }
+              }}
+            />
+          </View>
           <Text className="mt-2 text-right text-xs text-gray-500">
             {bodyText(body).length.toLocaleString()} / 20,000자
           </Text>
@@ -442,7 +478,7 @@ export function PostForm(
         >
           {busy ? "저장 중…" : post ? "수정 완료" : "글 등록"}
         </CommunityButton>
-      </ScrollView>
+      </KeyboardScrollView>
     </CommunityShell>
   );
 }

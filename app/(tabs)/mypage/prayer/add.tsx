@@ -1,3 +1,4 @@
+import { KeyboardScrollView } from '@/components/ui/keyboard-scroll-view';
 import { ScreenHeader } from "@/components/ui/screen-header";
 import { AppIcon } from "@/components/ui/feature";
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
@@ -12,10 +13,9 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
+
+
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -124,90 +124,85 @@ export default function AddPrayerScreen() {
         }
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+      <KeyboardScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 24 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <Pressable
+          onPress={handleToggleMyPrayer}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isMyPrayer }}
+          className="mb-4 flex-row items-start rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
+          style={{ gap: 12 }}
         >
-          <Pressable
-            onPress={handleToggleMyPrayer}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: isMyPrayer }}
-            className="mb-4 flex-row items-start rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-            style={{ gap: 12 }}
-          >
-            <IconSymbol
-              name={isMyPrayer ? 'checkmark.square.fill' : 'square'}
-              size={20}
-              color={isMyPrayer ? '#0ea5e9' : '#9ca3af'}
+          <IconSymbol
+            name={isMyPrayer ? 'checkmark.square.fill' : 'square'}
+            size={20}
+            color={isMyPrayer ? '#0ea5e9' : '#9ca3af'}
+          />
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-gray-900 dark:text-white">
+              {t('mypage.myPrayerToggleLabel')}
+            </Text>
+            {/* <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('mypage.myPrayerToggleDescription')}
+            </Text> */}
+          </View>
+        </Pressable>
+
+        {!isMyPrayer ? (
+          <>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              {t('prayerDrawer.requesterLabel')}
+            </Text>
+            <TextInput
+              value={requester}
+              onChangeText={setRequester}
+              placeholder={t('prayerDrawer.requesterPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
             />
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-gray-900 dark:text-white">
-                {t('mypage.myPrayerToggleLabel')}
-              </Text>
-              {/* <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {t('mypage.myPrayerToggleDescription')}
-              </Text> */}
-            </View>
-          </Pressable>
+          </>
+        ) : null}
 
-          {!isMyPrayer ? (
-            <>
-              <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                {t('prayerDrawer.requesterLabel')}
-              </Text>
-              <TextInput
-                value={requester}
-                onChangeText={setRequester}
-                placeholder={t('prayerDrawer.requesterPlaceholder')}
-                placeholderTextColor="#9ca3af"
-                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-              />
-            </>
-          ) : null}
+        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+          {t('prayerDrawer.relationLabel')}
+        </Text>
+        <TextInput
+          value={relation}
+          onChangeText={setRelation}
+          placeholder={t('prayerDrawer.relationPlaceholder')}
+          placeholderTextColor="#9ca3af"
+          maxLength={50}
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+        />
 
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            {t('prayerDrawer.relationLabel')}
-          </Text>
-          <TextInput
-            value={relation}
-            onChangeText={setRelation}
-            placeholder={t('prayerDrawer.relationPlaceholder')}
-            placeholderTextColor="#9ca3af"
-            maxLength={50}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-          />
+        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+          {t('prayerDrawer.targetLabel')}
+        </Text>
+        <TextInput
+          value={target}
+          onChangeText={setTarget}
+          placeholder={t('prayerDrawer.targetPlaceholder')}
+          placeholderTextColor="#9ca3af"
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
+        />
 
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            {t('prayerDrawer.targetLabel')}
-          </Text>
-          <TextInput
-            value={target}
-            onChangeText={setTarget}
-            placeholder={t('prayerDrawer.targetPlaceholder')}
-            placeholderTextColor="#9ca3af"
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base mb-4"
-          />
-
-          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-            {t('prayerDrawer.contentLabel')}
-          </Text>
-          <TextInput
-            value={content}
-            onChangeText={setContent}
-            placeholder={t('prayerDrawer.contentPlaceholder')}
-            placeholderTextColor="#9ca3af"
-            multiline
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base"
-            style={{ textAlignVertical: 'top', minHeight: 120 }}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <Text className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+          {t('prayerDrawer.contentLabel')}
+        </Text>
+        <TextInput
+          value={content}
+          onChangeText={setContent}
+          placeholder={t('prayerDrawer.contentPlaceholder')}
+          placeholderTextColor="#9ca3af"
+          multiline
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 text-base"
+            style={{ textAlignVertical: 'top', minHeight: 120, maxHeight: 160 }}
+        />
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }

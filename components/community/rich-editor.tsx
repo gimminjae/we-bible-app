@@ -5,6 +5,7 @@ import {
   type Ref,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import type { RichNode } from "@/domain/community/types";
+import { EditorIcon } from "./editor-icon";
 import "./rich-editor.css";
 
 export interface CommunityEditorHandle extends DOMImperativeFactory {
@@ -75,22 +77,37 @@ function ImageView(
       {editor.isEditable
         ? (
           <div className="image-actions" contentEditable={false}>
-            <span data-drag-handle>⠿ 이동</span>
+            <span
+              data-drag-handle
+              title="이미지 드래그하여 이동"
+              aria-label="이미지 드래그하여 이동"
+            >
+              <EditorIcon name="grip" />
+            </span>
             <button
               type="button"
               onClick={() => move(-1)}
               aria-label="이미지 위로 이동"
+              title="이미지 위로 이동"
             >
-              ↑
+              <EditorIcon name="arrowUp" />
             </button>
             <button
               type="button"
               onClick={() => move(1)}
               aria-label="이미지 아래로 이동"
+              title="이미지 아래로 이동"
             >
-              ↓
+              <EditorIcon name="arrowDown" />
             </button>
-            <button type="button" onClick={deleteNode}>이미지 삭제</button>
+            <button
+              type="button"
+              onClick={deleteNode}
+              aria-label="이미지 삭제"
+              title="이미지 삭제"
+            >
+              <EditorIcon name="trash" />
+            </button>
           </div>
         )
         : null}
@@ -141,6 +158,8 @@ export default function RichEditor(
     onPickImage,
     onLink,
     onReady,
+    viewportHeight,
+    onEditingFocusChange,
     ref,
   }: {
     initialContent: RichNode;
@@ -152,12 +171,16 @@ export default function RichEditor(
     onPickImage?: (id: string) => Promise<boolean>;
     onLink?: (url: string) => Promise<void>;
     onReady?: () => Promise<void>;
+    /** A bounded writing area keeps the toolbar above the native keyboard. */
+    viewportHeight?: number;
+    onEditingFocusChange?: (focused: boolean) => Promise<void>;
     ref?: Ref<CommunityEditorHandle>;
     dom?: DOMProps;
   },
 ) {
   const [link, setLink] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -229,6 +252,19 @@ export default function RichEditor(
   useEffect(() => {
     if (editor) void onReady?.();
   }, [editor, onReady]);
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!editor || !content || viewportHeight === undefined) return;
+    // The keyboard can shrink the writing area without changing the selection.
+    // Ask ProseMirror to reveal that selection in the inner scroller, after layout.
+    const observer = new ResizeObserver(() => {
+      if (!editor.isDestroyed && editor.isFocused && !editor.view.composing) {
+        editor.commands.scrollIntoView();
+      }
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [editor, viewportHeight]);
   async function insertImage() {
     if (!editor || !onPickImage) return;
     const id = crypto.randomUUID();
@@ -293,7 +329,18 @@ export default function RichEditor(
     <div
       className={`community-editor ${dark ? "dark" : ""} ${
         readOnly ? "read-only" : ""
-      }`}
+      } ${viewportHeight === undefined ? "" : "bounded"}`}
+      style={viewportHeight === undefined ? undefined : { height: viewportHeight }}
+      onFocusCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) {
+          void onEditingFocusChange?.(true);
+        }
+      }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) {
+          void onEditingFocusChange?.(false);
+        }
+      }}
     >
       {!readOnly
         ? (
@@ -303,49 +350,67 @@ export default function RichEditor(
                 type="button"
                 key={label}
                 aria-pressed={editor?.isActive(type)}
+                aria-label={label}
+                title={label}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={action}
               >
-                {label}
+                <EditorIcon name={type} />
               </button>
             ))}
             <button
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => setLinkOpen(!linkOpen)}
+              aria-label="링크"
+              title="링크"
+              aria-expanded={linkOpen}
+              aria-pressed={editor?.isActive("link")}
             >
-              링크
+              <EditorIcon name="link" />
             </button>
             <button
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => void insertImage()}
-              disabled={!editor}
+              disabled={!editor || !onPickImage}
+              aria-label="이미지 삽입"
+              title="이미지 삽입"
             >
-              이미지 삽입
+              <EditorIcon name="image" />
             </button>
             <button
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().undo().run()}
+              disabled={!editor?.can().undo()}
+              aria-label="되돌리기"
+              title="되돌리기"
             >
-              되돌리기
+              <EditorIcon name="undo" />
             </button>
             <button
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().redo().run()}
+              disabled={!editor?.can().redo()}
+              aria-label="다시 실행"
+              title="다시 실행"
             >
-              다시 실행
+              <EditorIcon name="redo" />
             </button>
           </div>
         )
         : null}
-      {linkOpen
+      {linkOpen && !readOnly
         ? (
           <div className="link-form">
             <input
               aria-label="링크 주소"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
               placeholder="https://"
               value={link}
               onChange={(event) => setLink(event.target.value)}
@@ -353,27 +418,44 @@ export default function RichEditor(
             <button
               type="button"
               disabled={!/^https?:\/\/\S+$/i.test(link)}
+              aria-label="링크 적용"
+              title="링크 적용"
               onClick={() => {
                 editor?.chain().focus().setLink({ href: link }).run();
                 setLinkOpen(false);
               }}
             >
-              적용
+              <EditorIcon name="check" />
             </button>
             <button
               type="button"
+              aria-label="링크 제거"
+              title="링크 제거"
               onClick={() => {
                 editor?.chain().focus().unsetLink().run();
                 setLinkOpen(false);
               }}
             >
-              링크 제거
+              <EditorIcon name="unlink" />
+            </button>
+            <button
+              type="button"
+              aria-label="링크 입력 닫기"
+              title="링크 입력 닫기"
+              onClick={() => {
+                setLinkOpen(false);
+                editor?.commands.focus();
+              }}
+            >
+              <EditorIcon name="close" />
             </button>
           </div>
         )
         : null}
       <Images.Provider value={images}>
-        <EditorContent editor={editor} />
+        <div ref={contentRef} className="editor-content">
+          <EditorContent editor={editor} />
+        </div>
       </Images.Provider>
     </div>
   );

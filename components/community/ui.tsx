@@ -12,6 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/ui/screen-header";
 import { AppIcon } from "@/components/ui/feature";
+import {
+  KeyboardAvoidanceContext,
+  KeyboardAvoidingLayout,
+} from "@/components/ui/keyboard-layout";
 export {
   MetadataButton as CommunityButton,
   metadataInputClass as inputClass,
@@ -32,7 +36,9 @@ export function CommunityShell(
       edges={["top", "bottom", "left", "right"]}
     >
       <ScreenHeader title={title} onBack={onBack} right={right} icon="chatbubbles-outline" tone="community" />
-      <View className="w-full max-w-3xl flex-1 self-center">{children}</View>
+      <KeyboardAvoidingLayout>
+        <View className="w-full max-w-3xl flex-1 self-center">{children}</View>
+      </KeyboardAvoidingLayout>
     </SafeAreaView>
   );
 }
@@ -75,45 +81,47 @@ export function Choice(
         animationType="slide"
         onRequestClose={() => setVisible(false)}
       >
-        <CommunityShell
-          title={label}
-          onBack={() => {
-            setVisible(false);
-            setSearch("");
-          }}
-        >
-          <TextInput
-            accessibilityLabel="목록 검색"
-            placeholder="검색"
-            value={search}
-            onChangeText={setSearch}
-            className="m-4 rounded-xl border border-gray-300 px-4 py-3 text-gray-900 dark:text-white"
-          />
-          <FlatList
-            keyboardShouldPersistTaps="handled"
-            data={options.filter((option) =>
-              option.label.toLowerCase().includes(search.toLowerCase())
-            )}
-            keyExtractor={(option) => option.value}
-            renderItem={({ item }) => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: item.value === value }}
-                onPress={() => {
-                  onChange(item.value);
-                  setVisible(false);
-                  setSearch("");
-                }}
-                className={`mx-3 mb-2 flex-row items-center gap-3 rounded-2xl px-5 py-4 ${item.value === value ? 'bg-blue-50 dark:bg-blue-950' : ''}`}
-              >
-                <Text className="flex-1 text-base text-gray-900 dark:text-white">
-                  {item.label}
-                </Text>
-                {item.value === value ? <AppIcon name="checkmark-circle" tone="community" /> : null}
-              </Pressable>
-            )}
-          />
-        </CommunityShell>
+        <KeyboardAvoidanceContext.Provider value={false}>
+          <CommunityShell
+            title={label}
+            onBack={() => {
+              setVisible(false);
+              setSearch("");
+            }}
+          >
+            <TextInput
+              accessibilityLabel="목록 검색"
+              placeholder="검색"
+              value={search}
+              onChangeText={setSearch}
+              className="m-4 rounded-xl border border-gray-300 px-4 py-3 text-gray-900 dark:text-white"
+            />
+            <FlatList
+              keyboardShouldPersistTaps="handled"
+              data={options.filter((option) =>
+                option.label.toLowerCase().includes(search.toLowerCase())
+              )}
+              keyExtractor={(option) => option.value}
+              renderItem={({ item }) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: item.value === value }}
+                  onPress={() => {
+                    onChange(item.value);
+                    setVisible(false);
+                    setSearch("");
+                  }}
+                  className={`mx-3 mb-2 flex-row items-center gap-3 rounded-2xl px-5 py-4 ${item.value === value ? 'bg-blue-50 dark:bg-blue-950' : ''}`}
+                >
+                  <Text className="flex-1 text-base text-gray-900 dark:text-white">
+                    {item.label}
+                  </Text>
+                  {item.value === value ? <AppIcon name="checkmark-circle" tone="community" /> : null}
+                </Pressable>
+              )}
+            />
+          </CommunityShell>
+        </KeyboardAvoidanceContext.Provider>
       </Modal>
     </>
   );
